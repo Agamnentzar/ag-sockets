@@ -51,7 +51,7 @@ describe('DebugPacketHandler', function () {
 		it('should not log ignored message', function () {
 			handler.send(websocket, 'abc', 2, ['a', 'b', 5]);
 
-			log.notCalled;
+			return log.notCalled;
 		});
 	});
 
@@ -93,7 +93,7 @@ describe('DebugPacketHandler', function () {
 		it('should not log ignored message', function () {
 			handler.recv('[2,"a","b",5]', funcs, special, result => { });
 
-			log.notCalled;
+			return log.notCalled;
 		});
 
 		it('should read VERSION message from websocket', function () {

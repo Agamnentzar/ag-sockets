@@ -2,6 +2,7 @@
 
 import * as Promise from 'bluebird';
 import { SocketService, SocketServer, SocketClient, Options, FuncList, Packets, MethodDef, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
+import { get, set, remove } from './map';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
@@ -48,7 +49,8 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			} catch (e) { }
 		}
 	};
-	private defers = new Map<number, Deferred<any>>();
+	private defers: [number, Deferred<any>][] = [];
+	private inProgressFields: { [key: string]: number } = {};
 	constructor(private options: Options, private apply: (f: Function) => void = f => f(), private log: Logger = console.log.bind(console)) {
 		this.options.server.forEach((item, id) => {
 			if (typeof item === 'string') {
@@ -143,8 +145,9 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				}, options.reconnectTimeout);
 			}
 
-			this.defers.forEach(d => d.reject(new Error('disconnected')));
-			this.defers.clear();
+			this.defers.forEach(d => d[1].reject(new Error('disconnected')));
+			this.defers = [];
+			Object.keys(this.inProgressFields).forEach(key => this.inProgressFields[key] = 0);
 
 			if (this.pingInterval) {
 				clearInterval(this.pingInterval);
@@ -187,8 +190,10 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	}
 	private createPromiseMethod(name: string, id: number, inProgressField?: string) {
 		if (inProgressField) {
+			this.inProgressFields[inProgressField] = 0;
+
 			Object.defineProperty(this.server, inProgressField, {
-				get: () => !!this.defers.size
+				get: () => !!this.inProgressFields[inProgressField]
 			});
 		}
 
@@ -197,7 +202,8 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				this.sentSize += this.packet.send(this.socket, name, id, args);
 				const messageId = ++this.lastSentId;
 				const defer = deferred<any>();
-				this.defers.set(messageId, defer);
+				set(this.defers, messageId, defer);
+				this.inProgressFields[inProgressField]++;
 				return defer.promise;
 			} else {
 				return Promise.reject<any>('not connected');
@@ -205,19 +211,20 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		};
 
 		this.special['*resolve:' + name] = (messageId: number, result: any) => {
-			const defer = this.defers.get(messageId);
-
+			const defer = get(this.defers, messageId);
 			if (defer) {
-				this.defers.delete(messageId);
+				remove(this.defers, messageId);
+				this.inProgressFields[inProgressField]--;
 				this.apply(() => defer.resolve(result));
 			}
 		};
 
 		this.special['*reject:' + name] = (messageId: number, error: string) => {
-			const defer = this.defers.get(messageId);
+			const defer = get(this.defers, messageId);
 
 			if (defer) {
-				this.defers.delete(messageId);
+				remove(this.defers, messageId);
+				this.inProgressFields[inProgressField]--;
 				this.apply(() => defer.reject(new Error(error)));
 			}
 		};

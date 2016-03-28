@@ -2,7 +2,7 @@
 
 declare namespace Chai {
 	interface Assertion {
-		rejectedWith(error?: any, message?: any): Promise<any>;
+		rejectedWith(error?: any, message?: any): any;
 		eventually: Assertion;
 	}
 }

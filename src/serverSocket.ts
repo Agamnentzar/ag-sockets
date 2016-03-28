@@ -2,6 +2,7 @@
 
 import { Server as HttpServer, ServerRequest } from 'http';
 import { Server as WebSocketServer } from 'ws';
+import * as Promise from 'bluebird';
 import { Options, MethodMetadata, MethodDef, getNames, getBinary, getIgnore, SocketServer, SocketClient, FuncList, Logger } from './interfaces';
 import { SocketServerClient, ErrorHandler } from './server';
 import { PacketHandler, MessageType } from './packet/packetHandler';
@@ -34,7 +35,7 @@ export function createServer<TServer, TClient>(
 	server: HttpServer, serverType: new (...args: any[]) => TServer, clientType: new (...args: any[]) => TClient,
 	createServer: (client: TClient & SocketServerClient) => TServer, options?: Options, errorHandler?: ErrorHandler, log?: Logger) {
 
-	let opt = Object.assign({}, getSocketMetadata(serverType), options);
+	let opt = (<any>Object).assign({}, getSocketMetadata(serverType), options);
 	opt.client = getMethods(clientType).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
 	opt.server = getMethods(serverType).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
 	return create(server, createServer, opt, errorHandler, log);
