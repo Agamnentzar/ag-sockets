@@ -1,5 +1,8 @@
 ﻿# ag-sockets
 
+[![Build Status](https://travis-ci.org/Agamnentzar/ag-sockets.svg)](https://travis-ci.org/Agamnentzar/ag-sockets)
+[![npm version](https://badge.fury.io/js/ag-sockets.svg)](https://badge.fury.io/js/ag-sockets)
+
 Library for communication via WebSockets
 
 ## Installation
