@@ -1,0 +1,15 @@
+
+/node_modules
+/dist/test
+/results
+/resources
+/src
+/coverage
+/coverage-remapped
+/test
+/.vs
+ag-sockets.sln
+tslint.json
+gulpfile.js
+.gitignore
+.travis.yml

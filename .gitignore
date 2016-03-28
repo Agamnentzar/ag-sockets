@@ -1,0 +1,11 @@
+
+/node_modules
+/dist
+/results
+/resources
+/coverage
+/coverage-remapped
+/typings/browser.d.ts
+/typings/browser
+/.vs
+*.sln
