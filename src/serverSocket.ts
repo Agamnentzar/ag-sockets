@@ -37,10 +37,10 @@ export function createServer<TServer, TClient>(
 	let opt = Object.assign({}, getSocketMetadata(serverType), options);
 	opt.client = getMethods(clientType).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
 	opt.server = getMethods(serverType).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
-	return create(server, opt, createServer, errorHandler, log);
+	return create(server, createServer, opt, errorHandler, log);
 }
 
-export function create(server: HttpServer, options: Options, createServer: (client: any) => any, errorHandler: ErrorHandler = defaultErrorHandler, log: Logger = console.log.bind(console)) {
+export function create(server: HttpServer, createServer: (client: any) => any, options: Options, errorHandler: ErrorHandler = defaultErrorHandler, log: Logger = console.log.bind(console)) {
 	options.reconnectTimeout = options.reconnectTimeout || 500;
 	options.connectionTimeout = options.connectionTimeout || 10000;
 	options.path = options.path || '/websocket';
