@@ -3,7 +3,7 @@ import * as Promise from 'bluebird';
 import * as http from 'http';
 import * as WebSocket from 'ws';
 import { expect } from 'chai';
-import { assert, stub, spy } from 'sinon';
+import { assert, stub, spy, SinonStub, SinonSpy } from 'sinon';
 
 import {
 	Socket, Method, ClientSocket, createServer, ClientExtensions, Server as ServerController,
@@ -48,8 +48,8 @@ describe('ClientSocket + Server', function () {
 	let serverSocket: ServerController;
 	let clientSocket: ClientSocket<Client, Server>;
 	let errorHandler: ErrorHandler;
-	let connected: Sinon.SinonStub;
-	let log: Sinon.SinonSpy;
+	let connected: SinonStub;
+	let log: SinonSpy;
 
 	beforeEach(function (done) {
 		(<any>global).window = { addEventListener() { }, removeEventListener() { } };
