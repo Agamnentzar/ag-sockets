@@ -5,7 +5,8 @@
 		"declaration": true,
 		"experimentalDecorators": true,
 		"emitDecoratorMetadata": true,
-		"target": "es5"
+		"target": "es5",
+		"outDir": "dist"
 	},
 	"exclude": [
 		"node_modules",

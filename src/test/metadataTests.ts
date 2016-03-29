@@ -1,4 +1,4 @@
-﻿import './common';
+import './common';
 import { expect } from 'chai';
 import { MethodMetadata, SocketOptions } from '../interfaces';
 import { Socket, Method, getSocketMetadata, getMethodMetadata } from '../method';

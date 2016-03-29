@@ -1,5 +1,3 @@
-﻿/// <reference path="../../typings/main.d.ts" />
-
 import { BasePacketReader, PacketReader } from './packetReader';
 
 function toUint8Array(buffer: Buffer) {

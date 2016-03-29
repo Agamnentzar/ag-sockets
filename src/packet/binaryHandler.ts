@@ -1,4 +1,4 @@
-﻿import { Packets } from '../interfaces';
+import { Packets } from '../interfaces';
 
 interface CodeSize {
 	code: string;

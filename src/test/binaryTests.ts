@@ -1,4 +1,4 @@
-﻿import './common';
+import './common';
 import { expect } from 'chai';
 import { Packets } from '../interfaces';
 import { createHandlers } from '../packet/binaryHandler';

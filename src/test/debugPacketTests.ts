@@ -1,4 +1,4 @@
-﻿import './common';
+import './common';
 import { spy, stub, SinonSpy } from 'sinon';
 import { expect } from 'chai';
 import { MessageType } from '../packet/packetHandler';

@@ -1,4 +1,4 @@
-﻿import './common';
+import './common';
 import * as Promise from 'bluebird';
 import * as http from 'http';
 import * as WebSocket from 'ws';

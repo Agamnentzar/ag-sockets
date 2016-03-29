@@ -1,4 +1,4 @@
-﻿import './common';
+import './common';
 import * as Promise from 'bluebird';
 import { stub, spy, assert } from 'sinon';
 import { expect } from 'chai';

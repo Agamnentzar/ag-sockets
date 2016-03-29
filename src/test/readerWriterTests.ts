@@ -1,4 +1,4 @@
-﻿import './common';
+import './common';
 import { expect } from 'chai';
 import { PacketWriter } from '../packet/packetWriter';
 import { PacketReader } from '../packet/packetReader';

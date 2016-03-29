@@ -1,5 +1,3 @@
-/// <reference path="../../typings/main.d.ts" />
-
 import { BasePacketWriter, PacketWriter } from './packetWriter';
 
 export default class BufferPacketWriter extends BasePacketWriter implements PacketWriter<Buffer> {

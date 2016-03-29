@@ -1,5 +1,3 @@
-﻿/// <reference path="../typings/main.d.ts" />
-
 import { ServerRequest } from 'http';
 import { SocketClient } from './interfaces';
 

@@ -1,4 +1,4 @@
-﻿import { MethodMetadata, MethodOptions, SocketOptions } from './interfaces';
+import { MethodMetadata, MethodOptions, SocketOptions } from './interfaces';
 import { get, set } from './map';
 
 const methodMetadata: [Function, MethodMetadata[]][] = [];

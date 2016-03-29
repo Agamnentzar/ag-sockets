@@ -1,4 +1,4 @@
-﻿/// <reference path='../typings/main.d.ts' />
+/// <reference path='../typings/main.d.ts' />
 
 import * as Promise from 'bluebird';
 import { SocketService, SocketServer, SocketClient, Options, FuncList, Packets, MethodDef, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';

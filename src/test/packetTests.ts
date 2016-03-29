@@ -1,4 +1,4 @@
-﻿import './common';
+import './common';
 import * as sinon from 'sinon';
 import { expect } from 'chai';
 import { MessageType, PacketHandler } from '../packet/packetHandler';

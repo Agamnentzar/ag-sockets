@@ -1,4 +1,4 @@
-﻿/// <reference path="../../typings/main.d.ts" />
+/// <reference path="../../typings/main.d.ts" />
 /// <reference path="../../typings/my.d.ts" />
 
 require('source-map-support').install();

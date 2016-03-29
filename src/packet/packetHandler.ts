@@ -1,4 +1,4 @@
-﻿import { FuncList } from '../interfaces';
+import { FuncList } from '../interfaces';
 import { PacketWriter } from './packetWriter';
 import { PacketReader } from './packetReader';
 

@@ -1,4 +1,4 @@
-﻿export function get<TKey, TValue>(items: [TKey, TValue][], key: TKey): TValue {
+export function get<TKey, TValue>(items: [TKey, TValue][], key: TKey): TValue {
 	for (let i = 0; i < items.length; i++) {
 		if (items[i][0] === key) {
 			return items[i][1];

@@ -1,4 +1,4 @@
-﻿export interface PacketWriter<TBuffer> {
+export interface PacketWriter<TBuffer> {
 	getBuffer(): TBuffer;
 	init(size: number): void;
 	writeInt8(value: number): void;

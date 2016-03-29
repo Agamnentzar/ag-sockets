@@ -1,5 +1,3 @@
-﻿/// <reference path="../typings/main.d.ts" />
-
 export interface Logger {
 	(...args: any[]): void;
 }

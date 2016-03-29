@@ -1,4 +1,4 @@
-﻿export interface PacketReader<TBuffer> {
+export interface PacketReader<TBuffer> {
 	setBuffer(buffer: TBuffer): void;
 	readInt8(): number;
 	readUint8(): number;

@@ -1,4 +1,4 @@
-﻿import { FuncList, Logger } from '../interfaces';
+import { FuncList, Logger } from '../interfaces';
 import { PacketWriter } from './packetWriter';
 import { PacketReader } from './packetReader';
 import { PacketHandler, IResultHandler, IBinaryHandlers } from './packetHandler';

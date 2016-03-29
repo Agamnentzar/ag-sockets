@@ -1,5 +1,3 @@
-﻿/// <reference path='../typings/main.d.ts' />
-
 import { Server as HttpServer, ServerRequest } from 'http';
 import { Server as WebSocketServer } from 'ws';
 import * as Promise from 'bluebird';

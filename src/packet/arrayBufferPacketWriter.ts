@@ -1,4 +1,4 @@
-﻿import { BasePacketWriter, PacketWriter } from './packetWriter';
+import { BasePacketWriter, PacketWriter } from './packetWriter';
 
 export default class ArrayBufferPacketWriter extends BasePacketWriter implements PacketWriter<ArrayBuffer> {
 	private offset = 0;

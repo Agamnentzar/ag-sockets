@@ -6,7 +6,7 @@
 /src
 /coverage
 /coverage-remapped
-/test
+/typings
 /.vs
 ag-sockets.sln
 tslint.json
