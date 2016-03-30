@@ -49,7 +49,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	};
 	private defers: [number, Deferred<any>][] = [];
 	private inProgressFields: { [key: string]: number } = {};
-	constructor(private options: Options, private apply: (f: Function) => void = f => f(), private log: Logger = console.log.bind(console)) {
+	constructor(private options: Options, private apply: (f: () => any) => void = f => f(), private log: Logger = console.log.bind(console)) {
 		this.options.server.forEach((item, id) => {
 			if (typeof item === 'string') {
 				this.createMethod(item, id, {});
