@@ -1,6 +1,6 @@
 import './common';
-import * as sinon from 'sinon';
 import { expect } from 'chai';
+import { assert, spy, stub } from 'sinon';
 import { MessageType, PacketHandler } from '../packet/packetHandler';
 import BufferPacketWriter from '../packet/bufferPacketWriter';
 import BufferPacketReader from '../packet/bufferPacketReader';
@@ -34,11 +34,11 @@ describe('PacketHandler', function () {
 		});
 
 		it('should send message to websocket', function () {
-			let send = sinon.stub(websocket, 'send');
+			let send = stub(websocket, 'send');
 
 			handler.send(websocket, 'foo', 1, ['a', 'b', 5]);
 
-			sinon.assert.calledWith(send, '[1,"a","b",5]');
+			assert.calledWith(send, '[1,"a","b",5]');
 		});
 
 		it('should return message length', function () {
@@ -46,18 +46,18 @@ describe('PacketHandler', function () {
 		});
 
 		it('should return 0 on error', function () {
-			sinon.stub(websocket, 'send').throws(new Error(''));
+			stub(websocket, 'send').throws(new Error(''));
 
 			expect(handler.send(websocket, 'foo', 1, ['a', 'b', 5])).equal(0);
 		});
 
 		it('should send binary message', function () {
-			let send = sinon.stub(websocket, 'send');
+			let send = stub(websocket, 'send');
 			handler.supportsBinary = true;
 
 			handler.send(websocket, 'foo', 1, [8]);
 
-			sinon.assert.calledWith(send, writer.getBuffer());
+			assert.calledWith(send, writer.getBuffer());
 		});
 
 		it('should return binary message length', function () {
@@ -91,35 +91,35 @@ describe('PacketHandler', function () {
 		});
 
 		it('should read message from websocket', function () {
-			let foo = sinon.stub(funcs, 'foo');
+			let foo = stub(funcs, 'foo');
 
 			handler.recv('[1,"a","b",5]', funcs, special, result => { });
 
-			sinon.assert.calledWith(foo, 'a', 'b', 5);
+			assert.calledWith(foo, 'a', 'b', 5);
 		});
 
 		it('should read VERSION message from websocket', function () {
-			let VERSION = sinon.stub(special, '*version');
+			let VERSION = stub(special, '*version');
 
 			handler.recv(JSON.stringify([MessageType.Version, 123]), funcs, special, result => { });
 
-			sinon.assert.calledWith(VERSION, 123);
+			assert.calledWith(VERSION, 123);
 		});
 
 		it('should read promise resolve message from websocket', function () {
-			let barResolved = sinon.stub(special, '*resolve:bar');
+			let barResolved = stub(special, '*resolve:bar');
 
 			handler.recv(JSON.stringify([MessageType.Resolved, 1, 123]), funcs, special, result => { });
 
-			sinon.assert.calledWith(barResolved, 123);
+			assert.calledWith(barResolved, 123);
 		});
 
 		it('should read promise reject message from websocket', function () {
-			let barRejected = sinon.stub(special, '*reject:bar');
+			let barRejected = stub(special, '*reject:bar');
 
 			handler.recv(JSON.stringify([MessageType.Rejected, 1, 123]), funcs, special, result => { });
 
-			sinon.assert.calledWith(barRejected, 123);
+			assert.calledWith(barRejected, 123);
 		});
 
 		it('should do nothing if function doesnt exist', function () {
@@ -127,17 +127,17 @@ describe('PacketHandler', function () {
 		});
 
 		it('should return message length', function () {
-			let foo = sinon.stub(funcs, 'foo');
+			let foo = stub(funcs, 'foo');
 
 			expect(handler.recv('[1,"a","b",5]', funcs, special, result => { })).equal('[1,"a","b",5]'.length);
 		});
 
 		it('should read binary message from websocket', function () {
-			let foo = sinon.stub(funcs, 'foo');
+			let foo = stub(funcs, 'foo');
 
 			handler.recv(new Buffer([1, 8]), funcs, special, result => { });
 
-			sinon.assert.calledWith(foo, 8);
+			assert.calledWith(foo, 8);
 		});
 
 		it('should return binary message length', function () {
@@ -163,12 +163,12 @@ describe('PacketHandler', function () {
 		});
 
 		it('should call handle result with method id, name and result', function () {
-			let handleResult = sinon.spy();
-			sinon.stub(funcs, 'foo').returns('abc');
+			let handleResult = spy();
+			stub(funcs, 'foo').returns('abc');
 
 			handler.recv('[1,"abc"]', funcs, special, handleResult);
 
-			sinon.assert.calledWith(handleResult, 1, 'foo', 'abc');
+			assert.calledWith(handleResult, 1, 'foo', 'abc');
 		});
 	});
 });

@@ -1,9 +1,7 @@
 import './common';
 import * as Promise from 'bluebird';
 import * as http from 'http';
-import * as WebSocket from 'ws';
 import { expect } from 'chai';
-import { assert, stub } from 'sinon';
 import { createServer } from '../serverSocket';
 import { Method, Socket } from '../method';
 

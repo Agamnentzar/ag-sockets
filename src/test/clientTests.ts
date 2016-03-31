@@ -1,7 +1,7 @@
 import './common';
 import * as Promise from 'bluebird';
-import { stub, spy, assert } from 'sinon';
 import { expect } from 'chai';
+import { stub, spy, assert } from 'sinon';
 import { MessageType } from '../packet/packetHandler';
 import { ClientSocket } from '../clientSocket';
 import { SocketClient, SocketServer } from '../interfaces';
