@@ -204,7 +204,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				this.inProgressFields[inProgressField]++;
 				return defer.promise;
 			} else {
-				return Promise.reject<any>('not connected');
+				return Promise.reject<any>(new Error('not connected'));
 			}
 		};
 
