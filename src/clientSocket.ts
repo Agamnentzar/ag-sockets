@@ -7,13 +7,17 @@ import { DebugPacketHandler } from './packet/debugPacketHandler';
 import ArrayBufferPacketWriter from './packet/arrayBufferPacketWriter';
 import ArrayBufferPacketReader from './packet/arrayBufferPacketReader';
 
-export interface Deferred<T> {
+export interface ClientErrorHandler {
+	handleRecvError(error: Error, data: any): void;
+}
+
+interface Deferred<T> {
 	promise: Promise<T>;
 	resolve(result?: T): void;
 	reject(error?: Error): void;
 }
 
-export function deferred<T>(): Deferred<T> {
+function deferred<T>(): Deferred<T> {
 	var obj: Deferred<T> = <any>{};
 
 	obj.promise = new Promise<T>(function (resolve, reject) {
@@ -49,7 +53,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	};
 	private defers: [number, Deferred<any>][] = [];
 	private inProgressFields: { [key: string]: number } = {};
-	constructor(private options: Options, private apply: (f: () => any) => void = f => f(), private log: Logger = console.log.bind(console)) {
+	constructor(private options: Options, private errorHandler?: ClientErrorHandler, private apply: (f: () => any) => void = f => f(), private log: Logger = console.log.bind(console)) {
 		this.options.server.forEach((item, id) => {
 			if (typeof item === 'string') {
 				this.createMethod(item, id, {});
@@ -95,7 +99,15 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		this.socket.binaryType = 'arraybuffer';
 		this.socket.onmessage = message => {
 			if (message.data) {
-				this.receivedSize += this.packet.recv(message.data, this.client, this.special, () => { });
+				try {
+					this.receivedSize += this.packet.recv(message.data, this.client, this.special, () => { });
+				} catch (e) {
+					if (this.errorHandler) {
+						this.errorHandler.handleRecvError(e, message.data);
+					} else {
+						throw e;
+					}
+				}
 			}
 		};
 

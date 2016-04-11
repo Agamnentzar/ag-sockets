@@ -69,7 +69,7 @@ describe('ClientSocket + Server', function () {
 			return server;
 		}, null, errorHandler, <any>log);
 		httpServer.listen(12345, () => {
-			clientSocket = new ClientSocket<Client, Server>(serverSocket.options, f => f(), <any>log);
+			clientSocket = new ClientSocket<Client, Server>(serverSocket.options, null, (f: () => void) => f(), <any>log);
 			clientSocket.client = new Client();
 			clientSocket.client.connected = done;
 			clientSocket.connect();
