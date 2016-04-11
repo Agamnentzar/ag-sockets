@@ -1,3 +1,3 @@
 export * from './interfaces';
-export { ClientSocket } from './clientSocket';
+export { ClientSocket, ClientErrorHandler } from './clientSocket';
 export { Method } from './method';
