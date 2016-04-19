@@ -31,7 +31,7 @@ function charLengthInBytes(code: number): number {
 	}
 }
 
-function stringLengthInBytes(value: string): number {
+export function stringLengthInBytes(value: string): number {
 	let result = 0;
 	foreachCharacter(value, code => result += charLengthInBytes(code));
 	return result;

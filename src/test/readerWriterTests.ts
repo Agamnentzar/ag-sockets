@@ -86,6 +86,7 @@ describe('PacketReader + PacketWriter', function () {
 		expect(writer.measureArray([1, 2, 5], i => i)).equal(8 + 1, 'measureArray');
 		expect(writer.measureObject({ 'foo': 'bar' })).equal(13 + 1, 'measureObject');
 		expect(writer.measureString('foobar')).equal(6 + 1, 'measureString');
+		expect(writer.measureString('część')).equal(8 + 1, 'measureString (część)');
 		expect(writer.measureString(null)).equal(2, 'measureString (null)');
 		expect(writer.measureArray<number>(null, x => x)).equal(2, 'measureArray (null)');
 		expect(writer.measureSimpleArray<number>(null, 1)).equal(2, 'measureSimpleArray (null)');

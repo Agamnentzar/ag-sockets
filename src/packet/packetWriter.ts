@@ -1,4 +1,4 @@
-import { encodeString } from '../utf8';
+import { encodeString, stringLengthInBytes } from '../utf8';
 
 export interface PacketWriter<TBuffer> {
 	getBuffer(): TBuffer;
@@ -26,10 +26,12 @@ export interface PacketWriter<TBuffer> {
 
 export class BasePacketWriter {
 	measureString(value: string) {
-		if (value == null)
+		if (value == null) {
 			return this.measureLength(-1);
-		else
-			return this.measureLength(value.length) + value.length;
+		} else {
+			let length = stringLengthInBytes(value);
+			return this.measureLength(length) + length;
+		}
 	}
 	measureObject(value: any) {
 		if (value == null)
