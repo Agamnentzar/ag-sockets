@@ -31,6 +31,7 @@ describe('PacketReader + PacketWriter', function () {
 		writer.writeString('');
 		writer.writeString('foo');
 		writer.writeString('foo lkfdas jldfih dglfkhj fdglh irj idljg ldkfgj ');
+		writer.writeString('część');
 		writer.writeObject(null);
 		writer.writeObject({ foo: 'bar' });
 		writer.writeArray(['foo', 'bar', 'boo'], i => writer.writeString(i));
@@ -62,6 +63,7 @@ describe('PacketReader + PacketWriter', function () {
 		expect(reader.readString()).equal('', 'readString empty');
 		expect(reader.readString()).equal('foo', 'readString "foo"');
 		expect(reader.readString()).equal('foo lkfdas jldfih dglfkhj fdglh irj idljg ldkfgj ', 'readString "foo lkfdas jldfih dglfkhj fdglh irj idljg ldkfgj "');
+		expect(reader.readString()).equal('część', 'readString część');
 		expect(reader.readObject()).equal(null, 'readObject null');
 		expect(reader.readObject()).eql({ foo: 'bar' }, 'readObject empty');
 		expect(reader.readArray(() => reader.readString())).eql(['foo', 'bar', 'boo'], 'readArray ["foo", "bar", "boo"]');

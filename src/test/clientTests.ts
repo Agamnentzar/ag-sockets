@@ -31,7 +31,7 @@ class MockWebSocket {
 	close() { }
 }
 
-describe('SocketService', function () {
+describe('ClientSocket', function () {
 	let location = { protocol: '', host: '' };
 	let window = { addEventListener() { }, removeEventListener() { } };
 	let service: ClientSocket<Client, Server>;

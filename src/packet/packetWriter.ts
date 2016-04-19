@@ -1,3 +1,5 @@
+import { encodeString } from '../utf8';
+
 export interface PacketWriter<TBuffer> {
 	getBuffer(): TBuffer;
 	init(size: number): void;
@@ -20,16 +22,6 @@ export interface PacketWriter<TBuffer> {
 	measureArray<T>(value: T[], measureOne: (item: T) => number): number;
 	measureSimpleArray<T>(value: T[], itemSize: number): number;
 	measureLength(value: number): number;
-}
-
-function str2buf(str: string) {
-	var s = str || '';
-	var a = new Uint8Array(s.length);
-
-	for (var i = 0; i < s.length; i++)
-		a[i] = s.charCodeAt(i);
-
-	return a;
 }
 
 export class BasePacketWriter {
@@ -75,8 +67,9 @@ export class BasePacketWriter {
 		if (value == null) {
 			this.writeLength(-1);
 		} else {
-			this.writeLength(value.length);
-			this.writeBytes(str2buf(value));
+			let buffer = encodeString(value);
+			this.writeLength(buffer.length);
+			this.writeBytes(buffer);
 		}
 	}
 	writeObject(value: any) {

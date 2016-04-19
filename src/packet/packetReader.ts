@@ -1,3 +1,5 @@
+import { decodeString } from '../utf8';
+
 export interface PacketReader<TBuffer> {
 	setBuffer(buffer: TBuffer): void;
 	readInt8(): number;
@@ -29,30 +31,30 @@ export abstract class BasePacketReader {
 		return this.readUint8() === 1;
 	}
 	readArray<T>(readOne: () => T): T[] {
-		var length = this.readLength();
+		let length = this.readLength();
 
 		if (length === -1)
 			return null;
 
-		var result = new Array<T>(length);
+		let result = new Array<T>(length);
 
-		for (var i = 0; i < length; i++)
+		for (let i = 0; i < length; i++)
 			result[i] = readOne();
 
 		return result;
 	}
 	readString() {
-		var length = this.readLength();
-		return length === -1 ? null : String.fromCharCode.apply(null, this.readBytes(length));
+		let length = this.readLength();
+		return length === -1 ? null : decodeString(this.readBytes(length));
 	}
 	readObject() {
-		var t = this.readString();
+		let t = this.readString();
 		return t == null ? null : JSON.parse(t);
 	}
 	readLength() {
-		var length = 0;
-		var shift = 0;
-		var bytes = 0;
+		let length = 0;
+		let shift = 0;
+		let bytes = 0;
 
 		do {
 			var a = this.readUint8();
