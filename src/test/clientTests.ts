@@ -4,7 +4,7 @@ import { expect } from 'chai';
 import { stub, spy, assert } from 'sinon';
 import { MessageType } from '../packet/packetHandler';
 import { ClientSocket } from '../clientSocket';
-import { SocketClient, SocketServer } from '../interfaces';
+import { SocketClient, SocketServer, SocketService } from '../interfaces';
 
 let lastWebSocket: MockWebSocket;
 
@@ -34,7 +34,7 @@ class MockWebSocket {
 describe('ClientSocket', function () {
 	let location = { protocol: '', host: '' };
 	let window = { addEventListener() { }, removeEventListener() { } };
-	let service: ClientSocket<Client, Server>;
+	let service: SocketService<Client, Server>;
 
 	before(function () {
 		(<any>global).window = window;
