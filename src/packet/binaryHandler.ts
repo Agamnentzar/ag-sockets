@@ -20,11 +20,11 @@ const sizes: { [key: string]: number } = {
 function writeFieldSize(f: string | any[], n: string, indent: string): any {
 	if (f instanceof Array) {
 		if (f.some(x => x === 'Object' || x === 'String' || Array.isArray(x))) {
-			var code = '';
-			var size = 0;
+			let code = '';
+			let size = 0;
 
-			for (var i = 0; i < f.length; i++) {
-				var s = writeFieldSize(f[i], `item[${i}]`, indent + '\t');
+			for (let i = 0; i < f.length; i++) {
+				const s = writeFieldSize(f[i], `item[${i}]`, indent + '\t');
 
 				if (isNaN(s))
 					code += `\n${indent}\t+ ${s}`;
@@ -54,7 +54,7 @@ function writeField(obj: CodeSize, f: string | any[], n: string, indent: string)
 		} else {
 			obj.code += `${indent}writer.writeArray(${n}, function (item) {\n`;
 
-			for (var i = 0; i < f.length; i++)
+			for (let i = 0; i < f.length; i++)
 				writeField(obj, f[i], `item[${i}]`, indent + '\t');
 
 			obj.code += `${indent}});\n`;
@@ -65,10 +65,10 @@ function writeField(obj: CodeSize, f: string | any[], n: string, indent: string)
 }
 
 function createWriteFunction(fields: any[]) {
-	var obj = { code: '', size: 1 };
+	const obj = { code: '', size: 1 };
 
-	for (var i = 0; i < fields.length; i++) {
-		var size = writeFieldSize(fields[i], `args[${i}]`, '\t\t');
+	for (let i = 0; i < fields.length; i++) {
+		const size = writeFieldSize(fields[i], `args[${i}]`, '\t\t');
 
 		if (isNaN(size))
 			obj.code += `\t\tsize += ${size};\n`;
@@ -79,7 +79,7 @@ function createWriteFunction(fields: any[]) {
 	obj.code += '\t\twriter.init(size);\n';
 	obj.code += '\t\twriter.writeUint8(id);\n';
 
-	for (var i = 0; i < fields.length; i++)
+	for (let i = 0; i < fields.length; i++)
 		writeField(obj, fields[i], `args[${i}]`, '\t\t');
 
 	return `function (writer, id, args) {\n\t\tvar size = ${obj.size};\n${obj.code}\t}`;
@@ -87,14 +87,14 @@ function createWriteFunction(fields: any[]) {
 
 function readField(f: string | any[], indent: string) {
 	if (f instanceof Array) {
-		var code = '';
+		let code = '';
 
 		if (f.length === 1) {
 			code += `\n${indent}\t${readField(f[0], indent + '\t')}\n${indent}`;
 		} else {
 			code += '[\n';
 
-			for (var i = 0; i < f.length; i++)
+			for (let i = 0; i < f.length; i++)
 				code += `${indent}\t${readField(f[i], indent + '\t')},\n`;
 
 			code += `${indent}]`;
@@ -107,22 +107,22 @@ function readField(f: string | any[], indent: string) {
 }
 
 function createReadFunction(fields: any[]) {
-	var code = '';
+	let code = '';
 
-	for (var i = 0; i < fields.length; i++)
+	for (let i = 0; i < fields.length; i++)
 		code += `\t\tresult.push(${readField(fields[i], '\t\t')});\n`;
 
 	return `function (reader, result) {\n${code}\t}`;
 }
 
 export function createHandlers(writeFields: Packets, readFields: Packets): any {
-	var writeLines = Object.keys(writeFields)
+	const writeLines = Object.keys(writeFields)
 		.map(key => key + ': ' + createWriteFunction(writeFields[key]));
 
-	var readLines = Object.keys(readFields)
+	const readLines = Object.keys(readFields)
 		.map(key => key + ': ' + createReadFunction(readFields[key]));
 
-	var code = 'var write = {\n\t' + writeLines.join(',\n\t') + '\n};\n\n'
+	const code = 'var write = {\n\t' + writeLines.join(',\n\t') + '\n};\n\n'
 		+ 'var read = {\n\t' + readLines.join(',\n\t') + '\n};\n\n'
 		+ 'return { write: write, read: read };';
 

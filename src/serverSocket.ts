@@ -33,7 +33,7 @@ export function createServer<TServer, TClient>(
 	server: HttpServer, serverType: new (...args: any[]) => TServer, clientType: new (...args: any[]) => TClient,
 	createServer: (client: TClient & SocketServerClient) => TServer, options?: Options, errorHandler?: ErrorHandler, log?: Logger) {
 
-	let opt = (<any>Object).assign({}, getSocketMetadata(serverType), options);
+	const opt = (<any>Object).assign({}, getSocketMetadata(serverType), options);
 	opt.client = getMethods(clientType).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
 	opt.server = getMethods(serverType).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
 	return create(server, createServer, opt, errorHandler, log);

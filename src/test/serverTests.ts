@@ -44,12 +44,12 @@ describe('serverSocket', function () {
 		});
 
 		it('no metadata', function (done) {
-			let socket = createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+			createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
 			server.listen(12345, done);
 		});
 
 		it('close()', function (done) {
-			let socket = createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+			const socket = createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
 			server.listen(12345, () => {
 				socket.close();
 				done();
@@ -57,7 +57,7 @@ describe('serverSocket', function () {
 		});
 
 		it('should throw if passed object with too many methods', function () {
-			let Ctor: any = () => { };
+			const Ctor: any = () => { };
 
 			for (let i = 0; i < 251; i++) {
 				Ctor.prototype[`foo${i}`] = () => { };

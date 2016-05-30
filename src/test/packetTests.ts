@@ -34,7 +34,7 @@ describe('PacketHandler', function () {
 		});
 
 		it('should send message to websocket', function () {
-			let send = stub(websocket, 'send');
+			const send = stub(websocket, 'send');
 
 			handler.send(websocket, 'foo', 1, ['a', 'b', 5]);
 
@@ -52,7 +52,7 @@ describe('PacketHandler', function () {
 		});
 
 		it('should send binary message', function () {
-			let send = stub(websocket, 'send');
+			const send = stub(websocket, 'send');
 			handler.supportsBinary = true;
 
 			handler.send(websocket, 'foo', 1, [8]);
@@ -67,9 +67,9 @@ describe('PacketHandler', function () {
 		});
 
 		it('should return binary message length (ArrayBuffer)', function () {
-			let writer = new ArrayBufferPacketWriter();
-			let reader = new ArrayBufferPacketReader();
-			let handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
+			const writer = new ArrayBufferPacketWriter();
+			const reader = new ArrayBufferPacketReader();
+			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
 
 			handler.supportsBinary = true;
 
@@ -91,7 +91,7 @@ describe('PacketHandler', function () {
 		});
 
 		it('should read message from websocket', function () {
-			let foo = stub(funcs, 'foo');
+			const foo = stub(funcs, 'foo');
 
 			handler.recv('[1,"a","b",5]', funcs, special, result => { });
 
@@ -99,7 +99,7 @@ describe('PacketHandler', function () {
 		});
 
 		it('should read VERSION message from websocket', function () {
-			let VERSION = stub(special, '*version');
+			const VERSION = stub(special, '*version');
 
 			handler.recv(JSON.stringify([MessageType.Version, 123]), funcs, special, result => { });
 
@@ -107,7 +107,7 @@ describe('PacketHandler', function () {
 		});
 
 		it('should read promise resolve message from websocket', function () {
-			let barResolved = stub(special, '*resolve:bar');
+			const barResolved = stub(special, '*resolve:bar');
 
 			handler.recv(JSON.stringify([MessageType.Resolved, 1, 123]), funcs, special, result => { });
 
@@ -115,7 +115,7 @@ describe('PacketHandler', function () {
 		});
 
 		it('should read promise reject message from websocket', function () {
-			let barRejected = stub(special, '*reject:bar');
+			const barRejected = stub(special, '*reject:bar');
 
 			handler.recv(JSON.stringify([MessageType.Rejected, 1, 123]), funcs, special, result => { });
 
@@ -127,13 +127,13 @@ describe('PacketHandler', function () {
 		});
 
 		it('should return message length', function () {
-			let foo = stub(funcs, 'foo');
+			const foo = stub(funcs, 'foo');
 
 			expect(handler.recv('[1,"a","b",5]', funcs, special, result => { })).equal('[1,"a","b",5]'.length);
 		});
 
 		it('should read binary message from websocket', function () {
-			let foo = stub(funcs, 'foo');
+			const foo = stub(funcs, 'foo');
 
 			handler.recv(new Buffer([1, 8]), funcs, special, result => { });
 
@@ -149,21 +149,21 @@ describe('PacketHandler', function () {
 		});
 
 		it('should return binary message length (ArrayBuffer)', function () {
-			let writer = new ArrayBufferPacketWriter();
-			let reader = new ArrayBufferPacketReader();
-			let handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
+			const writer = new ArrayBufferPacketWriter();
+			const reader = new ArrayBufferPacketReader();
+			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
 
 			handler.supportsBinary = true;
 
-			let buffer = new ArrayBuffer(2);
-			let bytes = new Uint8Array(buffer);
+			const buffer = new ArrayBuffer(2);
+			const bytes = new Uint8Array(buffer);
 			bytes[0] = 1;
 			bytes[1] = 8;
 			expect(handler.recv(buffer, funcs, special, result => { })).equal(2);
 		});
 
 		it('should call handle result with method id, name and result', function () {
-			let handleResult = spy();
+			const handleResult = spy();
 			stub(funcs, 'foo').returns('abc');
 
 			handler.recv('[1,"abc"]', funcs, special, handleResult);

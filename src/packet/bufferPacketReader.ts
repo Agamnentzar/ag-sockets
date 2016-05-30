@@ -1,9 +1,9 @@
 import { BasePacketReader, PacketReader } from './packetReader';
 
 function toUint8Array(buffer: Buffer) {
-	var view = new Uint8Array(buffer.length);
+	const view = new Uint8Array(buffer.length);
 
-	for (var i = 0; i < buffer.length; ++i)
+	for (let i = 0; i < buffer.length; ++i)
 		view[i] = buffer[i];
 
 	return view;
@@ -49,7 +49,7 @@ export default class BufferPacketReader extends BasePacketReader implements Pack
 		return this.buffer.readDoubleBE(this.offset - 8);
 	}
 	readString() {
-		var length = this.readLength();
+		const length = this.readLength();
 
 		if (length === -1)
 			return null;

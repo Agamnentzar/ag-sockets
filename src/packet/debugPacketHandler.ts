@@ -9,32 +9,32 @@ export class DebugPacketHandler<T> extends PacketHandler<T> {
 		super(readNames, remoteNames, packetWriter, packetReader, handlers);
 	}
 	send(socket: WebSocket, name: string, id: number, args: any[]): number {
-		var size = this.write(socket, name, id, args);
+		const size = this.write(socket, name, id, args);
 
 		if (this.ignorePackets.indexOf(name) === -1) {
-			var mode = this.lastWriteBinary ? 'bin' : 'str';
+			const mode = this.lastWriteBinary ? 'bin' : 'str';
 			this.log(`SEND [${size}] (${mode})`, name, args);
 		}
 
 		return size;
 	}
 	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleResult: IResultHandler): number {
-		var args = this.read(data);
+		const args = this.read(data);
 
-		var funcId = args.shift();
-		var funcName = this.getFuncName(funcId, args);
+		const funcId = args.shift();
+		const funcName = this.getFuncName(funcId, args);
 
 		if (!funcName)
 			this.log(`invalid message id: ${funcId}`);
 
-		var funcSpecial = funcName && funcName[0] === '*';
-		var funcObj = funcSpecial ? specialFuncList : funcList;
-		var func = funcObj[funcName];
+		const funcSpecial = funcName && funcName[0] === '*';
+		const funcObj = funcSpecial ? specialFuncList : funcList;
+		const func = funcObj[funcName];
 
-		var size = (<any>data).length || (<any>data).byteLength;
+		const size = (<any>data).length || (<any>data).byteLength;
 
 		if (this.ignorePackets.indexOf(funcName) === -1) {
-			var mode = typeof data !== 'string' ? 'bin' : 'str';
+			const mode = typeof data !== 'string' ? 'bin' : 'str';
 			this.log(`RECV [${size}] (${mode})`, funcName, args);
 		}
 

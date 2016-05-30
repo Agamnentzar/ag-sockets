@@ -1,4 +1,4 @@
-﻿import './common';
+import './common';
 import { expect } from 'chai';
 import { encodeString, decodeString } from '../utf8';
 

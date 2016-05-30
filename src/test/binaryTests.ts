@@ -18,20 +18,20 @@ describe('binaryHandler', function () {
 
 	describe('createHandlers(server)', function () {
 		it('should create writers for client', function () {
-			var handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
+			const handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
 
 			expect(handlers.write['foo']).exist;
 		});
 
 		it('should create readers for server', function () {
-			var handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
+			const handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
 
 			expect(handlers.read['bar']).exist;
 		});
 
 		it('should create proper write method', function () {
-			var handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
-			var writer = new BufferPacketWriter();
+			const handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
+			const writer = new BufferPacketWriter();
 
 			handlers.write['foo'](writer, 1, [8, 1.5]);
 
@@ -41,22 +41,22 @@ describe('binaryHandler', function () {
 
 	describe('createHandlers(client)', function () {
 		it('should create writers for server', function () {
-			var handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
+			const handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
 
 			expect(handlers.write['bar']).exist;
 		});
 
 		it('should create readers for client', function () {
-			var handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
+			const handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
 
 			expect(handlers.read['foo']).exist;
 		});
 
 		it('should create proper read method', function () {
-			var handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
-			var reader = new BufferPacketReader();
+			const handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
+			const reader = new BufferPacketReader();
 			reader.setBuffer(new Buffer([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]));
-			var result = [reader.readUint8()];
+			const result = [reader.readUint8()];
 
 			handlers.read['foo'](reader, result);
 

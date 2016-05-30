@@ -6,7 +6,7 @@ const socketServerMetadata: [Function, SocketOptions][] = [];
 
 export function Method(options?: MethodOptions) {
 	return function (target: Object, name: string) {
-		let meta = get(methodMetadata, target.constructor) || [];
+		const meta = get(methodMetadata, target.constructor) || [];
 		meta.push({ name: name, options: options || {} });
 		set(methodMetadata, target.constructor, meta);
 	};

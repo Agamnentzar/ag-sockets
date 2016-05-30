@@ -97,7 +97,7 @@ describe('DebugPacketHandler', function () {
 		});
 
 		it('should read VERSION message from websocket', function () {
-			let version = stub(special, '*version');
+			const version = stub(special, '*version');
 
 			handler.recv(JSON.stringify([MessageType.Version, 123]), funcs, special, result => { });
 

@@ -31,12 +31,12 @@ export abstract class BasePacketReader {
 		return this.readUint8() === 1;
 	}
 	readArray<T>(readOne: () => T): T[] {
-		let length = this.readLength();
+		const length = this.readLength();
 
 		if (length === -1)
 			return null;
 
-		let result = new Array<T>(length);
+		const result = new Array<T>(length);
 
 		for (let i = 0; i < length; i++)
 			result[i] = readOne();
@@ -44,11 +44,11 @@ export abstract class BasePacketReader {
 		return result;
 	}
 	readString() {
-		let length = this.readLength();
+		const length = this.readLength();
 		return length === -1 ? null : decodeString(this.readBytes(length));
 	}
 	readObject() {
-		let t = this.readString();
+		const t = this.readString();
 		return t == null ? null : JSON.parse(t);
 	}
 	readLength() {

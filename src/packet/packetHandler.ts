@@ -35,7 +35,7 @@ export class PacketHandler<T> {
 		this.readHandlers = handlers.read;
 	}
 	protected write(socket: WebSocket, name: string, id: number, args: any[]) {
-		let handler = this.writeHandlers[name];
+		const handler = this.writeHandlers[name];
 
 		if (this.supportsBinary && handler) {
 			handler(this.packetWriter, id, args);

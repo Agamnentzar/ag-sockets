@@ -86,7 +86,7 @@ describe('ClientSocket + Server', function () {
 	});
 
 	it('should send version info to client', function () {
-		let version = stub((<any>clientSocket).special, '*version');
+		const version = stub((<any>clientSocket).special, '*version');
 
 		return Promise.delay(10)
 			.then(() => assert.calledWith(version, serverSocket.options.hash));
@@ -97,7 +97,7 @@ describe('ClientSocket + Server', function () {
 	});
 
 	it('should receive message from client', function () {
-		let hello = stub(server, 'hello');
+		const hello = stub(server, 'hello');
 
 		return Promise.resolve()
 			.then(() => clientSocket.server.hello('yay'))
@@ -118,7 +118,7 @@ describe('ClientSocket + Server', function () {
 	});
 
 	it('should report promise rejection to error handler', function () {
-		let handleRejection = stub(errorHandler, 'handleRejection');
+		const handleRejection = stub(errorHandler, 'handleRejection');
 
 		return Promise.resolve()
 			.then(() => clientSocket.server.login('fail'))
@@ -127,37 +127,37 @@ describe('ClientSocket + Server', function () {
 	});
 
 	it('should be able to disconnect the client', function () {
-		let disconnected = stub(clientSocket.client, 'disconnected');
+		const disconnected = stub(clientSocket.client, 'disconnected');
 
 		serverSocket.clients[0].client.disconnect();
 
-		return Promise.delay(10)
+		return Promise.delay(20)
 			.then(() => assert.calledOnce(disconnected));
 	});
 
 	it('should call disconnected on client disconnect', function () {
-		let disconnected = stub(server, 'disconnected');
+		const disconnected = stub(server, 'disconnected');
 
 		clientSocket.disconnect();
 
-		return Promise.delay(10)
+		return Promise.delay(20)
 			.then(() => assert.calledOnce(disconnected));
 	});
 
 	it('should be able to call client methods from server', function () {
-		let hi = stub(clientSocket.client, 'hi');
+		const hi = stub(clientSocket.client, 'hi');
 		server.client.hi('yay');
 
-		return Promise.delay(10)
+		return Promise.delay(20)
 			.then(() => assert.calledWith(hi, 'yay'));
 	});
 
 	it('should pass exception to error handler', function () {
-		let handleRecvError = stub(errorHandler, 'handleRecvError');
+		const handleRecvError = stub(errorHandler, 'handleRecvError');
 
 		clientSocket.server.err();
 
-		return Promise.delay(10)
+		return Promise.delay(20)
 			.then(() => assert.calledOnce(handleRecvError));
 	});
 
@@ -168,7 +168,7 @@ describe('ClientSocket + Server', function () {
 	it('should log client disconnected', function () {
 		clientSocket.disconnect();
 
-		return Promise.delay(10)
+		return Promise.delay(20)
 			.then(() => log.calledWith('client disconnected'));
 	});
 

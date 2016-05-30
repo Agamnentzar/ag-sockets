@@ -43,10 +43,10 @@ export default class BufferPacketWriter extends BasePacketWriter implements Pack
 		this.offset += 8;
 	}
 	writeBytes(value: Uint8Array) {
-		var offset = this.offset;
+		const offset = this.offset;
 		this.offset += value.length;
 
-		for (var i = 0; i < value.length; i++)
+		for (let i = 0; i < value.length; i++)
 			this.buffer[i + offset] = value[i];
 	}
 }
