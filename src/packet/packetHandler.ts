@@ -39,13 +39,13 @@ export class PacketHandler<T> {
 
 		if (this.supportsBinary && handler) {
 			handler(this.packetWriter, id, args);
-			let buffer: any = this.packetWriter.getBuffer();
+			const buffer: any = this.packetWriter.getBuffer();
 			socket.send(buffer);
 			this.lastWriteBinary = true;
-			return (<ArrayBuffer>buffer).byteLength || (<Buffer>buffer).length;
+			return (<ArrayBuffer>buffer).byteLength || (<Buffer>buffer).length || 0;
 		} else {
 			args.unshift(id);
-			let data = JSON.stringify(args);
+			const data = JSON.stringify(args);
 			socket.send(data);
 			return data.length;
 		}
@@ -55,10 +55,10 @@ export class PacketHandler<T> {
 			return JSON.parse(data);
 		} else {
 			this.packetReader.setBuffer(data);
-			var id = this.packetReader.readUint8();
-			var name = this.readNames[id];
-			var handler = this.readHandlers[name];
-			var result = [id];
+			const id = this.packetReader.readUint8();
+			const name = this.readNames[id];
+			const handler = this.readHandlers[name];
+			const result = [id];
 
 			if (!handler)
 				throw new Error(`Missing packet handler for: ${name} (${id})`);
@@ -85,7 +85,7 @@ export class PacketHandler<T> {
 		}
 	}
 	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleResult: IResultHandler): number {
-		let args = this.read(data);
+		const args = this.read(data);
 
 		try {
 			var funcId = args.shift();
@@ -98,6 +98,6 @@ export class PacketHandler<T> {
 		if (func)
 			handleResult(funcId, funcName, func.apply(funcObj, args));
 
-		return (<any>data).length || (<any>data).byteLength;
+		return (<any>data).length || (<any>data).byteLength || 0;
 	}
 }

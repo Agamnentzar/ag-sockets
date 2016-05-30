@@ -1,4 +1,4 @@
-﻿var gulp = require('gulp');
+var gulp = require('gulp');
 var path = require('path');
 var del = require('del');
 var ts = require('gulp-typescript');
