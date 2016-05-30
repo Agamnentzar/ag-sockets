@@ -5,7 +5,8 @@
 /resources
 /coverage
 /coverage-remapped
-/typings/browser.d.ts
-/typings/browser
+/typings/index.d.ts
+/typings/globals
+/typings/modules
 /.vs
 *.sln

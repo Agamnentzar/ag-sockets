@@ -1,18 +1,18 @@
 {
-  "name": "ag-sockets",
-  "main": "dist/index.d.ts",
-  "browser": "dist/browser.d.ts",
-  "dependencies": {
-    "bluebird": "registry:npm/bluebird#3.2.1+20160211005852",
-    "ws": "github:Agamnentzar/npm-ws"
-  },
-  "devDependencies": {
-    "sinon": "registry:npm/sinon#1.16.0+20160309002336"
-  },
-  "ambientDependencies": {},
-  "ambientDevDependencies": {
-    "chai": "registry:dt/chai#3.4.0+20160317120654",
-    "mocha": "registry:dt/mocha#2.2.5+20160317120654",
-    "node": "registry:dt/node#4.0.0+20160319033040"
-  }
+	"name": "ag-sockets",
+	"main": "dist/index.d.ts",
+	"browser": "dist/browser.d.ts",
+	"dependencies": {
+		"bluebird": "registry:npm/bluebird#3.2.1+20160211005852",
+		"ws": "github:Agamnentzar/npm-ws"
+	},
+	"devDependencies": {
+		"sinon": "registry:npm/sinon#1.16.0+20160309002336"
+	},
+	"globalDependencies": { },
+	"globalDevDependencies": {
+		"chai": "registry:dt/chai#3.4.0+20160317120654",
+		"mocha": "registry:dt/mocha#2.2.5+20160317120654",
+		"node": "registry:dt/node#4.0.0+20160319033040"
+	}
 }

@@ -9,9 +9,10 @@
     "type": "git",
     "url": "https://github.com/Agamnentzar/ag-sockets"
   },
-  "scripts": {
-    "test": "gulp test"
-  },
+	"scripts": {
+		"postinstall": "typings install",
+		"test": "gulp test"
+	},
   "author": "Agamnentzar",
   "license": "MIT",
   "keywords": [
