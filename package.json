@@ -10,7 +10,6 @@
     "url": "https://github.com/Agamnentzar/ag-sockets"
   },
 	"scripts": {
-		"postinstall": "typings install",
 		"test": "gulp test"
 	},
   "author": "Agamnentzar",
