@@ -1,4 +1,4 @@
-﻿/// <reference path="main.d.ts" />
+/// <reference path="./index.d.ts" />
 
 declare namespace Chai {
 	interface Assertion {
