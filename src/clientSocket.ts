@@ -18,7 +18,7 @@ interface Deferred<T> {
 }
 
 function deferred<T>(): Deferred<T> {
-	var obj: Deferred<T> = <any>{};
+	const obj: Deferred<T> = <any>{};
 
 	obj.promise = new Promise<T>(function (resolve, reject) {
 		obj.resolve = resolve;
@@ -39,6 +39,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private connecting = false;
 	private reconnectTimeout: any;
 	private pingInterval: any;
+	private lastPing = 0;
 	private packet: PacketHandler<ArrayBuffer>;
 	private lastSentId = 0;
 	private versionValidated = false;
@@ -108,6 +109,8 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 						throw e;
 					}
 				}
+			} else {
+				this.sendPing();
 			}
 		};
 
@@ -122,13 +125,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				this.client.connected();
 
 			if (options.pingInterval) {
-				this.pingInterval = setInterval(() => {
-					if (this.socket && this.versionValidated) {
-						try {
-							this.socket.send('');
-						} catch (e) { }
-					}
-				}, options.pingInterval);
+				this.pingInterval = setInterval(() => this.sendPing(), options.pingInterval);
 			}
 		};
 
@@ -142,11 +139,14 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				this.log('socket closed');
 
 			this.socket = null;
-			this.isConnected = false;
 			this.versionValidated = false;
 
-			if (this.client.disconnected)
-				this.client.disconnected();
+			if (this.isConnected) {
+				this.isConnected = false;
+
+				if (this.client.disconnected)
+					this.client.disconnected();
+			}
 
 			if (this.connecting) {
 				this.reconnectTimeout = setTimeout(() => {
@@ -184,6 +184,16 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		}
 
 		window.removeEventListener('beforeunload', this.beforeunload);
+	}
+	private sendPing() {
+		try {
+			const now = Date.now();
+
+			if (this.socket && this.versionValidated && (now - this.lastPing) > this.options.pingInterval) {
+				this.socket.send('');
+				this.lastPing = Date.now();
+			}
+		} catch (e) { }
 	}
 	private createMethod(name: string, id: number, options: MethodOptions) {
 		if (options.promise) {

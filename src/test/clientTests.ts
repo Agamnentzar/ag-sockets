@@ -29,11 +29,12 @@ class MockWebSocket {
 	onerror() { }
 	onclose() { }
 	close() { }
+	send() { }
 }
 
 describe('ClientSocket', function () {
-	let location = { protocol: '', host: '' };
-	let window = { addEventListener() { }, removeEventListener() { } };
+	const location = { protocol: '', host: '' };
+	const window = { addEventListener() { }, removeEventListener() { } };
 	let service: SocketService<Client, Server>;
 
 	before(function () {
@@ -54,13 +55,14 @@ describe('ClientSocket', function () {
 			path: '/test',
 			client: ['test', 'foo'],
 			server: ['test2', ['foo', { promise: true, progress: 'fooInProgress' }], ['foo2', { promise: true }]],
+			pingInterval: 1000,
 		});
 	});
 
 	describe('invalidVersion', function () {
 		it('should not be called if version is correct', function () {
 			service.client.invalidVersion = () => { };
-			let invalidVersion = stub(service.client, 'invalidVersion');
+			const invalidVersion = stub(service.client, 'invalidVersion');
 			service.connect();
 
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
@@ -70,12 +72,51 @@ describe('ClientSocket', function () {
 
 		it('should be called if version is incorrect', function () {
 			service.client.invalidVersion = () => { };
-			let invalidVersion = stub(service.client, 'invalidVersion');
+			const invalidVersion = stub(service.client, 'invalidVersion');
 			service.connect();
 
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 321]) });
 
 			assert.calledOnce(invalidVersion);
+		});
+
+		it('should do nothing if there is no callback', function () {
+			service.client.invalidVersion = null;
+			service.connect();
+
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 321]) });
+		});
+	});
+
+	describe('ping', function () {
+		it('should respond to empty message with ping', function () {
+			service.connect();
+			const send = stub(lastWebSocket, 'send');
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
+
+			lastWebSocket.onmessage({ data: '' });
+
+			assert.calledWith(send, '');
+		});
+
+		it('should not respond to empty message with ping if ping was already sent', function () {
+			service.connect();
+			const send = stub(lastWebSocket, 'send');
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
+
+			lastWebSocket.onmessage({ data: '' });
+			lastWebSocket.onmessage({ data: '' });
+
+			assert.calledOnce(send);
+		});
+
+		it('should not respond to empty message with ping if version is not yet validated', function () {
+			service.connect();
+			const send = stub(lastWebSocket, 'send');
+
+			lastWebSocket.onmessage({ data: '' });
+
+			assert.notCalled(send);
 		});
 	});
 
@@ -96,7 +137,7 @@ describe('ClientSocket', function () {
 		});
 
 		it('should add event listener for "beforeunload"', function () {
-			let addEventListener = stub(window, 'addEventListener');
+			const addEventListener = stub(window, 'addEventListener');
 
 			service.connect();
 
@@ -114,9 +155,9 @@ describe('ClientSocket', function () {
 		});
 
 		it('should add event listener that does nothing if not connected', function () {
-			let addEventListener = stub(window, 'addEventListener');
+			const addEventListener = stub(window, 'addEventListener');
 			service.connect();
-			let close = stub(lastWebSocket, 'close');
+			const close = stub(lastWebSocket, 'close');
 
 			lastWebSocket.onclose();
 			addEventListener.args[0][1]();
@@ -137,7 +178,7 @@ describe('ClientSocket', function () {
 
 		it('should close socket', function () {
 			service.connect();
-			let close = stub(lastWebSocket, 'close');
+			const close = stub(lastWebSocket, 'close');
 
 			service.disconnect();
 
@@ -146,7 +187,7 @@ describe('ClientSocket', function () {
 
 		it('should remove event listener for "beforeunload"', function () {
 			service.connect();
-			let removeEventListener = stub(window, 'removeEventListener');
+			const removeEventListener = stub(window, 'removeEventListener');
 
 			service.disconnect();
 
@@ -180,7 +221,7 @@ describe('ClientSocket', function () {
 			});
 
 			it('should call client.connected', function () {
-				let connected = spy();
+				const connected = spy();
 				service.client.connected = connected;
 
 				lastWebSocket.onopen();
@@ -198,8 +239,8 @@ describe('ClientSocket', function () {
 				expect(service.isConnected).false;
 			});
 
-			it.skip('should call client.disconnected', function () {
-				let disconnected = spy();
+			it('should call client.disconnected', function () {
+				const disconnected = spy();
 				service.client.disconnected = disconnected;
 				lastWebSocket.onopen();
 
@@ -208,10 +249,19 @@ describe('ClientSocket', function () {
 				assert.calledOnce(disconnected);
 			});
 
+			it('should not call client.disconnected if not connected', function () {
+				const disconnected = spy();
+				service.client.disconnected = disconnected;
+
+				lastWebSocket.onclose();
+
+				assert.notCalled(disconnected);
+			});
+
 			it('should reject all pending promises', function () {
 				lastWebSocket.onopen();
 
-				let promise = service.server.foo();
+				const promise = service.server.foo();
 
 				lastWebSocket.onclose();
 
@@ -230,7 +280,7 @@ describe('ClientSocket', function () {
 		describe('websocket.onmessage()', function () {
 			it('should call received mesasge', function () {
 				service.client.foo = function () { };
-				let foo = stub(service.client, 'foo');
+				const foo = stub(service.client, 'foo');
 				lastWebSocket.onopen();
 
 				lastWebSocket.onmessage({ data: '[1, 2]' });
@@ -241,7 +291,7 @@ describe('ClientSocket', function () {
 			it('should resolve pending promise', function () {
 				lastWebSocket.onopen();
 
-				let promise = service.server.foo();
+				const promise = service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 1, 'ok']) });
 
@@ -251,7 +301,7 @@ describe('ClientSocket', function () {
 			it('shoudl change progress field', function () {
 				lastWebSocket.onopen();
 
-				let promise = service.server.foo();
+				const promise = service.server.foo();
 
 				expect(service.server.fooInProgress).true;
 
@@ -263,7 +313,7 @@ describe('ClientSocket', function () {
 			it('should reject pending promise', function () {
 				lastWebSocket.onopen();
 
-				let promise = service.server.foo();
+				const promise = service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Rejected, 1, 1, 'fail']) });
 
@@ -273,7 +323,7 @@ describe('ClientSocket', function () {
 			it('should do nothing for resolving non-existing promise', function () {
 				lastWebSocket.onopen();
 
-				let promise = service.server.foo();
+				const promise = service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 5, 'ok']) });
 			});
@@ -281,7 +331,7 @@ describe('ClientSocket', function () {
 			it('should do nothing for rejecting non-existing promise', function () {
 				lastWebSocket.onopen();
 
-				let promise = service.server.foo();
+				const promise = service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Rejected, 1, 5, 'fail']) });
 			});
@@ -289,8 +339,8 @@ describe('ClientSocket', function () {
 			it('should resolve promises with correct id', function () {
 				lastWebSocket.onopen();
 
-				let promise1 = service.server.foo();
-				let promise2 = service.server.foo();
+				const promise1 = service.server.foo();
+				const promise2 = service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 2, 'a']) });
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 1, 'b']) });
