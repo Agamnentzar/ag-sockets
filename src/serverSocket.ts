@@ -48,7 +48,12 @@ export function create(server: HttpServer, createServer: (client: any) => any, o
 	if (options.client.length > 250 || options.server.length > 250)
 		throw new Error('too many methods');
 
-	const wsServer = new WebSocketServer({ server: server, path: options.path });
+	const wsServer = new WebSocketServer({
+		server: server,
+		path: options.path,
+		perMessageDeflate: typeof options.perMessageDeflate === 'undefined' ? true : options.perMessageDeflate,
+	} as any);
+
 	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
 	const clients: Client[] = [];
 	const reader = new BufferPacketReader();

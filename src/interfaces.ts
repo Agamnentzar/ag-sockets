@@ -66,6 +66,7 @@ export interface SocketOptions {
 	connectionTimeout?: number;
 	/** log messages to console */
 	debug?: boolean;
+	perMessageDeflate?: boolean;
 }
 
 export interface Options extends SocketOptions {
