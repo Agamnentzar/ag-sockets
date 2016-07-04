@@ -29,7 +29,7 @@ export class BasePacketWriter {
 		if (value == null) {
 			return this.measureLength(-1);
 		} else {
-			let length = stringLengthInBytes(value);
+			const length = stringLengthInBytes(value);
 			return this.measureLength(length) + length;
 		}
 	}
@@ -69,7 +69,7 @@ export class BasePacketWriter {
 		if (value == null) {
 			this.writeLength(-1);
 		} else {
-			let buffer = encodeString(value);
+			const buffer = encodeString(value);
 			this.writeLength(buffer.length);
 			this.writeBytes(buffer);
 		}

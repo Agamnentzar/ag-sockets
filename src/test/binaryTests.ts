@@ -10,6 +10,9 @@ describe('binaryHandler', function () {
 	const client: Packets = {
 		foo: ['Uint8', 'Float64'],
 		boo: ['Object', ['Int32'], ['Int32', 'Int32', ['Int32']], ['Object']],
+		far: [['Int32', ['Int32', 'Int32']]],
+		fab: [['Int32', ['Int32']]],
+		obj: [['Object']],
 	};
 
 	const server: Packets = {
@@ -61,6 +64,65 @@ describe('binaryHandler', function () {
 			handlers.read['foo'](reader, result);
 
 			expect(result).eql([1, 8, 1.5]);
+		});
+	});
+
+	describe('readWriteTests', function () {
+		let serverSide: IBinaryHandlers<Buffer>;
+		let clientSide: IBinaryHandlers<Buffer>;
+		let reader: BufferPacketReader;
+		let writer: BufferPacketWriter;
+
+		beforeEach(function () {
+			serverSide = createHandlers(client, server);
+			clientSide = createHandlers(server, client);
+			reader = new BufferPacketReader();
+			writer = new BufferPacketWriter();
+		});
+
+		it('shoud read write simple method', function () {
+			serverSide.write['foo'](writer, 1, [8, 1.5]);
+			reader.setBuffer(writer.getBuffer());
+			const result = [reader.readUint8()];
+			clientSide.read['foo'](reader, result);
+
+			expect(result).eql([1, 8, 1.5]);
+		});
+
+		it('shoud read write complex arrays method', function () {
+			serverSide.write['far'](writer, 3, [[[10, [[1, 2]]]]]);
+			reader.setBuffer(writer.getBuffer());
+			const result = [reader.readUint8()];
+			clientSide.read['far'](reader, result);
+
+			expect(result).eql([3, [[10, [[1, 2]]]]]);
+		});
+
+		it('shoud read write simple arrays method', function () {
+			serverSide.write['fab'](writer, 4, [[[10, [3, 3, 4]]]]);
+			reader.setBuffer(writer.getBuffer());
+			const result = [reader.readUint8()];
+			clientSide.read['fab'](reader, result);
+
+			expect(result).eql([4, [[10, [3, 3, 4]]]]);
+		});
+
+		it('shoud read write arrays of objects method', function () {
+			serverSide.write['obj'](writer, 4, [[{ a: 1 }, { b: 2 }]]);
+			reader.setBuffer(writer.getBuffer());
+			const result = [reader.readUint8()];
+			clientSide.read['obj'](reader, result);
+
+			expect(result).eql([4, [{ a: 1 }, { b: 2 }]]);
+		});
+
+		it('shoud read write complex method', function () {
+			serverSide.write['boo'](writer, 2, [{ foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
+			reader.setBuffer(writer.getBuffer());
+			const result = [reader.readUint8()];
+			clientSide.read['boo'](reader, result);
+
+			expect(result).eql([2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
 		});
 	});
 });

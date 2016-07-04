@@ -23,13 +23,22 @@ function writeFieldSize(f: string | any[], n: string, indent: string): any {
 			let code = '';
 			let size = 0;
 
-			for (let i = 0; i < f.length; i++) {
-				const s = writeFieldSize(f[i], `item[${i}]`, indent + '\t');
+			if (f.length === 1) {
+				const s = writeFieldSize(f[0], `item`, indent + '\t');
 
 				if (isNaN(s))
 					code += `\n${indent}\t+ ${s}`;
 				else
 					size += s;
+			} else {
+				for (let i = 0; i < f.length; i++) {
+					const s = writeFieldSize(f[i], `item[${i}]`, indent + '\t');
+
+					if (isNaN(s))
+						code += `\n${indent}\t+ ${s}`;
+					else
+						size += s;
+				}
 			}
 
 			return `writer.measureArray(${n}, function (item) { return ${size}${code}; })`;
