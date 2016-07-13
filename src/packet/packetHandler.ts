@@ -21,9 +21,11 @@ export interface IBinaryHandlers<T> {
 	read: IBinaryReadHandlers<T>;
 }
 
-export interface IResultHandler {
-	(funcId: number, funcName: string, result: any): void;
+export interface IFunctionHandler {
+	(funcId: number, funcName: string, func: Function, funcObj: any, args: any[]): void;
 }
+
+export const defaultHandleFunction: IFunctionHandler = (funcId, funcName, func, funcObj, args) => func.apply(funcObj, args);
 
 export class PacketHandler<T> {
 	supportsBinary = false;
@@ -50,7 +52,7 @@ export class PacketHandler<T> {
 			return data.length;
 		}
 	}
-	protected read(data: string | T) {
+	protected read(data: string | T): any[] {
 		if (typeof data === 'string') {
 			return JSON.parse(data);
 		} else {
@@ -84,7 +86,7 @@ export class PacketHandler<T> {
 			return 0;
 		}
 	}
-	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleResult: IResultHandler): number {
+	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction): number {
 		const args = this.read(data);
 
 		try {
@@ -95,8 +97,9 @@ export class PacketHandler<T> {
 			var func = funcObj[funcName];
 		} catch (e) { }
 
-		if (func)
-			handleResult(funcId, funcName, func.apply(funcObj, args));
+		if (func) {
+			handleFunction(funcId, funcName, func, funcObj, args);
+		}
 
 		return (<any>data).length || (<any>data).byteLength || 0;
 	}

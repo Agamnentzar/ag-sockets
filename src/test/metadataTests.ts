@@ -1,13 +1,13 @@
 import './common';
 import { expect } from 'chai';
-import { MethodMetadata, SocketOptions } from '../interfaces';
+import { MethodMetadata, ServerOptions, Bin } from '../interfaces';
 import { Socket, Method, getSocketMetadata, getMethodMetadata } from '../method';
 
 @Socket({ path: '/api', ssl: true, connectionTimeout: 500 })
 class ExampleServer {
 	@Method()
 	foo() { }
-	@Method({ binary: ['Uint8'], ignore: true })
+	@Method({ binary: [Bin.U8], ignore: true })
 	bar() { }
 }
 
@@ -27,7 +27,7 @@ describe('metadata', function () {
 				<MethodMetadata>{
 					name: 'bar',
 					options: {
-						binary: ['Uint8'],
+						binary: [Bin.U8],
 						ignore: true,
 					}
 				}
@@ -41,7 +41,7 @@ describe('metadata', function () {
 
 	describe('getMethodMetadata()', function () {
 		it('should return metadata for class with decorator', function () {
-			expect(getSocketMetadata(ExampleServer)).eql(<SocketOptions>{
+			expect(getSocketMetadata(ExampleServer)).eql(<ServerOptions>{
 				path: '/api',
 				ssl: true,
 				connectionTimeout: 500

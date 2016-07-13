@@ -1,7 +1,7 @@
 import { FuncList, Logger } from '../interfaces';
 import { PacketWriter } from './packetWriter';
 import { PacketReader } from './packetReader';
-import { PacketHandler, IResultHandler, IBinaryHandlers } from './packetHandler';
+import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction } from './packetHandler';
 
 export class DebugPacketHandler<T> extends PacketHandler<T> {
 	constructor(readNames: string[], remoteNames: string[], packetWriter: PacketWriter<T>, packetReader: PacketReader<T>,
@@ -18,7 +18,7 @@ export class DebugPacketHandler<T> extends PacketHandler<T> {
 
 		return size;
 	}
-	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleResult: IResultHandler): number {
+	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction): number {
 		const args = this.read(data);
 
 		const funcId = args.shift();
@@ -39,7 +39,7 @@ export class DebugPacketHandler<T> extends PacketHandler<T> {
 		}
 
 		if (func)
-			handleResult(funcId, funcName, func.apply(funcObj, args));
+			handleFunction(funcId, funcName, func, funcObj, args);
 		else
 			this.log(`invalid message: ${funcName}`, args);
 

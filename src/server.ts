@@ -5,7 +5,7 @@ export interface ClientExtensions {
 	id: number;
 	isConnected: boolean;
 	originalRequest: ServerRequest;
-	disconnect(): void;
+	disconnect(force?: boolean, invalidateToken?: boolean): void;
 }
 
 export type SocketServerClient = SocketClient & ClientExtensions;

@@ -1,6 +1,6 @@
 import './common';
 import { expect } from 'chai';
-import { Packets } from '../interfaces';
+import { Packets, Bin } from '../interfaces';
 import { createHandlers } from '../packet/binaryHandler';
 import { IBinaryHandlers } from '../packet/packetHandler';
 import BufferPacketWriter from '../packet/bufferPacketWriter';
@@ -8,15 +8,15 @@ import BufferPacketReader from '../packet/bufferPacketReader';
 
 describe('binaryHandler', function () {
 	const client: Packets = {
-		foo: ['Uint8', 'Float64'],
-		boo: ['Object', ['Int32'], ['Int32', 'Int32', ['Int32']], ['Object']],
-		far: [['Int32', ['Int32', 'Int32']]],
-		fab: [['Int32', ['Int32']]],
-		obj: [['Object']],
+		foo: [Bin.U8, Bin.F64],
+		boo: [Bin.Obj, [Bin.I32], [Bin.I32, Bin.I32, [Bin.I32]], [Bin.Obj]],
+		far: [[Bin.I32, [Bin.I32, Bin.I32]]],
+		fab: [[Bin.I32, [Bin.I32]]],
+		obj: [[Bin.Obj]],
 	};
 
 	const server: Packets = {
-		bar: ['Uint8', 'String'],
+		bar: [Bin.U8, Bin.Str],
 	};
 
 	describe('createHandlers(server)', function () {

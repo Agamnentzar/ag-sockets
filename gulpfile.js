@@ -9,7 +9,11 @@ var sourcemaps = require('gulp-sourcemaps');
 var runSequence = require('run-sequence');
 var remapIstanbul = require('remap-istanbul/lib/gulpRemapIstanbul');
 var merge = require('merge2');
+var Builder = require('systemjs-builder')
+var liveServer = require('gulp-live-server');
 var argv = require('yargs').argv;
+
+gulp.task('empty', function () { });
 
 gulp.task('clean', function () {
 	return del([
@@ -17,7 +21,11 @@ gulp.task('clean', function () {
 	]);
 });
 
-var project = ts.createProject('tsconfig.json', { outDir: 'dist' });
+var project = ts.createProject('tsconfig.json', {
+	//typescript: require('typescript'),
+	outDir: 'dist'
+});
+
 var scripts = ['src/**/*.ts'];
 
 gulp.task('build', function () {
@@ -32,6 +40,11 @@ gulp.task('build', function () {
 			.pipe(sourcemaps.write({ sourceRoot: path.resolve('src') }))
 			.pipe(gulp.dest('dist')),
 	]);
+});
+
+gulp.task('demo', function () {
+	var builder = new Builder('', 'src/demo/config.js');
+	return builder.buildStatic('dist/demo/demoClient.js', 'dist/demo/demo.js');
 });
 
 gulp.task('tests', ['build'], function () {
@@ -51,8 +64,18 @@ gulp.task('coverage', ['build'], function () {
 		}));
 });
 
+gulp.task('server', function () {
+	var server = liveServer(['dist/demo/demoServer.js'], {});
+	server.start();
+
+	gulp.watch(['src/demo/**/*.html'], server.notify.bind(server));
+	gulp.watch(['dist/**/*.js'], function () {
+		server.start();
+	});
+});
+
 gulp.task('watch', function () {
-	gulp.watch(scripts, ['build']);
+	gulp.watch(scripts, ['build-and-demo']);
 
 	if (argv.tests || argv.coverage)
 		gulp.watch(scripts, [argv.coverage ? 'cov' : 'tests']);
@@ -61,12 +84,19 @@ gulp.task('watch', function () {
 gulp.task('lint', function () {
 	return gulp.src(scripts)
 		.pipe(plumber())
-		.pipe(tslint({ configuration: require('./tslint.json') }))
-		.pipe(tslint.report('verbose'));
+		.pipe(tslint({
+			report: 'verbose',
+			configuration: require('./tslint.json')
+		}))
+		.pipe(tslint.report());
+});
+
+gulp.task('build-and-demo', function (done) {
+	runSequence('build', 'demo', done);
 });
 
 gulp.task('dev', function (done) {
-	runSequence('clean', 'build', 'watch', done);
+	runSequence('clean', 'build-and-demo', argv.coverage ? 'cov' : (argv.tests ? 'tests' : 'empty'), 'server', 'watch', done);
 });
 
 gulp.task('cov', function (done) {

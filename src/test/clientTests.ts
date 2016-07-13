@@ -3,8 +3,7 @@ import * as Promise from 'bluebird';
 import { expect } from 'chai';
 import { stub, spy, assert } from 'sinon';
 import { MessageType } from '../packet/packetHandler';
-import { ClientSocket } from '../clientSocket';
-import { SocketClient, SocketServer, SocketService } from '../interfaces';
+import { ClientSocket, SocketClient, SocketServer, SocketService, ClientErrorHandler } from '../index';
 
 let lastWebSocket: MockWebSocket;
 
@@ -18,6 +17,7 @@ interface Server extends SocketServer {
 	foo(): Promise<any>;
 	fooInProgress: boolean;
 	foo2(): Promise<any>;
+	foo3(): void;
 }
 
 class MockWebSocket {
@@ -36,6 +36,7 @@ describe('ClientSocket', function () {
 	const location = { protocol: '', host: '' };
 	const window = { addEventListener() { }, removeEventListener() { } };
 	let service: SocketService<Client, Server>;
+	let errorHandler: ClientErrorHandler;
 
 	before(function () {
 		(<any>global).window = window;
@@ -49,14 +50,20 @@ describe('ClientSocket', function () {
 		window.addEventListener = () => { };
 		window.removeEventListener = () => { };
 		lastWebSocket = null;
+		errorHandler = { handleRecvError() { } };
 
 		service = new ClientSocket<Client, Server>({
 			hash: 123,
 			path: '/test',
 			client: ['test', 'foo'],
-			server: ['test2', ['foo', { promise: true, progress: 'fooInProgress' }], ['foo2', { promise: true }]],
+			server: [
+				'test2',
+				['foo', { promise: true, progress: 'fooInProgress' }],
+				['foo2', { promise: true, rateLimit: 500 }],
+				['foo3', { rateLimit: 500 }],
+			],
 			pingInterval: 1000,
-		});
+		}, errorHandler);
 	});
 
 	describe('invalidVersion', function () {
@@ -196,15 +203,52 @@ describe('ClientSocket', function () {
 	});
 
 	describe('server', function () {
-		it('should have methods', function () {
+		it('should reject if called promise methods when not connected', function () {
+			return expect(service.server.foo()).rejectedWith('not connected');
+		});
+	});
+
+	describe('server (connected)', function () {
+		beforeEach(function () {
 			service.connect();
 			lastWebSocket.onopen();
+		});
 
+		it('should have methods', function () {
 			service.server.test2();
 		});
 
-		it('should reject if called promise methods when not connected', function () {
-			return expect(service.server.foo()).rejectedWith('not connected');
+		it('should reject when rate limit is exceeded', function () {
+			service.server.foo2();
+			expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+		});
+
+		it('should return false when rate limit is exceeded', function () {
+			service.server.foo3();
+			expect(service.server.foo3()).false;
+		});
+
+		it('should not send request when rate limit is exceeded', function () {
+			service.server.foo3();
+			const send = stub((service as any).packet, 'send');
+
+			expect(service.server.foo3()).false;
+
+			assert.notCalled(send);
+		});
+
+		it('should reject when rate limit is exceeded', function () {
+			service.server.foo2();
+			expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+		});
+
+		it('should not send request when rate limit is exceeded (promise)', function () {
+			service.server.foo2();
+			const send = stub((service as any).packet, 'send');
+
+			expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+
+			assert.notCalled(send);
 		});
 	});
 
@@ -320,6 +364,17 @@ describe('ClientSocket', function () {
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Rejected, 1, 1, 'fail']) });
 
 				return expect(promise).rejectedWith('fail');
+			});
+
+			it('should pass error from packet recv method to error handler', function () {
+				lastWebSocket.onopen();
+				const error = new Error('test error');
+				const handleRecvError = stub(errorHandler, 'handleRecvError');
+				stub((service as any).packet, 'recv').throws(error);
+
+				lastWebSocket.onmessage({ data: '[0]' });
+
+				assert.calledWith(handleRecvError, error, '[0]');
 			});
 
 			it('should do nothing for resolving non-existing promise', function () {

@@ -29,8 +29,21 @@ export interface SocketService<TClient extends SocketClient, TServer extends Soc
 	disconnect(): void;
 }
 
-export type BinaryType = 'Int8' | 'Uint8' | 'Int16' | 'Uint16' | 'Int32' | 'Uint32' | 'Float32' | 'Float64' | 'Boolean' | 'String' | 'Object';
-export type BinaryDef = (BinaryType | (BinaryType | any[])[])[];
+export const enum Bin {
+	I8,
+	U8,
+	I16,
+	U16,
+	I32,
+	U32,
+	F32,
+	F64,
+	Bool,
+	Str,
+	Obj,
+}
+
+export type BinaryDef = (Bin | (Bin | (Bin | any[]))[])[];
 export type MethodDef = string | [string, MethodOptions];
 
 export interface Packets {
@@ -46,6 +59,8 @@ export interface MethodOptions {
 	progress?: string;
 	/** true if method should be ignored when logging messages in debug mode */
 	ignore?: boolean;
+	/** rate limit (ms) */
+	rateLimit?: number;
 }
 
 export interface MethodMetadata {
@@ -53,9 +68,9 @@ export interface MethodMetadata {
 	options: MethodOptions;
 }
 
-export interface SocketOptions {
+export interface ServerOptions {
 	/** path to websocket endpoint */
-	path: string;
+	path?: string;
 	/** true to force SSL websockets on non-SSL website */
 	ssl?: boolean;
 	/** ping interval in milliseconds, ping disabled if not specified or 0 */
@@ -66,13 +81,24 @@ export interface SocketOptions {
 	connectionTimeout?: number;
 	/** log messages to console */
 	debug?: boolean;
+	/** version hash */
+	hash?: number;
+	/** per message deflate compression switch */
 	perMessageDeflate?: boolean;
+	/** limit connections to one per generated token */
+	connectionTokens?: boolean;
+	/** lifetime of connection token */
+	tokenLifetime?: number;
+	/** maximum number of connected clients */
+	clientLimit?: number;
+	/** transfer limit (bytes per second) */
+	transferLimit?: number;
 }
 
-export interface Options extends SocketOptions {
-	client?: MethodDef[];
-	server?: MethodDef[];
-	hash?: number;
+export interface ClientOptions extends ServerOptions {
+	client: MethodDef[];
+	server: MethodDef[];
+	token?: string;
 }
 
 export function getNames(methods: MethodDef[]) {

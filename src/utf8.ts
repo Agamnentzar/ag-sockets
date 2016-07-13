@@ -1,12 +1,10 @@
-﻿const fromCharCode = String.fromCharCode;
-
 function foreachCharacter(value: string, callback: (code: number) => void) {
 	for (let i = 0; i < value.length; i++) {
 		let code = value.charCodeAt(i);
 
 		// high surrogate
 		if (code >= 0xd800 && code <= 0xdbff && (i + 1) < value.length) {
-			let extra = value.charCodeAt(i + 1);
+			const extra = value.charCodeAt(i + 1);
 
 			// low surrogate
 			if ((extra & 0xfc00) === 0xdc00) {
@@ -41,11 +39,11 @@ export function encodeString(value: string): Uint8Array {
 	if (value == null)
 		return null;
 
-	let result = new Uint8Array(stringLengthInBytes(value));
+	const result = new Uint8Array(stringLengthInBytes(value));
 	let offset = 0;
 
 	foreachCharacter(value, code => {
-		let length = charLengthInBytes(code);
+		const length = charLengthInBytes(code);
 
 		if (length === 1) {
 			result[offset++] = code;
@@ -73,7 +71,7 @@ function continuationByte(buffer: Uint8Array, index: number): number {
 		throw Error('Invalid byte index');
 	}
 
-	let continuationByte = buffer[index];
+	const continuationByte = buffer[index];
 
 	if ((continuationByte & 0xC0) === 0x80) {
 		return continuationByte & 0x3F;
@@ -86,24 +84,24 @@ export function decodeString(value: Uint8Array): string {
 	if (value == null)
 		return null;
 
-	let codes: number[] = [];
+	const codes: number[] = [];
 
 	for (let i = 0; i < value.length;) {
-		let byte1 = value[i++];
+		const byte1 = value[i++];
 		let code: number;
 
 		if ((byte1 & 0x80) === 0) {
 			code = byte1;
 		} else if ((byte1 & 0xe0) === 0xc0) {
-			let byte2 = continuationByte(value, i++);
+			const byte2 = continuationByte(value, i++);
 			code = ((byte1 & 0x1f) << 6) | byte2;
 
 			if (code < 0x80) {
 				throw Error('Invalid continuation byte');
 			}
 		} else if ((byte1 & 0xf0) === 0xe0) {
-			let byte2 = continuationByte(value, i++);
-			let byte3 = continuationByte(value, i++);
+			const byte2 = continuationByte(value, i++);
+			const byte3 = continuationByte(value, i++);
 			code = ((byte1 & 0x0f) << 12) | (byte2 << 6) | byte3;
 
 			if (code < 0x0800) {
@@ -114,9 +112,9 @@ export function decodeString(value: Uint8Array): string {
 				throw Error(`Lone surrogate U+${code.toString(16).toUpperCase()} is not a scalar value`);
 			}
 		} else if ((byte1 & 0xf8) === 0xf0) {
-			let byte2 = continuationByte(value, i++);
-			let byte3 = continuationByte(value, i++);
-			let byte4 = continuationByte(value, i++);
+			const byte2 = continuationByte(value, i++);
+			const byte3 = continuationByte(value, i++);
+			const byte4 = continuationByte(value, i++);
 			code = ((byte1 & 0x0f) << 0x12) | (byte2 << 0x0c) | (byte3 << 0x06) | byte4;
 
 			if (code < 0x010000 || code > 0x10ffff) {
@@ -135,5 +133,5 @@ export function decodeString(value: Uint8Array): string {
 		codes.push(code);
 	}
 
-	return fromCharCode(...codes);
+	return String.fromCharCode(...codes);
 }

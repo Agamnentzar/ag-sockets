@@ -1,6 +1,7 @@
 import * as Promise from 'bluebird';
-import { SocketService, SocketServer, SocketClient, Options, FuncList, Packets, MethodDef, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
+import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, Packets, MethodDef, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
 import { get, set, remove } from './map';
+import { checkRateLimit, RateLimit } from './utils';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
@@ -54,12 +55,17 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	};
 	private defers: [number, Deferred<any>][] = [];
 	private inProgressFields: { [key: string]: number } = {};
-	constructor(private options: Options, private errorHandler?: ClientErrorHandler, private apply: (f: () => any) => void = f => f(), private log: Logger = console.log.bind(console)) {
+	private rateLimits: RateLimit[] = [];
+	constructor(private options: ClientOptions, private errorHandler?: ClientErrorHandler, private apply: (f: () => any) => void = f => f(), private log: Logger = console.log.bind(console)) {
 		this.options.server.forEach((item, id) => {
 			if (typeof item === 'string') {
 				this.createMethod(item, id, {});
 			} else {
 				this.createMethod(item[0], id, item[1]);
+
+				if (item[1].rateLimit) {
+					this.rateLimits[id] = { limit: item[1].rateLimit + 50, last: 0 };
+				}
 			}
 		});
 
@@ -79,8 +85,9 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 
 		const options = this.options;
 		const protocol = options.ssl || location.protocol === 'https:' ? 'wss://' : 'ws://';
+		const query = options.token ? `?t=${options.token}` : '';
 
-		this.socket = new WebSocket(protocol + location.host + options.path);
+		this.socket = new WebSocket(protocol + location.host + options.path + query);
 
 		window.addEventListener('beforeunload', this.beforeunload);
 
@@ -101,7 +108,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		this.socket.onmessage = message => {
 			if (message.data) {
 				try {
-					this.receivedSize += this.packet.recv(message.data, this.client, this.special, () => { });
+					this.receivedSize += this.packet.recv(message.data, this.client, this.special);
 				} catch (e) {
 					if (this.errorHandler) {
 						this.errorHandler.handleRecvError(e, message.data);
@@ -121,6 +128,10 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			this.lastSentId = 0;
 			this.isConnected = true;
 
+			// notify server of binary support
+			if (this.packet.supportsBinary)
+				this.socket.send(typeof Buffer !== 'undefined' ? new Buffer(0) : new ArrayBuffer(0));
+
 			if (this.client.connected)
 				this.client.connected();
 
@@ -129,14 +140,14 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			}
 		};
 
-		this.socket.onerror = () => {
+		this.socket.onerror = e => {
 			if (options.debug)
-				this.log('socket error');
+				this.log('socket error', e);
 		};
 
-		this.socket.onclose = () => {
+		this.socket.onclose = e => {
 			if (options.debug)
-				this.log('socket closed');
+				this.log('socket closed', e);
 
 			this.socket = null;
 			this.versionValidated = false;
@@ -204,8 +215,13 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	}
 	private createSimpleMethod(name: string, id: number) {
 		this.server[name] = (...args: any[]) => {
-			this.sentSize += this.packet.send(this.socket, name, id, args);
-			this.lastSentId++;
+			if (checkRateLimit(id, this.rateLimits)) {
+				this.sentSize += this.packet.send(this.socket, name, id, args);
+				this.lastSentId++;
+				return true;
+			} else {
+				return false;
+			}
 		};
 	}
 	private createPromiseMethod(name: string, id: number, inProgressField?: string) {
@@ -218,16 +234,18 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		}
 
 		this.server[name] = (...args: any[]) => {
-			if (this.isConnected) {
-				this.sentSize += this.packet.send(this.socket, name, id, args);
-				const messageId = ++this.lastSentId;
-				const defer = deferred<any>();
-				set(this.defers, messageId, defer);
-				this.inProgressFields[inProgressField]++;
-				return defer.promise;
-			} else {
+			if (!this.isConnected)
 				return Promise.reject<any>(new Error('not connected'));
-			}
+
+			if (!checkRateLimit(id, this.rateLimits))
+				return Promise.reject<any>(new Error('rate limit exceeded'));
+
+			this.sentSize += this.packet.send(this.socket, name, id, args);
+			const messageId = ++this.lastSentId;
+			const defer = deferred<any>();
+			set(this.defers, messageId, defer);
+			this.inProgressFields[inProgressField]++;
+			return defer.promise;
 		};
 
 		this.special['*resolve:' + name] = (messageId: number, result: any) => {

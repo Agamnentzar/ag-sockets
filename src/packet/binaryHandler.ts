@@ -1,25 +1,41 @@
-import { Packets } from '../interfaces';
+import { Packets, Bin } from '../interfaces';
 
 interface CodeSize {
 	code: string;
 	size: number;
 }
 
-const sizes: { [key: string]: number } = {
-	Int8: 1,
-	Uint8: 1,
-	Int16: 2,
-	Uint16: 2,
-	Int32: 4,
-	Uint32: 4,
-	Float32: 4,
-	Float64: 8,
-	Boolean: 1,
-};
+const sizes: number[] = [];
+sizes[Bin.U8] = 1;
+sizes[Bin.I8] = 1;
+sizes[Bin.U16] = 2;
+sizes[Bin.I16] = 2;
+sizes[Bin.U32] = 4;
+sizes[Bin.I32] = 4;
+sizes[Bin.F32] = 4;
+sizes[Bin.F64] = 8;
+sizes[Bin.Bool] = 1;
 
-function writeFieldSize(f: string | any[], n: string, indent: string): any {
+const names: string[] = [];
+names[Bin.U8] = 'Int8';
+names[Bin.I8] = 'Uint8';
+names[Bin.U16] = 'Int16';
+names[Bin.I16] = 'Uint16';
+names[Bin.U32] = 'Int832';
+names[Bin.I32] = 'Uint32';
+names[Bin.F32] = 'Float32';
+names[Bin.F64] = 'Float64';
+names[Bin.Bool] = 'Boolean';
+names[Bin.Str] = 'String';
+names[Bin.Obj] = 'Object';
+
+function isBinArray(array: (Bin | any[])[]): array is Bin[] {
+	return !array.some(x => x === Bin.Obj || x === Bin.Str || Array.isArray(x));
+}
+
+function writeFieldSize(f: Bin | Bin[] | any[], n: string, indent: string): any {
 	if (f instanceof Array) {
-		if (f.some(x => x === 'Object' || x === 'String' || Array.isArray(x))) {
+		if (!isBinArray(f)) {
 			let code = '';
 			let size = 0;
 
@@ -46,15 +62,15 @@ function writeFieldSize(f: string | any[], n: string, indent: string): any {
 			return `writer.measureSimpleArray(${n}, ${f.reduce((sum, x) => sum + sizes[x], 0)})`;
 		}
 	} else {
-		if (f === 'Object' || f === 'String') {
-			return `writer.measure${f}(${n})`;
+		if (f === Bin.Obj || f === Bin.Str) {
+			return `writer.measure${names[f]}(${n})`;
 		} else {
 			return sizes[f];
 		}
 	}
 }
 
-function writeField(obj: CodeSize, f: string | any[], n: string, indent: string) {
+function writeField(obj: CodeSize, f: Bin | any[], n: string, indent: string) {
 	if (f instanceof Array) {
 		if (f.length === 1) {
 			obj.code += `${indent}writer.writeArray(${n}, function (item) {\n`;
@@ -69,7 +85,7 @@ function writeField(obj: CodeSize, f: string | any[], n: string, indent: string)
 			obj.code += `${indent}});\n`;
 		}
 	} else {
-		obj.code += `${indent}writer.write${f}(${n});\n`;
+		obj.code += `${indent}writer.write${names[f]}(${n});\n`;
 	}
 }
 
@@ -94,7 +110,7 @@ function createWriteFunction(fields: any[]) {
 	return `function (writer, id, args) {\n\t\tvar size = ${obj.size};\n${obj.code}\t}`;
 }
 
-function readField(f: string | any[], indent: string) {
+function readField(f: Bin | any[], indent: string) {
 	if (f instanceof Array) {
 		let code = '';
 
@@ -111,7 +127,7 @@ function readField(f: string | any[], indent: string) {
 
 		return `reader.readArray(function () { return ${code.trim()}; })`;
 	} else {
-		return `reader.read${f}()`;
+		return `reader.read${names[f]}()`;
 	}
 }
 

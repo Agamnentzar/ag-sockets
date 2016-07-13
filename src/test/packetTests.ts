@@ -1,6 +1,7 @@
 import './common';
 import { expect } from 'chai';
 import { assert, spy, stub } from 'sinon';
+import { Bin } from '../interfaces';
 import { MessageType, PacketHandler } from '../packet/packetHandler';
 import BufferPacketWriter from '../packet/bufferPacketWriter';
 import BufferPacketReader from '../packet/bufferPacketReader';
@@ -24,7 +25,7 @@ describe('PacketHandler', function () {
 	beforeEach(function () {
 		writer = new BufferPacketWriter();
 		reader = new BufferPacketReader();
-		binary = createHandlers({ foo: ['Uint8'] }, { foo: ['Uint8'] });
+		binary = createHandlers({ foo: [Bin.U8] }, { foo: [Bin.U8] });
 		handler = new PacketHandler<Buffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
 	});
 
@@ -93,7 +94,7 @@ describe('PacketHandler', function () {
 		it('should read message from websocket', function () {
 			const foo = stub(funcs, 'foo');
 
-			handler.recv('[1,"a","b",5]', funcs, special, result => { });
+			handler.recv('[1,"a","b",5]', funcs, special);
 
 			assert.calledWith(foo, 'a', 'b', 5);
 		});
@@ -101,7 +102,7 @@ describe('PacketHandler', function () {
 		it('should read VERSION message from websocket', function () {
 			const VERSION = stub(special, '*version');
 
-			handler.recv(JSON.stringify([MessageType.Version, 123]), funcs, special, result => { });
+			handler.recv(JSON.stringify([MessageType.Version, 123]), funcs, special);
 
 			assert.calledWith(VERSION, 123);
 		});
@@ -109,7 +110,7 @@ describe('PacketHandler', function () {
 		it('should read promise resolve message from websocket', function () {
 			const barResolved = stub(special, '*resolve:bar');
 
-			handler.recv(JSON.stringify([MessageType.Resolved, 1, 123]), funcs, special, result => { });
+			handler.recv(JSON.stringify([MessageType.Resolved, 1, 123]), funcs, special);
 
 			assert.calledWith(barResolved, 123);
 		});
@@ -117,35 +118,35 @@ describe('PacketHandler', function () {
 		it('should read promise reject message from websocket', function () {
 			const barRejected = stub(special, '*reject:bar');
 
-			handler.recv(JSON.stringify([MessageType.Rejected, 1, 123]), funcs, special, result => { });
+			handler.recv(JSON.stringify([MessageType.Rejected, 1, 123]), funcs, special);
 
 			assert.calledWith(barRejected, 123);
 		});
 
 		it('should do nothing if function doesnt exist', function () {
-			handler.recv(JSON.stringify([100, 123]), funcs, special, result => { });
+			handler.recv(JSON.stringify([100, 123]), funcs, special);
 		});
 
 		it('should return message length', function () {
 			const foo = stub(funcs, 'foo');
 
-			expect(handler.recv('[1,"a","b",5]', funcs, special, result => { })).equal('[1,"a","b",5]'.length);
+			expect(handler.recv('[1,"a","b",5]', funcs, special)).equal('[1,"a","b",5]'.length);
 		});
 
 		it('should read binary message from websocket', function () {
 			const foo = stub(funcs, 'foo');
 
-			handler.recv(new Buffer([1, 8]), funcs, special, result => { });
+			handler.recv(new Buffer([1, 8]), funcs, special);
 
 			assert.calledWith(foo, 8);
 		});
 
 		it('should return binary message length', function () {
-			expect(handler.recv(new Buffer([1, 8]), funcs, special, result => { })).equal(2);
+			expect(handler.recv(new Buffer([1, 8]), funcs, special)).equal(2);
 		});
 
 		it('should throw if binary handler is missing', function () {
-			expect(() => handler.recv(new Buffer([2, 8]), funcs, special, result => { })).throw('Missing packet handler for: abc (2)');
+			expect(() => handler.recv(new Buffer([2, 8]), funcs, special)).throw('Missing packet handler for: abc (2)');
 		});
 
 		it('should return binary message length (ArrayBuffer)', function () {
@@ -159,16 +160,16 @@ describe('PacketHandler', function () {
 			const bytes = new Uint8Array(buffer);
 			bytes[0] = 1;
 			bytes[1] = 8;
-			expect(handler.recv(buffer, funcs, special, result => { })).equal(2);
+			expect(handler.recv(buffer, funcs, special)).equal(2);
 		});
 
-		it('should call handle result with method id, name and result', function () {
+		it('should call handle function with all parameters', function () {
 			const handleResult = spy();
 			stub(funcs, 'foo').returns('abc');
 
 			handler.recv('[1,"abc"]', funcs, special, handleResult);
 
-			assert.calledWith(handleResult, 1, 'foo', 'abc');
+			assert.calledWithMatch(handleResult, 1, 'foo', funcs.foo, funcs, ['abc']);
 		});
 	});
 });

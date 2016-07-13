@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+	<title>ag-sockets demo</title>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+</head>
+<body>
+	<div class="container">
+		<br />
+		<div class="form-horizontal" style="max-width: 400px;">
+			<div class="form-group">
+				<label>Name: </label>
+				<input id="name" class="form-control" type="text" value="anonymous" />
+			</div>
+			<div class="form-group">
+				<label>Message: </label>
+				<input id="message" class="form-control" type="text" value="Lorep ipsum dolor sit amet!" />
+			</div>
+			<div class="form-group">
+				<button id="send" class="btn btn-primary">Send</button>
+				<span id="status" class="label label-info" style="margin-left: 20px;"></span>
+			</div>
+		</div>
+		<div class="row">
+			<div id="messages" class="well well-sm" style="white-space: pre;"></div>
+		</div>
+	</div>
+	<script>
+		var config = CONFIG;
+	</script>
+	<script src="/demo.js"></script>
+</body>
+</html>
