@@ -201,9 +201,9 @@ export function create(
 
 		socket.on('message', (message: string | Buffer, flags: { binary: boolean; }) => {
 			const now = Date.now();
-			const bytesPerSecond = socket.bytesReceived * 1000 / (now - bytesReset);
+			const diff = now - bytesReset;
 
-			if (options.transferLimit && options.transferLimit < bytesPerSecond) {
+			if (options.transferLimit && diff > 1000 && options.transferLimit < (socket.bytesReceived * 1000 / diff)) {
 				errorHandler.handleRecvError(obj.client, new Error('transfer limit exceeded'), message);
 				obj.client.disconnect(true, true);
 				return;
@@ -233,7 +233,7 @@ export function create(
 				}
 			}
 
-			if ((now - bytesReset) > 1000) {
+			if (diff > 1000) {
 				socket.bytesReceived = 0;
 				bytesReset = now;
 			}
