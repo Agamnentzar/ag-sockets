@@ -13,6 +13,7 @@ describe('binaryHandler', function () {
 		far: [[Bin.I32, [Bin.I32, Bin.I32]]],
 		fab: [[Bin.I32, [Bin.I32]]],
 		obj: [[Bin.Obj]],
+		all: [Bin.I8, Bin.U8, Bin.I16, Bin.U16, Bin.I32, Bin.U32, Bin.F32, Bin.F64, Bin.Bool, Bin.Str, Bin.Obj],
 	};
 
 	const server: Packets = {
@@ -123,6 +124,15 @@ describe('binaryHandler', function () {
 			clientSide.read['boo'](reader, result);
 
 			expect(result).eql([2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
+		});
+
+		it('should read write all types', function () {
+			serverSide.write['all'](writer, 5, [-123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
+			reader.setBuffer(writer.getBuffer());
+			const result = [reader.readUint8()];
+			clientSide.read['all'](reader, result);
+
+			expect(result).eql([5, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
 		});
 	});
 });
