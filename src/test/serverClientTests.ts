@@ -334,7 +334,7 @@ describe('ClientSocket + Server', function () {
 
 			clientSocket.server.test(randomString(10));
 
-			return Promise.delay(1010)
+			return Promise.delay(1050)
 				.then(() => clientSocket.server.test(randomString(10)))
 				.delay(50)
 				.then(() => assert.calledTwice(test));

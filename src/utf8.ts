@@ -84,7 +84,7 @@ export function decodeString(value: Uint8Array): string {
 	if (value == null)
 		return null;
 
-	const codes: number[] = [];
+	let result = '';
 
 	for (let i = 0; i < value.length;) {
 		const byte1 = value[i++];
@@ -126,12 +126,12 @@ export function decodeString(value: Uint8Array): string {
 
 		if (code > 0xffff) {
 			code -= 0x10000;
-			codes.push(code >>> 10 & 0x3ff | 0xd800);
+			result += String.fromCharCode(code >>> 10 & 0x3ff | 0xd800);
 			code = 0xdc00 | code & 0x3ff;
 		}
 
-		codes.push(code);
+		result += String.fromCharCode(code);
 	}
 
-	return String.fromCharCode(...codes);
+	return result;
 }
