@@ -1,7 +1,7 @@
 import { Server as HttpServer, ServerRequest } from 'http';
 import { Server as WebSocketServer, IServerOptions } from 'ws';
 import * as Promise from 'bluebird';
-import { assign, remove, findIndex, fromPairs } from 'lodash';
+import { cloneDeep, assign, remove, findIndex, fromPairs } from 'lodash';
 import { parse as parseUrl } from 'url';
 import { ServerOptions, ClientOptions, MethodMetadata, MethodDef, getNames, getBinary, getIgnore, SocketServer, SocketClient, FuncList, Logger, MethodOptions } from './interfaces';
 import { randomString, checkRateLimit, RateLimit } from './utils';
@@ -63,7 +63,7 @@ export function createServer<TServer, TClient>(
 
 export function create(
 	server: HttpServer,
-	createServer: (client: any) => any,
+	createServer: (client: any) => SocketServer,
 	options: ClientOptions,
 	errorHandler: ErrorHandler = defaultErrorHandler,
 	log: Logger = console.log.bind(console)
@@ -150,15 +150,17 @@ export function create(
 	wsServer.on('connection', socket => {
 		const query = parseUrl(socket.upgradeReq.url, true).query;
 		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : null;
-		const rates: RateLimit[] = [];
-		const promises: boolean[] = [];
-		let bytesReset = 0;
 
 		if (options.connectionTokens && !token) {
 			errorHandler.handleError(null, new Error(`invalid token: ${query.t}`));
 			socket.terminate();
 			return;
 		}
+
+		const rates = options.server
+			.map(v => typeof v !== 'string' && v[1].rateLimit ? <RateLimit>{ limit: v[1].rateLimit, last: 0, promise: !!v[1].promise } : null);
+
+		let bytesReset = Date.now();
 
 		const obj: Client = {
 			lastMessageTime: Date.now(),
@@ -185,25 +187,13 @@ export function create(
 			},
 		};
 
-		options.server.forEach((value, index) => {
-			if (typeof value !== 'string') {
-				if (value[1].rateLimit)
-					rates[index] = { limit: value[1].rateLimit, last: 0 };
-				if (value[1].promise)
-					promises[index] = true;
-			}
-		});
-
-		const serverActions: SocketServer = createServer(obj.client);
-
-		function handleFunction(funcId: number, funcName: string, func: Function, funcObj: any, args: any[]) {
-		}
+		const serverActions = createServer(obj.client);
 
 		socket.on('message', (message: string | Buffer, flags: { binary: boolean; }) => {
 			const now = Date.now();
 			const diff = now - bytesReset;
 
-			if (options.transferLimit && diff > 1000 && options.transferLimit < (socket.bytesReceived * 1000 / diff)) {
+			if (options.transferLimit && options.transferLimit < (socket.bytesReceived * 1000 / Math.max(1000, diff))) {
 				errorHandler.handleRecvError(obj.client, new Error('transfer limit exceeded'), message);
 				obj.client.disconnect(true, true);
 				return;
@@ -220,12 +210,10 @@ export function create(
 					packet.recv(message, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
 						if (checkRateLimit(funcId, rates)) {
 							handleResult(socket, obj.client, funcId, funcName, func.apply(funcObj, args), messageId);
+						} else if (rates[funcId] && rates[funcId].promise) {
+							handleResult(socket, obj.client, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
 						} else {
-							if (promises[funcId]) {
-								handleResult(socket, obj.client, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
-							} else {
-								throw new Error('rate limit exceeded');
-							}
+							throw new Error('rate limit exceeded');
 						}
 					});
 				} catch (e) {
@@ -255,9 +243,7 @@ export function create(
 
 		socket.on('error', e => errorHandler.handleError(obj.client, e));
 
-		clientMethods.forEach((name, id) => {
-			obj.client[name] = (...args: any[]) => packet.send(<any>socket, name, id, args);
-		});
+		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packet.send(<any>socket, name, id, args));
 
 		clients.push(obj);
 
@@ -314,7 +300,9 @@ export function create(
 			wsServer.close();
 		},
 		options() {
-			return assign(options.connectionTokens ? { token: createToken().id } : {}, options, { clientLimit: 0 }) as ClientOptions;
+			const clone = cloneDeep(options);
+			const token = options.connectionTokens ? { token: createToken().id } : {};
+			return assign(token, clone, { clientLimit: 0 }) as ClientOptions;
 		},
 	};
 }

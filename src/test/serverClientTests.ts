@@ -4,8 +4,9 @@ import * as http from 'http';
 import * as WebSocket from 'ws';
 import { expect } from 'chai';
 import { assert, stub, spy, SinonStub, SinonSpy } from 'sinon';
+import { find } from 'lodash';
 import { Bin, ServerOptions, ClientOptions } from '../interfaces';
-
+import { randomString } from '../utils';
 import {
 	Socket, Method, ClientSocket, createServer, ClientExtensions, Server as ServerController,
 	SocketClient, SocketServer, ErrorHandler
@@ -29,6 +30,17 @@ class Server implements SocketServer {
 	@Method()
 	err() {
 		throw new Error('err');
+	}
+	@Method()
+	test(message: string) {
+	}
+	@Method({ rateLimit: 100 })
+	limited() {
+		console.log('limited');
+	}
+	@Method({ rateLimit: 100, promise: true })
+	limitedPromise() {
+		return Promise.resolve();
 	}
 	connected() { }
 	disconnected() { }
@@ -74,7 +86,6 @@ describe('ClientSocket + Server', function () {
 
 		const clientOptions = serverSocket.options();
 		onClient(clientOptions);
-
 		httpServer.listen(12345, () => setupClient(clientOptions).then(done));
 	}
 
@@ -204,11 +215,137 @@ describe('ClientSocket + Server', function () {
 		});
 	});
 
+	describe('(client side rate limit)', function () {
+		beforeEach(function (done) {
+			setupServerClient(done);
+		});
+
+		afterEach(function (done) {
+			closeServerClient(done);
+		});
+
+		it('should call method if rate limit is not exceeded', function () {
+			const limited = stub(server, 'limited');
+
+			clientSocket.server.limited();
+
+			return Promise.delay(50)
+				.then(() => assert.calledOnce(limited));
+		});
+
+		it('should not call method if rate limit is exceeded', function () {
+			const limited = stub(server, 'limited');
+
+			clientSocket.server.limited();
+			clientSocket.server.limited();
+
+			return Promise.delay(50)
+				.then(() => assert.calledOnce(limited));
+		});
+
+		it('should reject if rate limit is exceeded', function () {
+			return clientSocket.server.limitedPromise()
+				.then(() => expect(clientSocket.server.limitedPromise()).rejectedWith('rate limit exceeded'));
+		});
+	});
+
+	describe('(server side rate limit)', function () {
+		beforeEach(function (done) {
+			setupServerClient(done, null, opt => {
+				opt.server.forEach(x => {
+					if (typeof x !== 'string') {
+						delete x[1].rateLimit;
+					}
+				});
+			});
+		});
+
+		afterEach(function (done) {
+			closeServerClient(done);
+		});
+
+		it('should not call method if rate limit is exceeded', function () {
+			const limited = stub(server, 'limited');
+
+			clientSocket.server.limited();
+			clientSocket.server.limited();
+
+			return Promise.delay(50)
+				.then(() => assert.calledOnce(limited));
+		});
+
+		it('should reject if rate limit is exceeded', function () {
+			const limited = stub(server, 'limited');
+
+			clientSocket.server.limitedPromise();
+
+			return expect(clientSocket.server.limitedPromise()).rejectedWith('rate limit exceeded');
+		});
+	});
+
+	describe('(transfer limit)', function () {
+		beforeEach(function (done) {
+			setupServerClient(done, { transferLimit: 100 });
+		});
+
+		afterEach(function (done) {
+			closeServerClient(done);
+		});
+
+		it('should work if not exceeding limit', function () {
+			const test = stub(server, 'test');
+
+			clientSocket.server.test('foo bar boo');
+
+			return Promise.delay(50)
+				.then(() => assert.calledWith(test, 'foo bar boo'));
+		});
+
+		it('should not call method if exceeded limit (one message)', function () {
+			const test = stub(server, 'test');
+
+			clientSocket.server.test('LJKzNQwbEF7xOTW4aoXiXBrIKQLg2DS2tWkhGNK4HL2K1HLidWPNs0q0O3pVMKD77diXrfLjhudLmd7bGHwPSijtcwtkSEnpqKTMm2BOP6N');
+
+			return Promise.delay(50)
+				.then(() => assert.notCalled(test));
+		});
+
+		it('should disconnect if exceeded limit (one message)', function () {
+			const disconnected = stub(clientSocket.client, 'disconnected');
+
+			clientSocket.server.test('LJKzNQwbEF7xOTW4aoXiXBrIKQLg2DS2tWkhGNK4HL2K1HLidWPNs0q0O3pVMKD77diXrfLjhudLmd7bGHwPSijtcwtkSEnpqKTMm2BOP6N');
+
+			return Promise.delay(50)
+				.then(() => assert.calledOnce(disconnected));
+		});
+
+		it('should disconnect if exceeded limit (many messages)', function () {
+			const disconnected = stub(clientSocket.client, 'disconnected');
+
+			for (let i = 0; i < 15; i++)
+				clientSocket.server.test(randomString(10));
+
+			return Promise.delay(50)
+				.then(() => assert.calledOnce(disconnected));
+		});
+
+		it('should reset transfer after a second', function () {
+			const test = stub(server, 'test');
+
+			clientSocket.server.test(randomString(10));
+
+			return Promise.delay(1010)
+				.then(() => clientSocket.server.test(randomString(10)))
+				.delay(50)
+				.then(() => assert.calledTwice(test));
+		});
+	});
+
 	describe('(security token)', function () {
 		let clientOptions: ClientOptions;
 
 		beforeEach(function (done) {
-			setupServerClient(done, { connectionTokens: true }, opt => clientOptions = opt);
+			setupServerClient(done, { connectionTokens: true, perMessageDeflate: false }, opt => clientOptions = opt);
 		});
 
 		afterEach(function (done) {

@@ -1,6 +1,6 @@
 {
   "name": "ag-sockets",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Library for communication via WebSockets",
   "main": "dist/index.js",
   "browser": "dist/browser.js",
@@ -33,7 +33,7 @@
     "remap-istanbul": "^0.4.0",
     "run-sequence": "^1.2.2",
     "sinon": "^1.17.3",
-    "source-map-support": "^0.4.1",
+    "source-map-support": "^0.4.2",
     "systemjs-builder": "^0.15.23",
     "tslint": "^3.13.0",
     "typescript": "^2.0.0"

@@ -13,6 +13,7 @@ export function randomString(length: number) {
 export interface RateLimit {
 	limit: number;
 	last: number;
+	promise?: boolean;
 }
 
 export function checkRateLimit(funcId: number, rates: RateLimit[]) {
