@@ -336,7 +336,7 @@ describe('ClientSocket + Server', function () {
 
 			return Promise.delay(1050)
 				.then(() => clientSocket.server.test(randomString(10)))
-				.delay(50)
+				.delay(100)
 				.then(() => assert.calledTwice(test));
 		});
 	});

@@ -1,5 +1,6 @@
 import { Server as HttpServer, ServerRequest } from 'http';
 import { Server as WebSocketServer, IServerOptions } from 'ws';
+import * as ws from 'ws';
 import * as Promise from 'bluebird';
 import { cloneDeep, assign, remove, findIndex, fromPairs } from 'lodash';
 import { parse as parseUrl } from 'url';
@@ -80,6 +81,9 @@ export function create(
 	let currentClientId = 1;
 	let tokens: Token[] = [];
 	const clients: Client[] = [];
+	const verifyClient = options.verifyClient;
+
+	delete options.verifyClient;
 
 	function createToken(): Token {
 		const token = {
@@ -116,6 +120,10 @@ export function create(
 		path: options.path,
 		perMessageDeflate: typeof options.perMessageDeflate === 'undefined' ? true : options.perMessageDeflate,
 		verifyClient({ req }: { req: ServerRequest }) {
+			if (verifyClient && !verifyClient(req)) {
+				return false;
+			}
+
 			if (options.clientLimit && options.clientLimit <= clients.length) {
 				return false;
 			} else if (options.connectionTokens) {
@@ -147,7 +155,7 @@ export function create(
 		}
 	}
 
-	wsServer.on('connection', socket => {
+	function onConnection(socket: ws) {
 		const query = parseUrl(socket.upgradeReq.url, true).query;
 		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : null;
 
@@ -172,6 +180,7 @@ export function create(
 			client: {
 				id: currentClientId++,
 				isConnected: true,
+				tokenId: token ? token.id : null,
 				originalRequest: socket.upgradeReq,
 				disconnect(force = false, invalidateToken = false) {
 					if (invalidateToken) {
@@ -192,9 +201,10 @@ export function create(
 		socket.on('message', (message: string | Buffer, flags: { binary: boolean; }) => {
 			const now = Date.now();
 			const diff = now - bytesReset;
+			const bytesPerSecond = socket.bytesReceived * 1000 / Math.max(1000, diff);
 
-			if (options.transferLimit && options.transferLimit < (socket.bytesReceived * 1000 / Math.max(1000, diff))) {
-				errorHandler.handleRecvError(obj.client, new Error('transfer limit exceeded'), message);
+			if (options.transferLimit && options.transferLimit < bytesPerSecond) {
+				errorHandler.handleRecvError(obj.client, new Error(`transfer limit exceeded ${bytesPerSecond}/${options.transferLimit} (${diff}ms)`), message);
 				obj.client.disconnect(true, true);
 				return;
 			}
@@ -213,7 +223,7 @@ export function create(
 						} else if (rates[funcId] && rates[funcId].promise) {
 							handleResult(socket, obj.client, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
 						} else {
-							throw new Error('rate limit exceeded');
+							throw new Error(`rate limit exceeded ${funcName}`);
 						}
 					});
 				} catch (e) {
@@ -245,15 +255,29 @@ export function create(
 
 		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packet.send(<any>socket, name, id, args));
 
-		clients.push(obj);
-
 		if (options.debug)
 			log('client connected');
 
 		packet.send(<any>socket, '*version', MessageType.Version, [options.hash]);
 
-		if (serverActions.connected)
-			serverActions.connected();
+		clients.push(obj);
+
+		if (serverActions.connected) {
+			try {
+				serverActions.connected();
+			} catch (e) {
+				errorHandler.handleError(obj.client, e);
+			}
+		}
+	}
+
+	wsServer.on('connection', socket => {
+		try {
+			onConnection(socket);
+		} catch (e) {
+			socket.terminate();
+			errorHandler.handleError(null, e);
+		}
 	});
 
 	wsServer.on('error', e => errorHandler.handleError(null, e));

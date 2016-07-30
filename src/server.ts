@@ -4,6 +4,7 @@ import { SocketClient } from './interfaces';
 export interface ClientExtensions {
 	id: number;
 	isConnected: boolean;
+	tokenId?: string;
 	originalRequest: ServerRequest;
 	disconnect(force?: boolean, invalidateToken?: boolean): void;
 }

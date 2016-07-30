@@ -1,6 +1,6 @@
 {
   "name": "ag-sockets",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Library for communication via WebSockets",
   "main": "dist/index.js",
   "browser": "dist/browser.js",
@@ -26,21 +26,21 @@
     "gulp-live-server": "0.0.30",
     "gulp-plumber": "^1.1.0",
     "gulp-spawn-mocha": "^2.2.2",
-    "gulp-tslint": "^6.0.1",
+    "gulp-tslint": "^6.0.2",
     "gulp-typescript": "^2.13.6",
     "merge2": "^1.0.2",
     "mocha": "^2.4.5",
     "remap-istanbul": "^0.4.0",
     "run-sequence": "^1.2.2",
-    "sinon": "^1.17.3",
+    "sinon": "^1.17.5",
     "source-map-support": "^0.4.2",
-    "systemjs-builder": "^0.15.23",
-    "tslint": "^3.13.0",
+    "systemjs-builder": "^0.15.25",
+    "tslint": "^3.14.0",
     "typescript": "^2.0.0"
   },
   "dependencies": {
     "bluebird": "*",
-    "lodash": "^4.13.1",
+    "lodash": "^4.14.1",
     "ws": "*"
   }
 }

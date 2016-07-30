@@ -77,6 +77,23 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			}
 		};
 	}
+	private getWebsocketUrl() {
+		const options = this.options;
+		const protocol = options.ssl || location.protocol === 'https:' ? 'wss://' : 'ws://';
+
+		let query = options.token ? `?t=${options.token}` : '';
+
+		if (options.requestParams) {
+			const params = Object.keys(options.requestParams)
+				.map(key => `${key}=${encodeURIComponent(options.requestParams[key])}`)
+				.join('&');
+
+			query += (query ? '&' : '?') + params;
+		}
+
+		return protocol + location.host + options.path + query;
+
+	}
 	connect() {
 		this.connecting = true;
 
@@ -84,10 +101,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			return;
 
 		const options = this.options;
-		const protocol = options.ssl || location.protocol === 'https:' ? 'wss://' : 'ws://';
-		const query = options.token ? `?t=${options.token}` : '';
-
-		this.socket = new WebSocket(protocol + location.host + options.path + query);
+		this.socket = new WebSocket(this.getWebsocketUrl());
 
 		window.addEventListener('beforeunload', this.beforeunload);
 

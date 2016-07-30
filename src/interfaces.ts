@@ -1,3 +1,5 @@
+import { ServerRequest } from 'http';
+
 export interface Logger {
 	(...args: any[]): void;
 }
@@ -93,6 +95,10 @@ export interface ServerOptions {
 	clientLimit?: number;
 	/** transfer limit (bytes per second) */
 	transferLimit?: number;
+	/** custom request parameters */
+	requestParams?: any;
+	/** custom client verification method */
+	verifyClient?: (request: ServerRequest) => boolean;
 }
 
 export interface ClientOptions extends ServerOptions {
