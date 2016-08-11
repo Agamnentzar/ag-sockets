@@ -1,6 +1,6 @@
 {
   "name": "ag-sockets",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Library for communication via WebSockets",
   "main": "dist/index.js",
   "browser": "dist/browser.js",
@@ -34,13 +34,13 @@
     "run-sequence": "^1.2.2",
     "sinon": "^1.17.5",
     "source-map-support": "^0.4.2",
-    "systemjs-builder": "^0.15.25",
+    "systemjs-builder": "^0.15.26",
     "tslint": "^3.14.0",
     "typescript": "^2.0.0"
   },
   "dependencies": {
     "bluebird": "*",
-    "lodash": "^4.14.1",
+    "lodash": "^4.14.2",
     "ws": "*"
   }
 }

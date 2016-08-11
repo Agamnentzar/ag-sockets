@@ -188,9 +188,9 @@ export function create(
 					}
 
 					if (force) {
-						socket.close();
-					} else {
 						socket.terminate();
+					} else {
+						socket.close();
 					}
 				},
 			},
@@ -204,7 +204,7 @@ export function create(
 			const bytesPerSecond = socket.bytesReceived * 1000 / Math.max(1000, diff);
 
 			if (options.transferLimit && options.transferLimit < bytesPerSecond) {
-				errorHandler.handleRecvError(obj.client, new Error(`transfer limit exceeded ${bytesPerSecond}/${options.transferLimit} (${diff}ms)`), message);
+				errorHandler.handleRecvError(obj.client, new Error(`transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${options.transferLimit} (${diff}ms)`), message);
 				obj.client.disconnect(true, true);
 				return;
 			}
@@ -223,7 +223,7 @@ export function create(
 						} else if (rates[funcId] && rates[funcId].promise) {
 							handleResult(socket, obj.client, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
 						} else {
-							throw new Error(`rate limit exceeded ${funcName}`);
+							throw new Error(`rate limit exceeded (${funcName})`);
 						}
 					});
 				} catch (e) {
