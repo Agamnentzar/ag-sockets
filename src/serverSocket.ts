@@ -169,6 +169,7 @@ export function create(
 			.map(v => typeof v !== 'string' && v[1].rateLimit ? <RateLimit>{ limit: v[1].rateLimit, last: 0, promise: !!v[1].promise } : null);
 
 		let bytesReset = Date.now();
+		let transferLimitExceeded = false;
 
 		const obj: Client = {
 			lastMessageTime: Date.now(),
@@ -199,13 +200,17 @@ export function create(
 		const serverActions = createServer(obj.client);
 
 		socket.on('message', (message: string | Buffer, flags: { binary: boolean; }) => {
+			if (transferLimitExceeded)
+				return;
+
 			const now = Date.now();
 			const diff = now - bytesReset;
 			const bytesPerSecond = socket.bytesReceived * 1000 / Math.max(1000, diff);
 
 			if (options.transferLimit && options.transferLimit < bytesPerSecond) {
-				errorHandler.handleRecvError(obj.client, new Error(`transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${options.transferLimit} (${diff}ms)`), message);
+				transferLimitExceeded = true;
 				obj.client.disconnect(true, true);
+				errorHandler.handleRecvError(obj.client, new Error(`transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${options.transferLimit} (${diff}ms)`), message);
 				return;
 			}
 
