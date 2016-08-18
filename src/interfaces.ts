@@ -71,7 +71,9 @@ export interface MethodMetadata {
 }
 
 export interface ServerOptions {
-	/** path to websocket endpoint */
+	/** host of websocket endpoint, the same host as the site by default */
+	host?: string;
+	/** path to websocket endpoint, '/ws' by default */
 	path?: string;
 	/** true to force SSL websockets on non-SSL website */
 	ssl?: boolean;

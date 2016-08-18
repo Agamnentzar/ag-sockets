@@ -79,6 +79,8 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	}
 	private getWebsocketUrl() {
 		const options = this.options;
+		const host = options.host || location.host;
+		const path = options.path || '/ws';
 		const protocol = options.ssl || location.protocol === 'https:' ? 'wss://' : 'ws://';
 
 		let query = options.token ? `?t=${options.token}` : '';
@@ -91,7 +93,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			query += (query ? '&' : '?') + params;
 		}
 
-		return protocol + location.host + options.path + query;
+		return protocol + host + path + query;
 
 	}
 	connect() {
