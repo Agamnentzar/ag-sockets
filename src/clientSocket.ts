@@ -145,15 +145,14 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			this.isConnected = true;
 
 			// notify server of binary support
-			if (this.packet.supportsBinary)
+			if (this.socket && this.packet.supportsBinary)
 				this.socket.send(typeof Buffer !== 'undefined' ? new Buffer(0) : new ArrayBuffer(0));
 
 			if (this.client.connected)
 				this.client.connected();
 
-			if (options.pingInterval) {
+			if (options.pingInterval)
 				this.pingInterval = setInterval(() => this.sendPing(), options.pingInterval);
-			}
 		};
 
 		this.socket.onerror = e => {
