@@ -1,3 +1,5 @@
+import { remove } from 'lodash';
+
 const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
 
 export function randomString(length: number) {
@@ -10,9 +12,28 @@ export function randomString(length: number) {
 	return result;
 }
 
+const times: { [key: string]: number; } = {
+	s: 1000,
+	m: 1000 * 60,
+	h: 1000 * 60 * 60,
+};
+
+export function parseRateLimit(value: string) {
+	const m = /^(\d+)\/(\d+)?([smh])$/.exec(value);
+
+	if (!m) {
+		throw new Error('Invalid rate limit value');
+	}
+
+	const limit = +m[1];
+	const frame = +(m[2] || '1') * times[m[3]];
+	return { limit, frame };
+}
+
 export interface RateLimit {
 	limit: number;
-	last: number;
+	frame: number;
+	calls: number[];
 	promise?: boolean;
 }
 
@@ -21,11 +42,14 @@ export function checkRateLimit(funcId: number, rates: RateLimit[]) {
 
 	if (rate) {
 		const now = Date.now();
+		const min = now - rate.frame;
 
-		if ((now - rate.last) < rate.limit) {
+		remove(rate.calls, x => x < min);
+
+		if (rate.calls.length >= rate.limit) {
 			return false;
 		} else {
-			rate.last = now;
+			rate.calls.push(now);
 		}
 	}
 

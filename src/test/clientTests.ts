@@ -59,10 +59,11 @@ describe('ClientSocket', function () {
 			server: [
 				'test2',
 				['foo', { promise: true, progress: 'fooInProgress' }],
-				['foo2', { promise: true, rateLimit: 500 }],
-				['foo3', { rateLimit: 500 }],
+				['foo2', { promise: true, rateLimit: '1/s' }],
+				['foo3', { rateLimit: '1/s' }],
 			],
 			pingInterval: 1000,
+			requestParams: { foo: 'bar', x: 5 },
 		}, errorHandler);
 	});
 
@@ -132,7 +133,7 @@ describe('ClientSocket', function () {
 			service.connect();
 
 			expect(lastWebSocket).not.undefined;
-			expect(lastWebSocket.url).equal('ws://example.com/test');
+			expect(lastWebSocket.url).equal('ws://example.com/test?foo=bar&x=5');
 		});
 
 		it('should create websocket with SSL for HTTPS url', function () {
@@ -140,7 +141,7 @@ describe('ClientSocket', function () {
 
 			service.connect();
 
-			expect(lastWebSocket.url).equal('wss://example.com/test');
+			expect(lastWebSocket.url).equal('wss://example.com/test?foo=bar&x=5');
 		});
 
 		it('should add event listener for "beforeunload"', function () {

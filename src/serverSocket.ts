@@ -1,11 +1,13 @@
 import { Server as HttpServer, ServerRequest } from 'http';
-import { Server as WebSocketServer, IServerOptions } from 'ws';
 import * as ws from 'ws';
 import * as Promise from 'bluebird';
 import { cloneDeep, assign, remove, findIndex, fromPairs } from 'lodash';
 import { parse as parseUrl } from 'url';
-import { ServerOptions, ClientOptions, MethodMetadata, MethodDef, getNames, getBinary, getIgnore, SocketServer, SocketClient, FuncList, Logger, MethodOptions } from './interfaces';
-import { randomString, checkRateLimit, RateLimit } from './utils';
+import {
+	ServerOptions, ClientOptions, MethodMetadata, MethodDef, getNames, getBinary, getIgnore, SocketServer, SocketClient,
+	FuncList, Logger, MethodOptions
+} from './interfaces';
+import { randomString, checkRateLimit, parseRateLimit, RateLimit } from './utils';
 import { SocketServerClient, ErrorHandler } from './server';
 import { getSocketMetadata, getMethods } from './method';
 import { PacketHandler, MessageType } from './packet/packetHandler';
@@ -13,10 +15,6 @@ import { DebugPacketHandler } from './packet/debugPacketHandler';
 import { createHandlers } from './packet/binaryHandler';
 import BufferPacketWriter from './packet/bufferPacketWriter';
 import BufferPacketReader from './packet/bufferPacketReader';
-
-interface IServerOptionsExt extends IServerOptions {
-	perMessageDeflate?: boolean;
-}
 
 export interface Token {
 	id: string;
@@ -45,6 +43,18 @@ const defaultErrorHandler: ErrorHandler = {
 
 function getMethodsFromType(ctor: Function) {
 	return getMethods(ctor).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
+}
+
+function callWithErrorHandling(action: () => any, handle: (e: Error) => void) {
+	try {
+		const result = action();
+
+		if (result && result.catch) {
+			result.catch(handle);
+		}
+	} catch (e) {
+		handle(e);
+	}
 }
 
 export function createServer<TServer, TClient>(
@@ -82,7 +92,9 @@ export function create(
 	let tokens: Token[] = [];
 	const clients: Client[] = [];
 	const verifyClient = options.verifyClient;
+	const wsLibrary: typeof ws = (options.ws || ws) as any;
 
+	delete options.ws;
 	delete options.verifyClient;
 
 	function createToken(): Token {
@@ -115,16 +127,14 @@ export function create(
 		return tokens.some(t => t.id === id) || clients.some(c => c.token && c.token.id === id);
 	}
 
-	const wsServer = new WebSocketServer({
+	const wsServer = new wsLibrary.Server({
 		server: server,
 		path: options.path,
 		perMessageDeflate: typeof options.perMessageDeflate === 'undefined' ? true : options.perMessageDeflate,
 		verifyClient({ req }: { req: ServerRequest }) {
 			if (verifyClient && !verifyClient(req)) {
 				return false;
-			}
-
-			if (options.clientLimit && options.clientLimit <= clients.length) {
+			} else if (options.clientLimit && options.clientLimit <= clients.length) {
 				return false;
 			} else if (options.connectionTokens) {
 				return hasToken(parseUrl(req.url, true).query.t);
@@ -132,7 +142,7 @@ export function create(
 				return true;
 			}
 		}
-	} as any);
+	});
 
 	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
 	const reader = new BufferPacketReader();
@@ -166,7 +176,8 @@ export function create(
 		}
 
 		const rates = options.server
-			.map(v => typeof v !== 'string' && v[1].rateLimit ? <RateLimit>{ limit: v[1].rateLimit, last: 0, promise: !!v[1].promise } : null);
+			.map(v => typeof v !== 'string' && v[1].rateLimit ? v[1] : null)
+			.map(v => v ? assign({ calls: [], promise: !!v.promise }, parseRateLimit(v.rateLimit)) as RateLimit : null);
 
 		let bytesReset = Date.now();
 		let transferLimitExceeded = false;
@@ -197,7 +208,7 @@ export function create(
 			},
 		};
 
-		const serverActions = createServer(obj.client);
+		const serverActions: SocketServer = createServer(obj.client);
 
 		socket.on('message', (message: string | Buffer, flags: { binary: boolean; }) => {
 			if (transferLimitExceeded)
@@ -248,8 +259,11 @@ export function create(
 
 			if (options.debug)
 				log('client disconnected');
-			if (serverActions.disconnected)
-				serverActions.disconnected();
+
+			if (serverActions.disconnected) {
+				callWithErrorHandling(() => serverActions.disconnected(), e => errorHandler.handleError(obj.client, e));
+			}
+
 			if (obj.token) {
 				obj.token.expire = Date.now() + options.tokenLifetime;
 				tokens.push(obj.token);
@@ -268,11 +282,7 @@ export function create(
 		clients.push(obj);
 
 		if (serverActions.connected) {
-			try {
-				serverActions.connected();
-			} catch (e) {
-				errorHandler.handleError(obj.client, e);
-			}
+			callWithErrorHandling(() => serverActions.connected(), e => errorHandler.handleError(obj.client, e));
 		}
 	}
 

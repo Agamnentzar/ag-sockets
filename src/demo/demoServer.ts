@@ -28,7 +28,7 @@ class DemoServer {
 		console.log('name', text);
 		this.client.name = text;
 	}
-	@Method({ rateLimit: 500 })
+	@Method({ rateLimit: '2/s' })
 	message(text: string) {
 		console.log('message', text);
 		clients.forEach(c => c.message(this.client.name, text));

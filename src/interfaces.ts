@@ -1,4 +1,5 @@
-import { ServerRequest } from 'http';
+import { Server, ServerRequest } from 'http';
+import * as ws from 'ws';
 
 export interface Logger {
 	(...args: any[]): void;
@@ -61,8 +62,8 @@ export interface MethodOptions {
 	progress?: string;
 	/** true if method should be ignored when logging messages in debug mode */
 	ignore?: boolean;
-	/** rate limit (ms) */
-	rateLimit?: number;
+	/** rate limit in format of "1/s" or "10/30s" or "20/m" */
+	rateLimit?: string;
 }
 
 export interface MethodMetadata {
@@ -101,6 +102,8 @@ export interface ServerOptions {
 	requestParams?: any;
 	/** custom client verification method */
 	verifyClient?: (request: ServerRequest) => boolean;
+	/** ws library or alternative */
+	ws?: ws;
 }
 
 export interface ClientOptions extends ServerOptions {

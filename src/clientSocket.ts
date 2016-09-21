@@ -1,7 +1,8 @@
 import * as Promise from 'bluebird';
+import { assign } from 'lodash';
 import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, Packets, MethodDef, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
 import { get, set, remove } from './map';
-import { checkRateLimit, RateLimit } from './utils';
+import { checkRateLimit, parseRateLimit, RateLimit } from './utils';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
@@ -64,7 +65,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				this.createMethod(item[0], id, item[1]);
 
 				if (item[1].rateLimit) {
-					this.rateLimits[id] = { limit: item[1].rateLimit + 50, last: 0 };
+					this.rateLimits[id] = assign({ calls: [] }, parseRateLimit(item[1].rateLimit)) as RateLimit;
 				}
 			}
 		});

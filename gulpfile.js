@@ -21,11 +21,7 @@ gulp.task('clean', function () {
 	]);
 });
 
-var project = ts.createProject('tsconfig.json', {
-	//typescript: require('typescript'),
-	outDir: 'dist'
-});
-
+var project = ts.createProject('tsconfig.json', { outDir: 'dist' });
 var scripts = ['src/**/*.ts'];
 
 gulp.task('build', function () {
