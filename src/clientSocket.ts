@@ -1,7 +1,6 @@
 import * as Promise from 'bluebird';
 import { assign } from 'lodash';
-import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, Packets, MethodDef, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
-import { get, set, remove } from './map';
+import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
 import { checkRateLimit, parseRateLimit, RateLimit } from './utils';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
@@ -37,7 +36,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	receivedSize = 0;
 	isConnected = false;
 	private special: FuncList = {};
-	private socket: WebSocket;
+	private socket: WebSocket | null;
 	private connecting = false;
 	private reconnectTimeout: any;
 	private pingInterval: any;
@@ -48,24 +47,26 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private beforeunload = () => {
 		if (this.socket) {
 			try {
-				this.socket.onclose = null;
+				this.socket.onclose = () => { };
 				this.socket.close();
 				this.socket = null;
 			} catch (e) { }
 		}
 	};
-	private defers: [number, Deferred<any>][] = [];
+	private defers = new Map<number, Deferred<any>>();
 	private inProgressFields: { [key: string]: number } = {};
 	private rateLimits: RateLimit[] = [];
-	constructor(private options: ClientOptions, private errorHandler?: ClientErrorHandler, private apply: (f: () => any) => void = f => f(), private log: Logger = console.log.bind(console)) {
+	constructor(private options: ClientOptions, private errorHandler?: ClientErrorHandler | null, private apply: (f: () => any) => void = f => f(), private log: Logger = console.log.bind(console)) {
 		this.options.server.forEach((item, id) => {
 			if (typeof item === 'string') {
 				this.createMethod(item, id, {});
 			} else {
 				this.createMethod(item[0], id, item[1]);
 
-				if (item[1].rateLimit) {
-					this.rateLimits[id] = assign({ calls: [] }, parseRateLimit(item[1].rateLimit)) as RateLimit;
+				const rateLimit = item[1].rateLimit;
+
+				if (rateLimit) {
+					this.rateLimits[id] = assign({ calls: [] }, parseRateLimit(rateLimit)) as RateLimit;
 				}
 			}
 		});
@@ -74,7 +75,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			if (version === this.options.hash) {
 				this.versionValidated = true;
 			} else if (this.client.invalidVersion) {
-				this.client.invalidVersion(version, this.options.hash);
+				this.client.invalidVersion(version, this.options.hash!);
 			}
 		};
 	}
@@ -182,8 +183,9 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				}, options.reconnectTimeout);
 			}
 
-			this.defers.forEach(d => d[1].reject(new Error('disconnected')));
-			this.defers = [];
+			this.defers.forEach(d => d.reject(new Error('disconnected')));
+			this.defers.clear();
+
 			Object.keys(this.inProgressFields).forEach(key => this.inProgressFields[key] = 0);
 
 			if (this.pingInterval) {
@@ -232,7 +234,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private createSimpleMethod(name: string, id: number) {
 		this.server[name] = (...args: any[]) => {
 			if (checkRateLimit(id, this.rateLimits)) {
-				this.sentSize += this.packet.send(this.socket, name, id, args);
+				this.sentSize += this.packet.send(this.socket!, name, id, args);
 				this.lastSentId++;
 				return true;
 			} else {
@@ -256,29 +258,38 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			if (!checkRateLimit(id, this.rateLimits))
 				return Promise.reject<any>(new Error('rate limit exceeded'));
 
-			this.sentSize += this.packet.send(this.socket, name, id, args);
+			this.sentSize += this.packet.send(this.socket!, name, id, args);
 			const messageId = ++this.lastSentId;
 			const defer = deferred<any>();
-			set(this.defers, messageId, defer);
-			this.inProgressFields[inProgressField]++;
+			this.defers.set(messageId, defer);
+
+			if (inProgressField)
+				this.inProgressFields[inProgressField]++;
+
 			return defer.promise;
 		};
 
 		this.special['*resolve:' + name] = (messageId: number, result: any) => {
-			const defer = get(this.defers, messageId);
+			const defer = this.defers.get(messageId);
 			if (defer) {
-				remove(this.defers, messageId);
-				this.inProgressFields[inProgressField]--;
+				this.defers.delete(messageId);
+
+				if (inProgressField)
+					this.inProgressFields[inProgressField]--;
+
 				this.apply(() => defer.resolve(result));
 			}
 		};
 
 		this.special['*reject:' + name] = (messageId: number, error: string) => {
-			const defer = get(this.defers, messageId);
+			const defer = this.defers.get(messageId);
 
 			if (defer) {
-				remove(this.defers, messageId);
-				this.inProgressFields[inProgressField]--;
+				this.defers.delete(messageId);
+
+				if (inProgressField)
+					this.inProgressFields[inProgressField]--;
+
 				this.apply(() => defer.reject(new Error(error)));
 			}
 		};

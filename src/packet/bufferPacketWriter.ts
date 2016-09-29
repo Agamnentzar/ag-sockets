@@ -2,7 +2,7 @@ import { BasePacketWriter, PacketWriter } from './packetWriter';
 
 export default class BufferPacketWriter extends BasePacketWriter implements PacketWriter<Buffer> {
 	private offset = 0;
-	private buffer: Buffer = null;
+	private buffer: Buffer;
 	getBuffer() {
 		return this.buffer;
 	}

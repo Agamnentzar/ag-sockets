@@ -1,11 +1,16 @@
 {
 	"compilerOptions": {
 		"module": "commonjs",
+		"target": "es5",
+		"lib": ["dom", "es6"],
 		"noImplicitAny": true,
+		"noImplicitThis": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"strictNullChecks": true,
 		"declaration": true,
 		"experimentalDecorators": true,
 		"emitDecoratorMetadata": true,
-		"target": "es5",
 		"outDir": "dist"
 	},
 	"exclude": [

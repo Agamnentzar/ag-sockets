@@ -1,4 +1,4 @@
-import { Server, ServerRequest } from 'http';
+import { ServerRequest } from 'http';
 import * as ws from 'ws';
 
 export interface Logger {
@@ -6,7 +6,7 @@ export interface Logger {
 }
 
 export interface FuncList {
-	[name: string]: Function;
+	[name: string]: Function | undefined;
 }
 
 export interface SocketServer {
@@ -117,14 +117,14 @@ export function getNames(methods: MethodDef[]) {
 }
 
 export function getIgnore(methods: MethodDef[]) {
-	return methods.map(i => (typeof i !== 'string' && i[1].ignore) ? i[0] : null).filter(x => !!x);
+	return methods.map(i => (typeof i !== 'string' && i[1].ignore) ? i[0] : null).filter(x => !!x) as string[];
 }
 
 export function getBinary(methods: MethodDef[]) {
-	let result: Packets = {};
+	const result: Packets = {};
 	methods.forEach(i => {
 		if (typeof i !== 'string' && i[1].binary) {
-			result[i[0]] = i[1].binary;
+			result[i[0]] = i[1].binary as BinaryDef;
 		}
 	});
 	return result;

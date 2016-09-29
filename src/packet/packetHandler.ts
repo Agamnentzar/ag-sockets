@@ -25,7 +25,7 @@ export interface IFunctionHandler {
 	(funcId: number, funcName: string, func: Function, funcObj: any, args: any[]): void;
 }
 
-export const defaultHandleFunction: IFunctionHandler = (funcId, funcName, func, funcObj, args) => func.apply(funcObj, args);
+export const defaultHandleFunction: IFunctionHandler = (_funcId, _funcName, func, funcObj, args) => func.apply(funcObj, args);
 
 export class PacketHandler<T> {
 	supportsBinary = false;
@@ -95,7 +95,13 @@ export class PacketHandler<T> {
 			var funcSpecial = funcName && funcName[0] === '*';
 			var funcObj = funcSpecial ? specialFuncList : funcList;
 			var func = funcObj[funcName];
-		} catch (e) { }
+		} catch (e) {
+			funcId = 0;
+			funcName =  '';
+			funcSpecial = false;
+			funcObj = {};
+			func = void 0;
+		}
 
 		if (func) {
 			handleFunction(funcId, funcName, func, funcObj, args);

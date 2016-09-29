@@ -35,7 +35,7 @@ export function stringLengthInBytes(value: string): number {
 	return result;
 }
 
-export function encodeString(value: string): Uint8Array {
+export function encodeString(value: string | null): Uint8Array | null {
 	if (value == null)
 		return null;
 
@@ -80,7 +80,7 @@ function continuationByte(buffer: Uint8Array, index: number): number {
 	}
 }
 
-export function decodeString(value: Uint8Array): string {
+export function decodeString(value: Uint8Array | null): string | null {
 	if (value == null)
 		return null;
 

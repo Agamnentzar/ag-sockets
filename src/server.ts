@@ -12,7 +12,7 @@ export interface ClientExtensions {
 export type SocketServerClient = SocketClient & ClientExtensions;
 
 export interface ErrorHandler {
-	handleError(obj: SocketServerClient, e: Error): void;
+	handleError(obj: SocketServerClient | null, e: Error): void;
 	handleRejection(obj: SocketServerClient, e: Error): void;
 	handleRecvError(obj: SocketServerClient, e: Error, message: string | Buffer): void;
 }

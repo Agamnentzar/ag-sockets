@@ -21,13 +21,13 @@ gulp.task('clean', function () {
 	]);
 });
 
-var project = ts.createProject('tsconfig.json', { outDir: 'dist' });
+var project = ts.createProject('tsconfig.json');
 var scripts = ['src/**/*.ts'];
 
 gulp.task('build', function () {
 	var result = gulp.src(scripts)
 		.pipe(sourcemaps.init())
-		.pipe(ts(project));
+		.pipe(project(ts.reporter.defaultReporter()));
 
 	return merge([
 		result.dts

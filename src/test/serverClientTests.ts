@@ -3,8 +3,7 @@ import * as Promise from 'bluebird';
 import * as http from 'http';
 import * as WebSocket from 'ws';
 import { expect } from 'chai';
-import { assert, stub, spy, SinonStub, SinonSpy } from 'sinon';
-import { find } from 'lodash';
+import { assert, stub, spy, SinonSpy } from 'sinon';
 import { Bin, ServerOptions, ClientOptions } from '../interfaces';
 import { randomString } from '../utils';
 import {
@@ -18,7 +17,7 @@ const apply = (f: () => void) => f();
 class Server implements SocketServer {
 	constructor(public client: Client & ClientExtensions) { }
 	@Method({ binary: [Bin.Str], ignore: true })
-	hello(message: string) { }
+	hello(_message: string) { }
 	@Method({ promise: true })
 	login(login: string) {
 		return login === 'ok' ? Promise.resolve(true) : Promise.reject<boolean>(new Error('fail'));
@@ -32,7 +31,7 @@ class Server implements SocketServer {
 		throw new Error('err');
 	}
 	@Method()
-	test(message: string) {
+	test(_message: string) {
 	}
 	@Method({ rateLimit: '1/s' })
 	limited() {
@@ -48,7 +47,7 @@ class Server implements SocketServer {
 
 class Client implements SocketClient {
 	@Method({ binary: [Bin.Str], ignore: true })
-	bin(message: string) { }
+	bin(_message: string) { }
 	@Method()
 	hi(message: string) {
 		console.log('hi', message);
@@ -75,7 +74,7 @@ describe('ClientSocket + Server', function () {
 		});
 	}
 
-	function setupServerClient(done: () => void, options: ServerOptions = null, onClient: (options: ClientOptions) => void = () => { }) {
+	function setupServerClient(done: () => void, options: ServerOptions = {}, onClient: (options: ClientOptions) => void = () => { }) {
 		connected = spy();
 
 		serverSocket = createServer(httpServer, Server, Client, c => {
@@ -158,7 +157,7 @@ describe('ClientSocket + Server', function () {
 
 			return Promise.resolve()
 				.then(() => clientSocket.server.login('fail'))
-				.catch(e => { })
+				.catch(() => { })
 				.then(() => assert.calledOnce(handleRejection));
 		});
 
@@ -251,7 +250,7 @@ describe('ClientSocket + Server', function () {
 
 	describe('(server side rate limit)', function () {
 		beforeEach(function (done) {
-			setupServerClient(done, null, opt => {
+			setupServerClient(done, {}, opt => {
 				opt.server.forEach(x => {
 					if (typeof x !== 'string') {
 						delete x[1].rateLimit;
@@ -275,7 +274,7 @@ describe('ClientSocket + Server', function () {
 		});
 
 		it('should reject if rate limit is exceeded', function () {
-			const limited = stub(server, 'limited');
+			stub(server, 'limited');
 
 			clientSocket.server.limitedPromise();
 

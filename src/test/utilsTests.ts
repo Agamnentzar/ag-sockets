@@ -13,7 +13,7 @@ describe('randomString()', function () {
 
 describe('parseRateLimit()', function () {
 	it('should throw on null', function () {
-		expect(() => parseRateLimit(null)).throw();
+		expect(() => parseRateLimit(null as any)).throw();
 	});
 
 	it('should throw on empty', function () {

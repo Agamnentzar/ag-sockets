@@ -2,8 +2,8 @@ import { BasePacketReader, PacketReader } from './packetReader';
 
 export default class ArrayBufferPacketReader extends BasePacketReader implements PacketReader<ArrayBuffer> {
 	private offset = 0;
-	private view: DataView = null;
-	private buffer: ArrayBuffer = null;
+	private view: DataView;
+	private buffer: ArrayBuffer;
 	setBuffer(buffer: ArrayBuffer) {
 		this.offset = 0;
 		this.buffer = buffer;

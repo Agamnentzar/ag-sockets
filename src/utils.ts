@@ -37,7 +37,7 @@ export interface RateLimit {
 	promise?: boolean;
 }
 
-export function checkRateLimit(funcId: number, rates: RateLimit[]) {
+export function checkRateLimit(funcId: number, rates: (RateLimit | null)[]) {
 	const rate = rates[funcId];
 
 	if (rate) {

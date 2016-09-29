@@ -128,7 +128,7 @@ describe('PacketHandler', function () {
 		});
 
 		it('should return message length', function () {
-			const foo = stub(funcs, 'foo');
+			stub(funcs, 'foo');
 
 			expect(handler.recv('[1,"a","b",5]', funcs, special)).equal('[1,"a","b",5]'.length);
 		});

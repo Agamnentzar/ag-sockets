@@ -11,7 +11,7 @@ function toUint8Array(buffer: Buffer) {
 
 export default class BufferPacketReader extends BasePacketReader implements PacketReader<Buffer> {
 	private offset = 0;
-	private buffer: Buffer = null;
+	private buffer: Buffer;
 	setBuffer(buffer: Buffer) {
 		this.offset = 0;
 		this.buffer = buffer;

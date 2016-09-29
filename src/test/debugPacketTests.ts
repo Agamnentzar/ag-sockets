@@ -1,5 +1,4 @@
 import './common';
-import { expect } from 'chai';
 import { assert, spy, stub, SinonSpy } from 'sinon';
 import { Bin } from '../interfaces';
 import { MessageType } from '../packet/packetHandler';

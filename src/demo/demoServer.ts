@@ -2,7 +2,7 @@ import * as express from 'express';
 import * as http from 'http';
 import * as path from 'path';
 import * as fs from 'fs';
-import { createServer, Method, Socket, SocketServer } from '../index';
+import { createServer, Method, Socket } from '../index';
 import { DemoClient } from './demoClient';
 
 const clients: DemoClient[] = [];
@@ -45,8 +45,8 @@ const socket = createServer(server, DemoServer, DemoClient, client => new DemoSe
 	handleRecvError: console.log,
 });
 
-app.get('/demo.js', (req, res) => res.sendFile(path.join(__dirname, 'demo.js')));
-app.get('/', (req, res) => {
+app.get('/demo.js', (_, res) => res.sendFile(path.join(__dirname, 'demo.js')));
+app.get('/', (_, res) => {
 	const html = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'demo', 'demo.html'), 'utf8');
 	res.send(html.replace(/CONFIG/, JSON.stringify(socket.options())));
 });

@@ -12,25 +12,19 @@ export interface PacketReader<TBuffer> {
 	readFloat64(): number;
 	readBoolean(): boolean;
 	readBytes(length: number): Uint8Array;
-	readArray<T>(readOne: () => T): T[];
-	readString(): string;
+	readArray<T>(readOne: () => T): T[] | null;
+	readString(): string | null;
 	readObject(): any;
 	readLength(): number;
 }
 
 export abstract class BasePacketReader {
-	/* istanbul ignore next */
-	readUint8(): number {
-		throw new Error('not implemented');
-	}
-	/* istanbul ignore next */
-	readBytes(length: number): Uint8Array {
-		throw new Error('not implemented');
-	}
+	abstract readUint8(): number;
+	abstract readBytes(length: number): Uint8Array;
 	readBoolean() {
 		return this.readUint8() === 1;
 	}
-	readArray<T>(readOne: () => T): T[] {
+	readArray<T>(readOne: () => T): T[] | null {
 		const length = this.readLength();
 
 		if (length === -1)

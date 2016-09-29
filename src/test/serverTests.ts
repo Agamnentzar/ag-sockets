@@ -4,35 +4,35 @@ import * as http from 'http';
 import * as ws from 'ws';
 import { expect } from 'chai';
 import { assert, stub, spy, SinonStub, SinonSpy, match } from 'sinon';
-import { createServer, ErrorHandler, Method, Socket, Bin, Server as TheServer, SocketServerClient, ServerOptions } from '../index';
+import { createServer, ErrorHandler, /*Method, Socket, Bin,*/ Server as TheServer, ServerOptions } from '../index';
 import { MockWebSocket, MockWebSocketServer, getLastServer } from './wsMock';
 
-@Socket({ path: '/test', pingInterval: 1000 })
-class Server {
-	constructor(private client: Client) { }
-	@Method({ binary: [Bin.Str], ignore: true })
-	hello(message: string) { }
-	@Method({ promise: true })
-	login(login: string) {
-		return login === 'test' ? Promise.resolve(true) : Promise.reject<boolean>(new Error('fail'));
-	}
-}
+//@Socket({ path: '/test', pingInterval: 1000 })
+//class Server {
+//	constructor() { }
+//	@Method({ binary: [Bin.Str], ignore: true })
+//	hello(message: string) { }
+//	@Method({ promise: true })
+//	login(login: string) {
+//		return login === 'test' ? Promise.resolve(true) : Promise.reject<boolean>(new Error('fail'));
+//	}
+//}
 
-class Client {
-	@Method({ binary: [Bin.Str], ignore: true })
-	hi(message: string) { }
-}
+//class Client {
+//	@Method({ binary: [Bin.Str], ignore: true })
+//	hi(message: string) { }
+//}
 
 class Server2 {
-	constructor(private client: Client2) { }
+	constructor(_: Client2) { }
 	connected() { }
 	disconnected() { }
-	hello(message: string) { }
-	login(login: string) { return Promise.resolve(true); }
+	hello(_message: string) { }
+	login(_login: string) { return Promise.resolve(true); }
 }
 
 class Client2 {
-	hi(message: string) { }
+	hi(_message: string) { }
 }
 
 describe('serverSocket', function () {
@@ -122,11 +122,10 @@ describe('serverSocket', function () {
 			});
 
 			it('should setup connetion handler', function () {
-				const handleError = spy();
 				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
 
 				assert.calledWith(on, 'connection');
-				const [event, callback] = on.getCall(0).args;
+				const [event] = on.getCall(0).args;
 				expect(event).equal('connection');
 			});
 
@@ -175,8 +174,8 @@ describe('serverSocket', function () {
 				handleRecvError(...args: any[]) { console.error('handleRecvError', ...args); },
 				handleRejection(...args: any[]) { console.error('handleRejection', ...args); },
 			};
-			onServer = s => { };
-			theServer = createServer(null, Server2, Client2, c => {
+			onServer = () => { };
+			theServer = createServer({} as any, Server2, Client2, c => {
 				const s = new Server2(c);
 				onServer(s);
 				return s;
@@ -185,7 +184,7 @@ describe('serverSocket', function () {
 		});
 
 		it('should connect client', function () {
-			const client = server.connectClient();
+			server.connectClient();
 		});
 
 		it('should handle socket server error', function () {
@@ -225,7 +224,7 @@ describe('serverSocket', function () {
 			onServer = s => stub(s, 'connected').throws(error);
 			const handleError = stub(errorHandler, 'handleError');
 
-			const client = server.connectClient();
+			server.connectClient();
 
 			assert.calledWithMatch(handleError, match.any, error);
 		});
@@ -235,7 +234,7 @@ describe('serverSocket', function () {
 			onServer = s => stub(s, 'connected').returns(Promise.reject(error));
 			const handleError = stub(errorHandler, 'handleError');
 
-			const client = server.connectClient();
+			server.connectClient();
 
 			return Promise.resolve()
 				.then(() => assert.calledWithMatch(handleError, match.any, error));
@@ -285,7 +284,7 @@ describe('serverSocket', function () {
 		const ws = MockWebSocket as any;
 
 		function create(options: ServerOptions) {
-			createServer(null, Server2, Client2, c => new Server2(c), options);
+			createServer({} as any, Server2, Client2, c => new Server2(c), options);
 			return getLastServer();
 		}
 

@@ -24,7 +24,7 @@ class MockWebSocket {
 	constructor(public url: string) {
 		lastWebSocket = this;
 	}
-	onmessage(message: { data: string | Buffer | ArrayBuffer }) { }
+	onmessage(_message: { data: string | Buffer | ArrayBuffer }) { }
 	onopen() { }
 	onerror() { }
 	onclose() { }
@@ -49,7 +49,7 @@ describe('ClientSocket', function () {
 		location.host = 'example.com';
 		window.addEventListener = () => { };
 		window.removeEventListener = () => { };
-		lastWebSocket = null;
+		lastWebSocket = null as any;
 		errorHandler = { handleRecvError() { } };
 
 		service = new ClientSocket<Client, Server>({
@@ -89,7 +89,7 @@ describe('ClientSocket', function () {
 		});
 
 		it('should do nothing if there is no callback', function () {
-			service.client.invalidVersion = null;
+			service.client.invalidVersion = void 0;
 			service.connect();
 
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 321]) });
@@ -381,7 +381,7 @@ describe('ClientSocket', function () {
 			it('should do nothing for resolving non-existing promise', function () {
 				lastWebSocket.onopen();
 
-				const promise = service.server.foo();
+				service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 5, 'ok']) });
 			});
@@ -389,7 +389,7 @@ describe('ClientSocket', function () {
 			it('should do nothing for rejecting non-existing promise', function () {
 				lastWebSocket.onopen();
 
-				const promise = service.server.foo();
+				service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Rejected, 1, 5, 'fail']) });
 			});

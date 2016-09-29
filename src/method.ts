@@ -1,29 +1,28 @@
 import { MethodMetadata, MethodOptions, ServerOptions } from './interfaces';
-import { get, set } from './map';
 
-const methodMetadata: [Function, MethodMetadata[]][] = [];
-const socketServerMetadata: [Function, ServerOptions][] = [];
+const methodMetadata = new Map<Function, MethodMetadata[]>();
+const socketServerMetadata = new Map<Function, ServerOptions>();
 
 export function Method(options: MethodOptions = {}) {
 	return function (target: Object, name: string) {
-		const meta = get(methodMetadata, target.constructor) || [];
+		const meta = methodMetadata.get(target.constructor) || [];
 		meta.push({ name, options });
-		set(methodMetadata, target.constructor, meta);
+		methodMetadata.set(target.constructor, meta);
 	};
 }
 
 export function Socket(options: ServerOptions) {
 	return function (target: Function) {
-		set(socketServerMetadata, target, options);
+		socketServerMetadata.set(target, options);
 	};
 }
 
-export function getSocketMetadata(ctor: Function): ServerOptions {
-	return get(socketServerMetadata, ctor);
+export function getSocketMetadata(ctor: Function): ServerOptions | undefined {
+	return socketServerMetadata.get(ctor);
 }
 
-export function getMethodMetadata(ctor: Function): MethodMetadata[] {
-	return get(methodMetadata, ctor);
+export function getMethodMetadata(ctor: Function): MethodMetadata[] | undefined {
+	return methodMetadata.get(ctor);
 }
 
 function generateMethodMetadata(prototype: any) {

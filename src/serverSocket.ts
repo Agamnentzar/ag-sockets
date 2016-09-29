@@ -1,12 +1,9 @@
 import { Server as HttpServer, ServerRequest } from 'http';
 import * as ws from 'ws';
 import * as Promise from 'bluebird';
-import { cloneDeep, assign, remove, findIndex, fromPairs } from 'lodash';
+import { cloneDeep, assign, remove, findIndex } from 'lodash';
 import { parse as parseUrl } from 'url';
-import {
-	ServerOptions, ClientOptions, MethodMetadata, MethodDef, getNames, getBinary, getIgnore, SocketServer, SocketClient,
-	FuncList, Logger, MethodOptions
-} from './interfaces';
+import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger } from './interfaces';
 import { randomString, checkRateLimit, parseRateLimit, RateLimit } from './utils';
 import { SocketServerClient, ErrorHandler } from './server';
 import { getSocketMetadata, getMethods } from './method';
@@ -24,7 +21,7 @@ export interface Token {
 export interface Client {
 	lastMessageTime: number;
 	lastMessageId: number;
-	token: Token;
+	token: Token | null;
 	ping(): void;
 	client: SocketServerClient;
 }
@@ -106,13 +103,13 @@ export function create(
 		return token;
 	}
 
-	function getToken(id: string): Token {
+	function getToken(id: string): Token | null {
 		const token = remove(tokens, t => t.id === id)[0];
 		return token && token.expire < Date.now() ? null : token;
 	}
 
-	function getTokenFromClient(id: string): Token {
-		const index = findIndex(clients, c => c.token.id === id);
+	function getTokenFromClient(id: string): Token | null {
+		const index = findIndex(clients, c => c.token && c.token.id === id);
 
 		if (index !== -1) {
 			const { client, token } = clients[index];
@@ -124,7 +121,7 @@ export function create(
 	}
 
 	function hasToken(id: string) {
-		return tokens.some(t => t.id === id) || clients.some(c => c.token && c.token.id === id);
+		return tokens.some(t => t.id === id) || clients.some(c => !!(c.token && c.token.id === id));
 	}
 
 	const wsServer = new wsLibrary.Server({
@@ -137,12 +134,12 @@ export function create(
 			} else if (options.clientLimit && options.clientLimit <= clients.length) {
 				return false;
 			} else if (options.connectionTokens) {
-				return hasToken(parseUrl(req.url, true).query.t);
+				return hasToken(parseUrl(req.url || '', true).query.t);
 			} else {
 				return true;
 			}
 		}
-	});
+	} as any); // TODO: remove after typings are updated
 
 	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
 	const reader = new BufferPacketReader();
@@ -166,7 +163,7 @@ export function create(
 	}
 
 	function onConnection(socket: ws) {
-		const query = parseUrl(socket.upgradeReq.url, true).query;
+		const query = parseUrl(socket.upgradeReq.url || '', true).query;
 		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : null;
 
 		if (options.connectionTokens && !token) {
@@ -177,7 +174,7 @@ export function create(
 
 		const rates = options.server
 			.map(v => typeof v !== 'string' && v[1].rateLimit ? v[1] : null)
-			.map(v => v ? assign({ calls: [], promise: !!v.promise }, parseRateLimit(v.rateLimit)) as RateLimit : null);
+			.map(v => v ? assign({ calls: [], promise: !!v.promise }, parseRateLimit(v.rateLimit!)) as RateLimit : null);
 
 		let bytesReset = Date.now();
 		let transferLimitExceeded = false;
@@ -192,7 +189,7 @@ export function create(
 			client: {
 				id: currentClientId++,
 				isConnected: true,
-				tokenId: token ? token.id : null,
+				tokenId: token ? token.id : void 0,
 				originalRequest: socket.upgradeReq,
 				disconnect(force = false, invalidateToken = false) {
 					if (invalidateToken) {
@@ -234,9 +231,11 @@ export function create(
 
 				try {
 					packet.recv(message, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
+						const rate = rates[funcId];
+
 						if (checkRateLimit(funcId, rates)) {
 							handleResult(socket, obj.client, funcId, funcName, func.apply(funcObj, args), messageId);
-						} else if (rates[funcId] && rates[funcId].promise) {
+						} else if (rate && rate.promise) {
 							handleResult(socket, obj.client, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
 						} else {
 							throw new Error(`rate limit exceeded (${funcName})`);
@@ -261,7 +260,7 @@ export function create(
 				log('client disconnected');
 
 			if (serverActions.disconnected) {
-				callWithErrorHandling(() => serverActions.disconnected(), e => errorHandler.handleError(obj.client, e));
+				callWithErrorHandling(() => serverActions.disconnected!(), e => errorHandler.handleError(obj.client, e));
 			}
 
 			if (obj.token) {
@@ -282,7 +281,7 @@ export function create(
 		clients.push(obj);
 
 		if (serverActions.connected) {
-			callWithErrorHandling(() => serverActions.connected(), e => errorHandler.handleError(obj.client, e));
+			callWithErrorHandling(() => serverActions.connected!(), e => errorHandler.handleError(obj.client, e));
 		}
 	}
 

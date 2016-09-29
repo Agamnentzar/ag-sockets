@@ -40,7 +40,7 @@ describe('utf8', function () {
 	});
 
 	describe('encodeString() + decodeString()', function () {
-		const tests: string[] = [
+		const tests: (string | null)[] = [
 			null,
 			'',
 			'foo',
