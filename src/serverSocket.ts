@@ -167,7 +167,7 @@ export function create(
 		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : null;
 
 		if (options.connectionTokens && !token) {
-			errorHandler.handleError(null, new Error(`invalid token: ${query.t}`));
+			errorHandler.handleError({ originalRequest: socket.upgradeReq } as any, new Error(`invalid token: ${query.t}`));
 			socket.terminate();
 			return;
 		}
