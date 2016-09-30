@@ -43,14 +43,14 @@ gulp.task('demo', function () {
 	return builder.buildStatic('dist/demo/demoClient.js', 'dist/demo/demo.js');
 });
 
-gulp.task('tests', ['build'], function () {
+gulp.task('tests', function () {
 	return gulp.src('dist/test/**/*.js', { read: false })
 		.pipe(mocha({
 			reporter: 'dot',
 		}));
 });
 
-gulp.task('coverage', ['build'], function () {
+gulp.task('coverage', function () {
 	return gulp.src('dist/test/**/*.js', { read: false })
 		.pipe(mocha({
 			reporter: 'dot',
@@ -58,6 +58,10 @@ gulp.task('coverage', ['build'], function () {
 				print: 'none',
 			},
 		}));
+});
+
+gulp.task('coverage-remap', function (done) {
+	runSequence('coverage', 'remap', done);
 });
 
 gulp.task('server', function () {
@@ -74,7 +78,7 @@ gulp.task('watch', function () {
 	gulp.watch(scripts, ['build-and-demo']);
 
 	if (argv.tests || argv.coverage)
-		gulp.watch(scripts, [argv.coverage ? 'cov' : 'tests']);
+		gulp.watch(scripts, [argv.coverage ? 'coverage-remap' : 'tests']);
 });
 
 gulp.task('lint', function () {
@@ -92,11 +96,11 @@ gulp.task('build-and-demo', function (done) {
 });
 
 gulp.task('dev', function (done) {
-	runSequence('clean', 'build-and-demo', argv.coverage ? 'cov' : (argv.tests ? 'tests' : 'empty'), 'server', 'watch', done);
+	runSequence('clean', 'build-and-demo', argv.coverage ? 'coverage-remap' : (argv.tests ? 'tests' : 'empty'), 'server', 'watch', done);
 });
 
 gulp.task('cov', function (done) {
-	runSequence('coverage', 'remap', done);
+	runSequence('build', 'coverage', 'remap', done);
 });
 
 gulp.task('test', function (done) {
