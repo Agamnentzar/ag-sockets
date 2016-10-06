@@ -14,7 +14,7 @@ export class MockEventEmitter {
 }
 
 export class MockWebSocketServer extends MockEventEmitter {
-	constructor(public options: ws.IServerOptions & { verifyClient: Function; }) { // TODO: remove after typings are updated
+	constructor(public options: ws.IServerOptions) {
 		super();
 		lastServer = this;
 	}

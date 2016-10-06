@@ -291,7 +291,7 @@ describe('serverSocket', function () {
 		it('should return true by default', function () {
 			const server = create({ ws });
 
-			expect(server.options.verifyClient({} as any)).true;
+			expect(server.options.verifyClient!({} as any, () => { })).true;
 		});
 
 		it('should pass request to custom verifyClient', function () {
@@ -299,7 +299,7 @@ describe('serverSocket', function () {
 			const server = create({ ws, verifyClient });
 			const req = {};
 
-			server.options.verifyClient({ req } as any);
+			server.options.verifyClient!({ req } as any, () => { });
 
 			assert.calledWith(verifyClient, req);
 		});
@@ -308,21 +308,21 @@ describe('serverSocket', function () {
 			const verifyClient = stub().returns(false);
 			const server = create({ ws, verifyClient });
 
-			expect(server.options.verifyClient({} as any)).false;
+			expect(server.options.verifyClient!({} as any, () => { })).false;
 		});
 
 		it('should return true if custom verifyClient returns true', function () {
 			const verifyClient = stub().returns(true);
 			const server = create({ ws, verifyClient });
 
-			expect(server.options.verifyClient({} as any)).true;
+			expect(server.options.verifyClient!({} as any, () => { })).true;
 		});
 
 		it('should return false if client limit is reached', function () {
 			const server = create({ ws, clientLimit: 1 });
 			server.connectClient();
 
-			expect(server.options.verifyClient({} as any)).false;
+			expect(server.options.verifyClient!({} as any, () => { })).false;
 		});
 	});
 });

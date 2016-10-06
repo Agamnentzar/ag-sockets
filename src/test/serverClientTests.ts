@@ -123,7 +123,7 @@ describe('ClientSocket + Server', function () {
 		it('should send version info to client', function () {
 			const version = stub((<any>clientSocket).special, '*version');
 
-			return Promise.delay(10)
+			return Promise.delay(50)
 				.then(() => assert.calledWith(version, serverSocket.options().hash));
 		});
 
@@ -136,7 +136,7 @@ describe('ClientSocket + Server', function () {
 
 			return Promise.resolve()
 				.then(() => clientSocket.server.hello('yay'))
-				.delay(10)
+				.delay(50)
 				.then(() => assert.calledWith(hello, 'yay'));
 		});
 
@@ -166,7 +166,7 @@ describe('ClientSocket + Server', function () {
 
 			serverSocket.clients[0].client.disconnect();
 
-			return Promise.delay(20)
+			return Promise.delay(50)
 				.then(() => assert.calledOnce(disconnected));
 		});
 
@@ -175,7 +175,7 @@ describe('ClientSocket + Server', function () {
 
 			clientSocket.disconnect();
 
-			return Promise.delay(20)
+			return Promise.delay(50)
 				.then(() => assert.calledOnce(disconnected));
 		});
 
@@ -183,7 +183,7 @@ describe('ClientSocket + Server', function () {
 			const hi = stub(clientSocket.client, 'hi');
 			server.client.hi('yay');
 
-			return Promise.delay(20)
+			return Promise.delay(50)
 				.then(() => assert.calledWith(hi, 'yay'));
 		});
 
@@ -192,7 +192,7 @@ describe('ClientSocket + Server', function () {
 
 			clientSocket.server.err();
 
-			return Promise.delay(20)
+			return Promise.delay(50)
 				.then(() => assert.calledOnce(handleRecvError));
 		});
 
@@ -203,7 +203,7 @@ describe('ClientSocket + Server', function () {
 		it('should log client disconnected', function () {
 			clientSocket.disconnect();
 
-			return Promise.delay(20)
+			return Promise.delay(50)
 				.then(() => log.calledWith('client disconnected'));
 		});
 

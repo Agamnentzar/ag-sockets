@@ -139,7 +139,7 @@ export function create(
 				return true;
 			}
 		}
-	} as any); // TODO: remove after typings are updated
+	});
 
 	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
 	const reader = new BufferPacketReader();

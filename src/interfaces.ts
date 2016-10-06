@@ -1,5 +1,4 @@
 import { ServerRequest } from 'http';
-import * as ws from 'ws';
 
 export interface Logger {
 	(...args: any[]): void;
@@ -103,7 +102,7 @@ export interface ServerOptions {
 	/** custom client verification method */
 	verifyClient?: (request: ServerRequest) => boolean;
 	/** ws library or alternative */
-	ws?: ws;
+	ws?: any;
 }
 
 export interface ClientOptions extends ServerOptions {
