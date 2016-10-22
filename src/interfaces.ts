@@ -100,7 +100,7 @@ export interface ServerOptions {
 	/** custom request parameters */
 	requestParams?: any;
 	/** custom client verification method */
-	verifyClient?: (request: ServerRequest) => boolean;
+	verifyClient?: (request: ServerRequest) => any;
 	/** ws library or alternative */
 	ws?: any;
 }
