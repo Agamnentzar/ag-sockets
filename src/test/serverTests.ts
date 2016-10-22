@@ -263,15 +263,7 @@ describe('serverSocket', function () {
 				.then(() => assert.calledWithMatch(handleError, match.any, error));
 		});
 
-		it('close should close the web socket server', function () {
-			const close = stub(getLastServer(), 'close');
-
-			theServer.close();
-
-			assert.calledOnce(close);
-		});
-
-		it('close call verifyClient on client verification', function () {
+		it('should close the web socket server', function () {
 			const close = stub(getLastServer(), 'close');
 
 			theServer.close();
@@ -288,10 +280,14 @@ describe('serverSocket', function () {
 			return getLastServer();
 		}
 
+		function verify(server: MockWebSocketServer, info: any = {}) {
+			return new Promise<boolean>(resolve => server.options.verifyClient!(info, resolve));
+		}
+
 		it('should return true by default', function () {
 			const server = create({ ws });
 
-			expect(server.options.verifyClient!({} as any, () => { })).true;
+			return expect(verify(server)).eventually.true;
 		});
 
 		it('should pass request to custom verifyClient', function () {
@@ -299,30 +295,50 @@ describe('serverSocket', function () {
 			const server = create({ ws, verifyClient });
 			const req = {};
 
-			server.options.verifyClient!({ req } as any, () => { });
-
-			assert.calledWith(verifyClient, req);
+			return verify(server, { req })
+				.then(() => assert.calledWith(verifyClient, req));
 		});
 
 		it('should return false if custom verifyClient returns false', function () {
 			const verifyClient = stub().returns(false);
 			const server = create({ ws, verifyClient });
 
-			expect(server.options.verifyClient!({} as any, () => { })).false;
+			return expect(verify(server)).eventually.false;
 		});
 
 		it('should return true if custom verifyClient returns true', function () {
 			const verifyClient = stub().returns(true);
 			const server = create({ ws, verifyClient });
 
-			expect(server.options.verifyClient!({} as any, () => { })).true;
+			return expect(verify(server)).eventually.true;
 		});
 
 		it('should return false if client limit is reached', function () {
 			const server = create({ ws, clientLimit: 1 });
 			server.connectClient();
 
-			expect(server.options.verifyClient!({} as any, () => { })).false;
+			return expect(verify(server)).eventually.false;
+		});
+
+		it('should return false if custom verifyClient returns a promise resolving to false', function () {
+			const verifyClient = stub().returns(Promise.resolve(false));
+			const server = create({ ws, verifyClient });
+
+			return expect(verify(server)).eventually.false;
+		});
+
+		it('should return true if custom verifyClient returns a promise resolving to true', function () {
+			const verifyClient = stub().returns(Promise.resolve(true));
+			const server = create({ ws, verifyClient });
+
+			return expect(verify(server)).eventually.true;
+		});
+
+		it('should return false if custom verifyClient returns a rejected promise', function () {
+			const verifyClient = stub().returns(Promise.reject(new Error('test')));
+			const server = create({ ws, verifyClient });
+
+			return expect(verify(server)).eventually.false;
 		});
 	});
 });

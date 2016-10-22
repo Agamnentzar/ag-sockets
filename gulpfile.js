@@ -78,7 +78,7 @@ gulp.task('watch', function () {
 	gulp.watch(scripts, ['build-and-demo']);
 
 	if (argv.tests || argv.coverage)
-		gulp.watch(scripts, [argv.coverage ? 'coverage-remap' : 'tests']);
+		gulp.watch(['dist/**/*.js'], [argv.coverage ? 'coverage-remap' : 'tests']);
 });
 
 gulp.task('lint', function () {

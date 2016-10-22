@@ -128,16 +128,25 @@ export function create(
 		server: server,
 		path: options.path,
 		perMessageDeflate: typeof options.perMessageDeflate === 'undefined' ? true : options.perMessageDeflate,
-		verifyClient({ req }: { req: ServerRequest }) {
-			if (verifyClient && !verifyClient(req)) {
-				return false;
-			} else if (options.clientLimit && options.clientLimit <= clients.length) {
-				return false;
-			} else if (options.connectionTokens) {
-				return hasToken(parseUrl(req.url || '', true).query.t);
-			} else {
-				return true;
-			}
+		verifyClient({ req }: { req: ServerRequest }, callback: (result: boolean) => void) {
+			Promise.resolve()
+				.then(() => verifyClient ? verifyClient(req) : true)
+				.then(result => {
+					if (!result) {
+						return false
+					} else if (options.clientLimit && options.clientLimit <= clients.length) {
+						return false;
+					} else if (options.connectionTokens) {
+						return hasToken(parseUrl(req.url || '', true).query.t);
+					} else {
+						return true;
+					}
+				})
+				.then(result => callback(result))
+				.catch((_e: Error) => {
+					// TODO: report error
+					callback(false);
+				});
 		}
 	});
 
