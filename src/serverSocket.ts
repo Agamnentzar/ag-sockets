@@ -143,8 +143,8 @@ export function create(
 					}
 				})
 				.then(result => callback(result))
-				.catch((_e: Error) => {
-					// TODO: report error
+				.catch((e: Error) => {
+					errorHandler.handleError(null, e);
 					callback(false);
 				});
 		}

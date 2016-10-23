@@ -275,8 +275,8 @@ describe('serverSocket', function () {
 	describe('createServer() (verifyClient hook)', function () {
 		const ws = MockWebSocket as any;
 
-		function create(options: ServerOptions) {
-			createServer({} as any, Server2, Client2, c => new Server2(c), options);
+		function create(options: ServerOptions, errorHandler?: ErrorHandler) {
+			createServer({} as any, Server2, Client2, c => new Server2(c), options, errorHandler);
 			return getLastServer();
 		}
 
@@ -334,11 +334,40 @@ describe('serverSocket', function () {
 			return expect(verify(server)).eventually.true;
 		});
 
+		it('should return false if custom verifyClient throws an error', function () {
+			const verifyClient = stub().throws(new Error('test'));
+			const server = create({ ws, verifyClient });
+
+			return expect(verify(server)).eventually.false;
+		});
+
 		it('should return false if custom verifyClient returns a rejected promise', function () {
 			const verifyClient = stub().returns(Promise.reject(new Error('test')));
 			const server = create({ ws, verifyClient });
 
 			return expect(verify(server)).eventually.false;
+		});
+
+		it('should report error if custom verifyClient throws an error', function () {
+			const error = new Error('test');
+			const errorHandler: any = { handleError() { } };
+			const handleError = stub(errorHandler, 'handleError');
+			const verifyClient = stub().throws(error);
+			const server = create({ ws, verifyClient }, errorHandler);
+
+			return verify(server)
+				.then(() => assert.calledWith(handleError, null, error));
+		});
+
+		it('should report error if custom verifyClient returns a rejected promise', function () {
+			const error = new Error('test');
+			const errorHandler: any = { handleError() { } };
+			const handleError = stub(errorHandler, 'handleError');
+			const verifyClient = stub().returns(Promise.reject(error));
+			const server = create({ ws, verifyClient }, errorHandler);
+
+			return verify(server)
+				.then(() => assert.calledWith(handleError, null, error));
 		});
 	});
 });
