@@ -8,8 +8,8 @@ export class DebugPacketHandler<T> extends PacketHandler<T> {
 		handlers: IBinaryHandlers<T>, private ignorePackets: string[], private log: Logger) {
 		super(readNames, remoteNames, packetWriter, packetReader, handlers);
 	}
-	send(socket: WebSocket, name: string, id: number, args: any[]): number {
-		const size = this.write(socket, name, id, args);
+	send(socket: WebSocket, name: string, id: number, args: any[], supportsBinary: boolean): number {
+		const size = this.write(socket, name, id, args, supportsBinary);
 
 		if (this.ignorePackets.indexOf(name) === -1) {
 			const mode = this.lastWriteBinary ? 'bin' : 'str';

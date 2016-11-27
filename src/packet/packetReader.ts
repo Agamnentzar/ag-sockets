@@ -42,8 +42,8 @@ export abstract class BasePacketReader {
 		return length === -1 ? null : decodeString(this.readBytes(length));
 	}
 	readObject() {
-		const t = this.readString();
-		return t == null ? null : JSON.parse(t);
+		const json = this.readString();
+		return json ? JSON.parse(json) : null;
 	}
 	readLength() {
 		let length = 0;

@@ -4,34 +4,21 @@ import * as http from 'http';
 import * as ws from 'ws';
 import { expect } from 'chai';
 import { assert, stub, spy, SinonStub, SinonSpy, match } from 'sinon';
-import { createServer, ErrorHandler, /*Method, Socket, Bin,*/ Server as TheServer, ServerOptions } from '../index';
+import { createServer, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions } from '../index';
 import { MockWebSocket, MockWebSocketServer, getLastServer } from './wsMock';
 
-//@Socket({ path: '/test', pingInterval: 1000 })
-//class Server {
-//	constructor() { }
-//	@Method({ binary: [Bin.Str], ignore: true })
-//	hello(message: string) { }
-//	@Method({ promise: true })
-//	login(login: string) {
-//		return login === 'test' ? Promise.resolve(true) : Promise.reject<boolean>(new Error('fail'));
-//	}
-//}
-
-//class Client {
-//	@Method({ binary: [Bin.Str], ignore: true })
-//	hi(message: string) { }
-//}
-
+@Socket()
 class Server2 {
-	constructor(_: Client2) { }
 	connected() { }
 	disconnected() { }
+	@Method()
 	hello(_message: string) { }
+	@Method()
 	login(_login: string) { return Promise.resolve(true); }
 }
 
 class Client2 {
+	@Method()
 	hi(_message: string) { }
 }
 
@@ -47,13 +34,13 @@ describe('serverSocket', function () {
 			server.close(() => done());
 		});
 
-		it('should be able to start server (no metadata)', function (done) {
-			createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+		it('should be able to start server', function (done) {
+			createServer(server, Server2, Client2, () => new Server2(), { path: '/test2' });
 			server.listen(12345, done);
 		});
 
 		it('should be able to close server', function (done) {
-			const socket = createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+			const socket = createServer(server, Server2, Client2, () => new Server2(), { path: '/test2' });
 			server.listen(12345, () => {
 				socket.close();
 				done();
@@ -84,7 +71,7 @@ describe('serverSocket', function () {
 			});
 
 			it('should pass http server to websocket server', function () {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+				createServer(server, Server2, Client2, () => new Server2(), { path: '/test2' });
 
 				assert.calledOnce(wsServer);
 				const options = wsServer.getCall(0).args[0];
@@ -93,7 +80,7 @@ describe('serverSocket', function () {
 			});
 
 			it('should pass perMessageDeflate option to websocket server', function () {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2', perMessageDeflate: false });
+				createServer(server, Server2, Client2, () => new Server2(), { path: '/test2', perMessageDeflate: false });
 
 				assert.calledOnce(wsServer);
 				const options = wsServer.getCall(0).args[0];
@@ -102,7 +89,7 @@ describe('serverSocket', function () {
 
 			it('should setup error handler', function () {
 				const handleError = spy();
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' }, { handleError } as any);
+				createServer(server, Server2, Client2, () => new Server2(), { path: '/test2' }, { handleError } as any);
 
 				assert.calledWith(on, 'error');
 				const [event, callback] = on.getCall(1).args;
@@ -113,7 +100,7 @@ describe('serverSocket', function () {
 			});
 
 			it('should setup work without error handler', function () {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+				createServer(server, Server2, Client2, () => new Server2(), { path: '/test2' });
 
 				assert.calledWith(on, 'error');
 				const [event, callback] = on.getCall(1).args;
@@ -122,7 +109,7 @@ describe('serverSocket', function () {
 			});
 
 			it('should setup connetion handler', function () {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+				createServer(server, Server2, Client2, () => new Server2(), { path: '/test2' });
 
 				assert.calledWith(on, 'connection');
 				const [event] = on.getCall(0).args;
@@ -132,7 +119,7 @@ describe('serverSocket', function () {
 			// connecting
 
 			function createTestServer() {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+				createServer(server, Server2, Client2, () => new Server2(), { path: '/test2' });
 			}
 
 			function connectTestServer(socket: any) {
@@ -164,7 +151,7 @@ describe('serverSocket', function () {
 		const ws = MockWebSocket as any;
 
 		let server: MockWebSocketServer;
-		let theServer: TheServer;
+		let serverSocket: TheServer;
 		let errorHandler: ErrorHandler;
 		let onServer: (s: Server2) => void;
 
@@ -175,8 +162,8 @@ describe('serverSocket', function () {
 				handleRejection(...args: any[]) { console.error('handleRejection', ...args); },
 			};
 			onServer = () => { };
-			theServer = createServer({} as any, Server2, Client2, c => {
-				const s = new Server2(c);
+			serverSocket = createServer({} as any, Server2, Client2, () => {
+				const s = new Server2();
 				onServer(s);
 				return s;
 			}, { ws }, errorHandler);
@@ -203,7 +190,7 @@ describe('serverSocket', function () {
 
 			client.invoke('error', error);
 
-			assert.calledWith(handleError, theServer.clients[0].client, error);
+			assert.calledWith(handleError, serverSocket.clients[0].client, error);
 		});
 
 		it('should terminate and handle error on connection error', function () {
@@ -266,9 +253,20 @@ describe('serverSocket', function () {
 		it('should close the web socket server', function () {
 			const close = stub(getLastServer(), 'close');
 
-			theServer.close();
+			serverSocket.close();
 
 			assert.calledOnce(close);
+		});
+
+		it('should handle message from client', function () {
+			let server2: Server2 | undefined;
+			onServer = s => server2 = s;
+			const client = server.connectClient();
+			const hello = stub(server2!, 'hello');
+
+			client.invoke('message', '[0, "test"]');
+
+			assert.calledWith(hello, 'test');
 		});
 	});
 
@@ -276,7 +274,7 @@ describe('serverSocket', function () {
 		const ws = MockWebSocket as any;
 
 		function create(options: ServerOptions, errorHandler?: ErrorHandler) {
-			createServer({} as any, Server2, Client2, c => new Server2(c), options, errorHandler);
+			createServer({} as any, Server2, Client2, () => new Server2(), options, errorHandler);
 			return getLastServer();
 		}
 

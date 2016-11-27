@@ -1,19 +1,17 @@
-var gulp = require('gulp');
-var path = require('path');
-var del = require('del');
-var ts = require('gulp-typescript');
-var mocha = require('gulp-spawn-mocha');
-var tslint = require('gulp-tslint');
-var plumber = require('gulp-plumber');
-var sourcemaps = require('gulp-sourcemaps');
-var runSequence = require('run-sequence');
-var remapIstanbul = require('remap-istanbul/lib/gulpRemapIstanbul');
-var merge = require('merge2');
-var Builder = require('systemjs-builder')
-var liveServer = require('gulp-live-server');
-var argv = require('yargs').argv;
-
-gulp.task('empty', function () { });
+const gulp = require('gulp');
+const path = require('path');
+const del = require('del');
+const ts = require('gulp-typescript');
+const mocha = require('gulp-spawn-mocha');
+const tslint = require('gulp-tslint');
+const plumber = require('gulp-plumber');
+const sourcemaps = require('gulp-sourcemaps');
+const runSequence = require('run-sequence');
+const remapIstanbul = require('remap-istanbul/lib/gulpRemapIstanbul');
+const merge = require('merge2');
+const Builder = require('systemjs-builder')
+const liveServer = require('gulp-live-server');
+const argv = require('yargs').argv;
 
 gulp.task('clean', function () {
 	return del([
@@ -21,11 +19,12 @@ gulp.task('clean', function () {
 	]);
 });
 
-var project = ts.createProject('tsconfig.json');
-var scripts = ['src/**/*.ts'];
+const project = ts.createProject('tsconfig.json');
+const scripts = ['src/**/*.ts'];
+const buildTask = argv.coverage ? 'build-demo-coverage-remap' : (argv.tests ? 'build-demo-tests' : 'build-demo');
 
 gulp.task('build', function () {
-	var result = gulp.src(scripts)
+	const result = gulp.src(scripts)
 		.pipe(sourcemaps.init())
 		.pipe(project(ts.reporter.defaultReporter()));
 
@@ -39,7 +38,7 @@ gulp.task('build', function () {
 });
 
 gulp.task('demo', function () {
-	var builder = new Builder('', 'src/demo/config.js');
+	const builder = new Builder('', 'src/demo/config.js');
 	return builder.buildStatic('dist/demo/demoClient.js', 'dist/demo/demo.js');
 });
 
@@ -60,12 +59,8 @@ gulp.task('coverage', function () {
 		}));
 });
 
-gulp.task('coverage-remap', function (done) {
-	runSequence('coverage', 'remap', done);
-});
-
 gulp.task('server', function () {
-	var server = liveServer(['dist/demo/demoServer.js'], {});
+	const server = liveServer(['dist/demo/demoServer.js'], {});
 	server.start();
 
 	gulp.watch(['src/demo/**/*.html'], server.notify.bind(server));
@@ -75,10 +70,7 @@ gulp.task('server', function () {
 });
 
 gulp.task('watch', function () {
-	gulp.watch(scripts, ['build-and-demo']);
-
-	if (argv.tests || argv.coverage)
-		gulp.watch(['dist/**/*.js'], [argv.coverage ? 'coverage-remap' : 'tests']);
+	gulp.watch(scripts, [buildTask]);
 });
 
 gulp.task('lint', function () {
@@ -91,12 +83,20 @@ gulp.task('lint', function () {
 		.pipe(tslint.report());
 });
 
-gulp.task('build-and-demo', function (done) {
+gulp.task('build-demo', function (done) {
 	runSequence('build', 'demo', done);
 });
 
+gulp.task('build-demo-tests', function (done) {
+	runSequence('build', 'demo', 'tests', done);
+});
+
+gulp.task('build-demo-coverage-remap', function (done) {
+	runSequence('build', 'demo', 'coverage', 'remap', done);
+});
+
 gulp.task('dev', function (done) {
-	runSequence('clean', 'build-and-demo', argv.coverage ? 'coverage-remap' : (argv.tests ? 'tests' : 'empty'), 'server', 'watch', done);
+	runSequence('clean', buildTask, 'server', 'watch', done);
 });
 
 gulp.task('cov', function (done) {

@@ -28,7 +28,6 @@ export interface IFunctionHandler {
 export const defaultHandleFunction: IFunctionHandler = (_funcId, _funcName, func, funcObj, args) => func.apply(funcObj, args);
 
 export class PacketHandler<T> {
-	supportsBinary = false;
 	private writeHandlers: IBinaryWriteHandlers<T>;
 	private readHandlers: IBinaryReadHandlers<T>;
 	protected lastWriteBinary = false;
@@ -36,10 +35,10 @@ export class PacketHandler<T> {
 		this.writeHandlers = handlers.write;
 		this.readHandlers = handlers.read;
 	}
-	protected write(socket: WebSocket, name: string, id: number, args: any[]) {
+	protected write(socket: WebSocket, name: string, id: number, args: any[], supportsBinary: boolean) {
 		const handler = this.writeHandlers[name];
 
-		if (this.supportsBinary && handler) {
+		if (supportsBinary && handler) {
 			handler(this.packetWriter, id, args);
 			const buffer: any = this.packetWriter.getBuffer();
 			socket.send(buffer);
@@ -69,7 +68,7 @@ export class PacketHandler<T> {
 			return result;
 		}
 	}
-	protected getFuncName(id: number, args: any[]) {
+	protected getFuncName(id: any, args: any[]) {
 		if (id === MessageType.Version)
 			return '*version';
 		else if (id === MessageType.Rejected)
@@ -79,29 +78,20 @@ export class PacketHandler<T> {
 		else
 			return this.readNames[id];
 	}
-	send(socket: WebSocket, name: string, id: number, args: any[]): number {
+	send(socket: WebSocket, name: string, id: number, args: any[], supportsBinary: boolean): number {
 		try {
-			return this.write(socket, name, id, args);
+			return this.write(socket, name, id, args, supportsBinary);
 		} catch (e) {
 			return 0;
 		}
 	}
 	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction): number {
 		const args = this.read(data);
-
-		try {
-			var funcId = args.shift();
-			var funcName = this.getFuncName(funcId, args);
-			var funcSpecial = funcName && funcName[0] === '*';
-			var funcObj = funcSpecial ? specialFuncList : funcList;
-			var func = funcObj[funcName];
-		} catch (e) {
-			funcId = 0;
-			funcName =  '';
-			funcSpecial = false;
-			funcObj = {};
-			func = void 0;
-		}
+		const funcId = args.shift();
+		const funcName = this.getFuncName(funcId, args);
+		const funcSpecial = funcName && funcName.charAt(0) === '*';
+		const funcObj = funcSpecial ? specialFuncList : funcList;
+		const func = funcObj[funcName];
 
 		if (func) {
 			handleFunction(funcId, funcName, func, funcObj, args);

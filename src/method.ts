@@ -11,7 +11,7 @@ export function Method(options: MethodOptions = {}) {
 	};
 }
 
-export function Socket(options: ServerOptions) {
+export function Socket(options: ServerOptions = {}) {
 	return function (target: Function) {
 		socketServerMetadata.set(target, options);
 	};

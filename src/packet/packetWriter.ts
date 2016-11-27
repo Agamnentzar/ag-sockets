@@ -70,7 +70,7 @@ export abstract class BasePacketWriter {
 	}
 	writeObject(value: any) {
 		if (value == null)
-			this.writeString(null);
+			this.writeString('');
 		else
 			this.writeString(JSON.stringify(value));
 	}

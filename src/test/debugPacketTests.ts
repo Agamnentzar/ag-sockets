@@ -35,21 +35,19 @@ describe('DebugPacketHandler', function () {
 		});
 
 		it('should log sent message', function () {
-			handler.send(websocket, 'foo', 1, ['a', 'b', 5]);
+			handler.send(websocket, 'foo', 1, ['a', 'b', 5], false);
 
 			assert.calledWithMatch(log, 'SEND [13] (str)', 'foo', [1, 'a', 'b', 5]);
 		});
 
 		it('should log sent binary message', function () {
-			handler.supportsBinary = true;
-
-			handler.send(websocket, 'foo', 1, [8]);
+			handler.send(websocket, 'foo', 1, [8], true);
 
 			assert.calledWithMatch(log, 'SEND [2] (bin)', 'foo', [8]);
 		});
 
 		it('should not log ignored message', function () {
-			handler.send(websocket, 'abc', 2, ['a', 'b', 5]);
+			handler.send(websocket, 'abc', 2, ['a', 'b', 5], true);
 
 			assert.notCalled(log);
 		});
@@ -76,8 +74,6 @@ describe('DebugPacketHandler', function () {
 		});
 
 		it('should log received binary message', function () {
-			handler.supportsBinary = true;
-
 			handler.recv(new Buffer([1, 8]), funcs, special);
 
 			assert.calledWithMatch(log, 'RECV [2] (bin)', 'foo', [8]);

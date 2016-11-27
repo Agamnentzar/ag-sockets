@@ -35,17 +35,14 @@ function isBinArray(array: (Bin | any[])[]): array is Bin[] {
 
 function writeFieldSize(f: Bin | Bin[] | any[], n: string, indent: string): any {
 	if (f instanceof Array) {
-		if (!isBinArray(f)) {
+		if (isBinArray(f)) {
+			return `writer.measureSimpleArray(${n}, ${f.reduce((sum, x) => sum + sizes[x], 0)})`;
+		} else {
 			let code = '';
 			let size = 0;
 
 			if (f.length === 1) {
-				const s = writeFieldSize(f[0], `item`, indent + '\t');
-
-				if (isNaN(s))
-					code += `\n${indent}\t+ ${s}`;
-				else
-					size += s;
+				code += `\n${indent}\t+ ${writeFieldSize(f[0], `item`, indent + '\t')}`;
 			} else {
 				for (let i = 0; i < f.length; i++) {
 					const s = writeFieldSize(f[i], `item[${i}]`, indent + '\t');
@@ -58,8 +55,6 @@ function writeFieldSize(f: Bin | Bin[] | any[], n: string, indent: string): any 
 			}
 
 			return `writer.measureArray(${n}, function (item) { return ${size}${code}; })`;
-		} else {
-			return `writer.measureSimpleArray(${n}, ${f.reduce((sum, x) => sum + sizes[x], 0)})`;
 		}
 	} else {
 		if (f === Bin.Obj || f === Bin.Str) {

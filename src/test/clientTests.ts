@@ -2,8 +2,9 @@ import './common';
 import * as Promise from 'bluebird';
 import { expect } from 'chai';
 import { stub, spy, assert } from 'sinon';
+import { cloneDeep } from 'lodash';
 import { MessageType } from '../packet/packetHandler';
-import { ClientSocket, SocketClient, SocketServer, SocketService, ClientErrorHandler } from '../index';
+import { ClientOptions, ClientSocket, SocketClient, SocketServer, SocketService, ClientErrorHandler } from '../index';
 
 let lastWebSocket: MockWebSocket;
 
@@ -35,6 +36,20 @@ class MockWebSocket {
 describe('ClientSocket', function () {
 	const location = { protocol: '', host: '' };
 	const window = { addEventListener() { }, removeEventListener() { } };
+	const clientOptions: ClientOptions = {
+		hash: 123,
+		path: '/test',
+		client: ['test', 'foo'],
+		server: [
+			'test2',
+			['foo', { promise: true, progress: 'fooInProgress' }],
+			['foo2', { promise: true, rateLimit: '1/s' }],
+			['foo3', { rateLimit: '1/s' }],
+		],
+		pingInterval: 1000,
+		requestParams: { foo: 'bar', x: 5 },
+	};
+
 	let service: SocketService<Client, Server>;
 	let errorHandler: ClientErrorHandler;
 
@@ -52,19 +67,7 @@ describe('ClientSocket', function () {
 		lastWebSocket = null as any;
 		errorHandler = { handleRecvError() { } };
 
-		service = new ClientSocket<Client, Server>({
-			hash: 123,
-			path: '/test',
-			client: ['test', 'foo'],
-			server: [
-				'test2',
-				['foo', { promise: true, progress: 'fooInProgress' }],
-				['foo2', { promise: true, rateLimit: '1/s' }],
-				['foo3', { rateLimit: '1/s' }],
-			],
-			pingInterval: 1000,
-			requestParams: { foo: 'bar', x: 5 },
-		}, errorHandler);
+		service = new ClientSocket<Client, Server>(clientOptions, errorHandler);
 	});
 
 	describe('invalidVersion', function () {
@@ -133,7 +136,16 @@ describe('ClientSocket', function () {
 			service.connect();
 
 			expect(lastWebSocket).not.undefined;
-			expect(lastWebSocket.url).equal('ws://example.com/test?foo=bar&x=5');
+			expect(lastWebSocket.url).equal('ws://example.com/test?foo=bar&x=5&bin=false');
+		});
+
+		it('should use "/ws" as default path', function () {
+			const options = cloneDeep(clientOptions);
+			delete options.path;
+			service = new ClientSocket<Client, Server>(options);
+			service.connect();
+
+			expect(lastWebSocket.url).equal('ws://example.com/ws?foo=bar&x=5&bin=false');
 		});
 
 		it('should create websocket with SSL for HTTPS url', function () {
@@ -141,7 +153,7 @@ describe('ClientSocket', function () {
 
 			service.connect();
 
-			expect(lastWebSocket.url).equal('wss://example.com/test?foo=bar&x=5');
+			expect(lastWebSocket.url).equal('wss://example.com/test?foo=bar&x=5&bin=false');
 		});
 
 		it('should add event listener for "beforeunload"', function () {
@@ -408,6 +420,15 @@ describe('ClientSocket', function () {
 						expect(result1).equal('b');
 						expect(result2).equal('a');
 					});
+			});
+
+			it('should throw error if with default error handler', function () {
+				service = new ClientSocket<Client, Server>(clientOptions);
+				service.connect();
+				stub((service as any).packet, 'recv').throws(new Error('test'));
+				lastWebSocket.onopen();
+
+				expect(() => lastWebSocket.onmessage({ data: '[1, 2]' })).throw('test');
 			});
 		});
 	});

@@ -55,3 +55,24 @@ export function checkRateLimit(funcId: number, rates: (RateLimit | null)[]) {
 
 	return true;
 }
+
+let supportsBinaryValue: boolean | undefined;
+
+/* istanbul ignore next */
+export function supportsBinary() {
+	if (supportsBinaryValue != null)
+		return supportsBinaryValue;
+
+	const protocol = 'https:' === location.protocol ? 'wss' : 'ws';
+
+	if ('WebSocket' in window) {
+		if ('binaryType' in WebSocket.prototype)
+			return true;
+
+		try {
+			return !!(new WebSocket(protocol + '://.').binaryType);
+		} catch (e) { }
+	}
+
+	return false;
+}

@@ -67,7 +67,7 @@ describe('ClientSocket + Server', function () {
 
 	function setupClient(options: ClientOptions) {
 		return new Promise(resolve => {
-			clientSocket = new ClientSocket<Client, Server>(options, null, apply, <any>log);
+			clientSocket = new ClientSocket<Client, Server>(options, void 0, apply, <any>log);
 			clientSocket.client = new Client();
 			clientSocket.client.connected = resolve;
 			clientSocket.connect();

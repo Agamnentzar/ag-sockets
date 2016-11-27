@@ -24,6 +24,7 @@ export interface Client {
 	token: Token | null;
 	ping(): void;
 	client: SocketServerClient;
+	supportsBinary: boolean;
 }
 
 export interface Server {
@@ -133,7 +134,7 @@ export function create(
 				.then(() => verifyClient ? verifyClient(req) : true)
 				.then(result => {
 					if (!result) {
-						return false
+						return false;
 					} else if (options.clientLimit && options.clientLimit <= clients.length) {
 						return false;
 					} else if (options.connectionTokens) {
@@ -160,14 +161,14 @@ export function create(
 		new DebugPacketHandler(serverMethods, serverMethods, writer, reader, handlers, ignore, log) :
 		new PacketHandler(serverMethods, serverMethods, writer, reader, handlers);
 
-	function handleResult(socket: any, client: SocketServerClient, funcId: number, funcName: string, result: Promise<any>, messageId: number) {
+	function handleResult(socket: any, obj: Client, funcId: number, funcName: string, result: Promise<any>, messageId: number) {
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
-				packet.send(socket, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result]);
+				packet.send(socket, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result], obj.supportsBinary);
 			}, (e: Error) => {
-				errorHandler.handleRejection(client, e);
-				packet.send(socket, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error']);
-			}).catch((e: Error) => errorHandler.handleError(client, e));
+				errorHandler.handleRejection(obj.client, e);
+				packet.send(socket, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'], obj.supportsBinary);
+			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
 	}
 
@@ -191,6 +192,7 @@ export function create(
 		const obj: Client = {
 			lastMessageTime: Date.now(),
 			lastMessageId: 0,
+			supportsBinary: query.bin === 'true',
 			token,
 			ping() {
 				socket.send('');
@@ -216,7 +218,7 @@ export function create(
 
 		const serverActions: SocketServer = createServer(obj.client);
 
-		socket.on('message', (message: string | Buffer, flags: { binary: boolean; }) => {
+		socket.on('message', (message: string | Buffer, flags?: { binary: boolean; }) => {
 			if (transferLimitExceeded)
 				return;
 
@@ -232,7 +234,7 @@ export function create(
 			}
 
 			obj.lastMessageTime = Date.now();
-			packet.supportsBinary = packet.supportsBinary || flags.binary;
+			obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
 
 			if (message && message.length) {
 				obj.lastMessageId++;
@@ -243,9 +245,9 @@ export function create(
 						const rate = rates[funcId];
 
 						if (checkRateLimit(funcId, rates)) {
-							handleResult(socket, obj.client, funcId, funcName, func.apply(funcObj, args), messageId);
+							handleResult(socket, obj, funcId, funcName, func.apply(funcObj, args), messageId);
 						} else if (rate && rate.promise) {
-							handleResult(socket, obj.client, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
+							handleResult(socket, obj, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
 						} else {
 							throw new Error(`rate limit exceeded (${funcName})`);
 						}
@@ -280,12 +282,12 @@ export function create(
 
 		socket.on('error', e => errorHandler.handleError(obj.client, e));
 
-		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packet.send(<any>socket, name, id, args));
+		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packet.send(<any>socket, name, id, args, obj.supportsBinary));
 
 		if (options.debug)
 			log('client connected');
 
-		packet.send(<any>socket, '*version', MessageType.Version, [options.hash]);
+		packet.send(<any>socket, '*version', MessageType.Version, [options.hash], obj.supportsBinary);
 
 		clients.push(obj);
 

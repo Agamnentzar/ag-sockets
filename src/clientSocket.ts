@@ -1,7 +1,7 @@
 import * as Promise from 'bluebird';
-import { assign } from 'lodash';
+import { assign, map } from 'lodash';
 import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
-import { checkRateLimit, parseRateLimit, RateLimit } from './utils';
+import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary } from './utils';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
@@ -11,6 +11,12 @@ import ArrayBufferPacketReader from './packet/arrayBufferPacketReader';
 export interface ClientErrorHandler {
 	handleRecvError(error: Error, data: any): void;
 }
+
+const defaultErrorHandler: ClientErrorHandler = {
+	handleRecvError(error: Error) {
+		throw error;
+	}
+};
 
 interface Deferred<T> {
 	promise: Promise<T>;
@@ -35,6 +41,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	sentSize = 0;
 	receivedSize = 0;
 	isConnected = false;
+	supportsBinary = false;
 	private special: FuncList = {};
 	private socket: WebSocket | null;
 	private connecting = false;
@@ -56,7 +63,12 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private defers = new Map<number, Deferred<any>>();
 	private inProgressFields: { [key: string]: number } = {};
 	private rateLimits: RateLimit[] = [];
-	constructor(private options: ClientOptions, private errorHandler?: ClientErrorHandler | null, private apply: (f: () => any) => void = f => f(), private log: Logger = console.log.bind(console)) {
+	constructor(
+		private options: ClientOptions,
+		private errorHandler: ClientErrorHandler = defaultErrorHandler,
+		private apply: (f: () => any) => void = f => f(),
+		private log: Logger = console.log.bind(console)
+	) {
 		this.options.server.forEach((item, id) => {
 			if (typeof item === 'string') {
 				this.createMethod(item, id, {});
@@ -78,25 +90,18 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				this.client.invalidVersion(version, this.options.hash!);
 			}
 		};
+
+		this.supportsBinary = supportsBinary();
 	}
 	private getWebsocketUrl() {
 		const options = this.options;
 		const host = options.host || location.host;
 		const path = options.path || '/ws';
-		const protocol = options.ssl || location.protocol === 'https:' ? 'wss://' : 'ws://';
-
-		let query = options.token ? `?t=${options.token}` : '';
-
-		if (options.requestParams) {
-			const params = Object.keys(options.requestParams)
-				.map(key => `${key}=${encodeURIComponent(options.requestParams[key])}`)
-				.join('&');
-
-			query += (query ? '&' : '?') + params;
-		}
-
-		return protocol + host + path + query;
-
+		const protocol = (options.ssl || location.protocol === 'https:') ? 'wss://' : 'ws://';
+		const bin = this.supportsBinary;
+		const params = assign({}, options.requestParams || {}, options.token ? { t: options.token } : {}, { bin });
+		const query = map(params, (value: any, key: string) => `${key}=${encodeURIComponent(value)}`).join('&');
+		return `${protocol}${host}${path}?${query}`;
 	}
 	connect() {
 		this.connecting = true;
@@ -121,18 +126,14 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		else
 			this.packet = new PacketHandler(clientmethods, serverMethods, writer, reader, handlers);
 
-		this.packet.supportsBinary = !!this.socket.binaryType;
+		this.supportsBinary = !!this.socket.binaryType;
 		this.socket.binaryType = 'arraybuffer';
 		this.socket.onmessage = message => {
 			if (message.data) {
 				try {
 					this.receivedSize += this.packet.recv(message.data, this.client, this.special);
 				} catch (e) {
-					if (this.errorHandler) {
-						this.errorHandler.handleRecvError(e, message.data);
-					} else {
-						throw e;
-					}
+					this.errorHandler.handleRecvError(e, message.data);
 				}
 			} else {
 				this.sendPing();
@@ -147,7 +148,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			this.isConnected = true;
 
 			// notify server of binary support
-			if (this.socket && this.packet.supportsBinary)
+			if (this.socket && this.supportsBinary)
 				this.socket.send(typeof Buffer !== 'undefined' ? new Buffer(0) : new ArrayBuffer(0));
 
 			if (this.client.connected)
@@ -234,7 +235,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private createSimpleMethod(name: string, id: number) {
 		this.server[name] = (...args: any[]) => {
 			if (checkRateLimit(id, this.rateLimits)) {
-				this.sentSize += this.packet.send(this.socket!, name, id, args);
+				this.sentSize += this.packet.send(this.socket!, name, id, args, this.supportsBinary);
 				this.lastSentId++;
 				return true;
 			} else {
@@ -258,7 +259,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			if (!checkRateLimit(id, this.rateLimits))
 				return Promise.reject<any>(new Error('rate limit exceeded'));
 
-			this.sentSize += this.packet.send(this.socket!, name, id, args);
+			this.sentSize += this.packet.send(this.socket!, name, id, args, this.supportsBinary);
 			const messageId = ++this.lastSentId;
 			const defer = deferred<any>();
 			this.defers.set(messageId, defer);

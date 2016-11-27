@@ -37,34 +37,31 @@ describe('PacketHandler', function () {
 		it('should send message to websocket', function () {
 			const send = stub(websocket, 'send');
 
-			handler.send(websocket, 'foo', 1, ['a', 'b', 5]);
+			handler.send(websocket, 'foo', 1, ['a', 'b', 5], false);
 
 			assert.calledWith(send, '[1,"a","b",5]');
 		});
 
 		it('should return message length', function () {
-			expect(handler.send(websocket, 'foo', 1, ['a', 'b', 5])).equal('[1,"a","b",5]'.length);
+			expect(handler.send(websocket, 'foo', 1, ['a', 'b', 5], false)).equal('[1,"a","b",5]'.length);
 		});
 
 		it('should return 0 on error', function () {
 			stub(websocket, 'send').throws(new Error(''));
 
-			expect(handler.send(websocket, 'foo', 1, ['a', 'b', 5])).equal(0);
+			expect(handler.send(websocket, 'foo', 1, ['a', 'b', 5], true)).equal(0);
 		});
 
 		it('should send binary message', function () {
 			const send = stub(websocket, 'send');
-			handler.supportsBinary = true;
 
-			handler.send(websocket, 'foo', 1, [8]);
+			handler.send(websocket, 'foo', 1, [8], true);
 
 			assert.calledWith(send, writer.getBuffer());
 		});
 
 		it('should return binary message length', function () {
-			handler.supportsBinary = true;
-
-			expect(handler.send(websocket, 'foo', 1, [8])).equal(2);
+			expect(handler.send(websocket, 'foo', 1, [8], true)).equal(2);
 		});
 
 		it('should return binary message length (ArrayBuffer)', function () {
@@ -72,9 +69,7 @@ describe('PacketHandler', function () {
 			const reader = new ArrayBufferPacketReader();
 			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
 
-			handler.supportsBinary = true;
-
-			expect(handler.send(websocket, 'foo', 1, [8])).equal(2);
+			expect(handler.send(websocket, 'foo', 1, [8], true)).equal(2);
 		});
 	});
 
@@ -153,8 +148,6 @@ describe('PacketHandler', function () {
 			const writer = new ArrayBufferPacketWriter();
 			const reader = new ArrayBufferPacketReader();
 			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
-
-			handler.supportsBinary = true;
 
 			const buffer = new ArrayBuffer(2);
 			const bytes = new Uint8Array(buffer);

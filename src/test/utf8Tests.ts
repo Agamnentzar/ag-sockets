@@ -37,6 +37,10 @@ describe('utf8', function () {
 		it('should throw on invalid UTF-8', function () {
 			expect(() => decodeString(new Uint8Array([0xff]))).throw('Invalid UTF-8 detected');
 		});
+
+		it('should throw on lone surrogate', function () {
+			expect(() => decodeString(new Uint8Array([0xed, 0xa3, 0xbf]))).throw('Lone surrogate U+D8FF is not a scalar value');
+		});
 	});
 
 	describe('encodeString() + decodeString()', function () {
