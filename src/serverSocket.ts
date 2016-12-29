@@ -260,7 +260,7 @@ export function create(
 		};
 
 		function sendPacket(packet: Packet) {
-			packetHandler.sendPacket(socket as any, packet, obj.supportsBinary)
+			packetHandler.sendPacket(socket as any, packet, obj.supportsBinary);
 		}
 
 		const serverActions: SocketServer = createServer(obj.client);

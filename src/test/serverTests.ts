@@ -298,7 +298,7 @@ describe('serverSocket', function () {
 			servers[0].client.hi('boop');
 
 			assert.calledWith(send, '[0,"boop"]');
-		})
+		});
 
 		it('should be able to send message to client (binary)', function () {
 			const client = server.connectClient(true);

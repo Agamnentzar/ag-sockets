@@ -59,7 +59,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				this.socket = null;
 			} catch (e) { }
 		}
-	};
+	}
 	private defers = new Map<number, Deferred<any>>();
 	private inProgressFields: { [key: string]: number } = {};
 	private rateLimits: RateLimit[] = [];
