@@ -43,7 +43,7 @@ describe('DebugPacketHandler', function () {
 		it('should log sent binary message', function () {
 			handler.send(websocket, 'foo', 1, [8], true);
 
-			assert.calledWithMatch(log, 'SEND [2] (bin)', 'foo', [8]);
+			assert.calledWithMatch(log, 'SEND [2] (bin)', 'foo', [1, 8]);
 		});
 
 		it('should not log ignored message', function () {

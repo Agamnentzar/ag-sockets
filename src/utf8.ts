@@ -1,4 +1,4 @@
-function foreachCharacter(value: string, callback: (code: number) => void) {
+function forEachCharacter(value: string, callback: (code: number) => void) {
 	for (let i = 0; i < value.length; i++) {
 		let code = value.charCodeAt(i);
 
@@ -31,39 +31,42 @@ function charLengthInBytes(code: number): number {
 
 export function stringLengthInBytes(value: string): number {
 	let result = 0;
-	foreachCharacter(value, code => result += charLengthInBytes(code));
+	forEachCharacter(value, code => result += charLengthInBytes(code));
 	return result;
+}
+
+export function encodeStringTo(buffer: Uint8Array | Buffer, offset: number, value: string): number {
+	forEachCharacter(value, code => {
+		const length = charLengthInBytes(code);
+
+		if (length === 1) {
+			buffer[offset++] = code;
+		} else {
+			if (length === 2) {
+				buffer[offset++] = ((code >> 6) & 0x1f) | 0xc0;
+			} else if (length === 3) {
+				buffer[offset++] = ((code >> 12) & 0x0f) | 0xe0;
+				buffer[offset++] = ((code >> 6) & 0x3f) | 0x80;
+			} else {
+				buffer[offset++] = ((code >> 18) & 0x07) | 0xf0;
+				buffer[offset++] = ((code >> 12) & 0x3f) | 0x80;
+				buffer[offset++] = ((code >> 6) & 0x3f) | 0x80;
+			}
+
+			buffer[offset++] = (code & 0x3f) | 0x80;
+		}
+	});
+
+	return offset;
 }
 
 export function encodeString(value: string | null): Uint8Array | null {
 	if (value == null)
 		return null;
 
-	const result = new Uint8Array(stringLengthInBytes(value));
-	let offset = 0;
-
-	foreachCharacter(value, code => {
-		const length = charLengthInBytes(code);
-
-		if (length === 1) {
-			result[offset++] = code;
-		} else {
-			if (length === 2) {
-				result[offset++] = ((code >> 6) & 0x1f) | 0xc0;
-			} else if (length === 3) {
-				result[offset++] = ((code >> 12) & 0x0f) | 0xe0;
-				result[offset++] = ((code >> 6) & 0x3f) | 0x80;
-			} else {
-				result[offset++] = ((code >> 18) & 0x07) | 0xf0;
-				result[offset++] = ((code >> 12) & 0x3f) | 0x80;
-				result[offset++] = ((code >> 6) & 0x3f) | 0x80;
-			}
-
-			result[offset++] = (code & 0x3f) | 0x80;
-		}
-	});
-
-	return result;
+	const buffer = new Uint8Array(stringLengthInBytes(value));
+	encodeStringTo(buffer, 0, value);
+	return buffer;
 }
 
 function continuationByte(buffer: Uint8Array, index: number): number {

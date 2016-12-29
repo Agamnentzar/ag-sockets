@@ -88,7 +88,7 @@ function createWriteFunction(fields: any[]) {
 	const obj = { code: '', size: 1 };
 
 	for (let i = 0; i < fields.length; i++) {
-		const size = writeFieldSize(fields[i], `args[${i}]`, '\t\t');
+		const size = writeFieldSize(fields[i], `args[${i + 1}]`, '\t\t');
 
 		if (isNaN(size))
 			obj.code += `\t\tsize += ${size};\n`;
@@ -97,12 +97,12 @@ function createWriteFunction(fields: any[]) {
 	}
 
 	obj.code += '\t\twriter.init(size);\n';
-	obj.code += '\t\twriter.writeUint8(id);\n';
+	obj.code += '\t\twriter.writeUint8(args[0]);\n';
 
 	for (let i = 0; i < fields.length; i++)
-		writeField(obj, fields[i], `args[${i}]`, '\t\t');
+		writeField(obj, fields[i], `args[${i + 1}]`, '\t\t');
 
-	return `function (writer, id, args) {\n\t\tvar size = ${obj.size};\n${obj.code}\t}`;
+	return `function (writer, args) {\n\t\tvar size = ${obj.size};\n${obj.code}\t}`;
 }
 
 function readField(f: Bin | any[], indent: string) {

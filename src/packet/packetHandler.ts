@@ -2,14 +2,26 @@ import { FuncList } from '../interfaces';
 import { PacketWriter } from './packetWriter';
 import { PacketReader } from './packetReader';
 
+export interface Packet {
+	id: number;
+	name: string;
+	args: any[];
+	binary?: any;
+	json?: string;
+}
+
 export const enum MessageType {
 	Version = 255,
 	Resolved = 254,
 	Rejected = 253,
 }
 
+export interface IBinaryWriteHandler<T> {
+	(writer: PacketWriter<T>, args: any[]): void;
+}
+
 export interface IBinaryWriteHandlers<T> {
-	[key: string]: (writer: PacketWriter<T>, id: number, args: any[]) => void;
+	[key: string]: IBinaryWriteHandler<T>;
 }
 
 export interface IBinaryReadHandlers<T> {
@@ -35,18 +47,31 @@ export class PacketHandler<T> {
 		this.writeHandlers = handlers.write;
 		this.readHandlers = handlers.read;
 	}
-	protected write(socket: WebSocket, name: string, id: number, args: any[], supportsBinary: boolean) {
-		const handler = this.writeHandlers[name];
+	private getBinary(packet: Packet, handler: IBinaryWriteHandler<T>) {
+		if (!packet.binary) {
+			handler(this.packetWriter, packet.args);
+			packet.binary = this.packetWriter.getBuffer();
+		}
+
+		return packet.binary;
+	}
+	private getJSON(packet: Packet) {
+		if (!packet.json) {
+			packet.json = JSON.stringify(packet.args);
+		}
+
+		return packet.json;
+	}
+	protected writePacket(socket: WebSocket, packet: Packet, supportsBinary: boolean) {
+		const handler = this.writeHandlers[packet.name];
 
 		if (supportsBinary && handler) {
-			handler(this.packetWriter, id, args);
-			const buffer: any = this.packetWriter.getBuffer();
-			socket.send(buffer);
+			const data = this.getBinary(packet, handler);
+			socket.send(data);
 			this.lastWriteBinary = true;
-			return (<ArrayBuffer>buffer).byteLength || (<Buffer>buffer).length || 0;
+			return (<ArrayBuffer>data).byteLength || (<Buffer>data).length || 0;
 		} else {
-			args.unshift(id);
-			const data = JSON.stringify(args);
+			const data = this.getJSON(packet);
 			socket.send(data);
 			return data.length;
 		}
@@ -79,8 +104,11 @@ export class PacketHandler<T> {
 			return this.readNames[id];
 	}
 	send(socket: WebSocket, name: string, id: number, args: any[], supportsBinary: boolean): number {
+		return this.sendPacket(socket, { id, name, args: [id, ...args] }, supportsBinary);
+	}
+	sendPacket(socket: WebSocket, packet: Packet, supportsBinary: boolean): number {
 		try {
-			return this.write(socket, name, id, args, supportsBinary);
+			return this.writePacket(socket, packet, supportsBinary);
 		} catch (e) {
 			return 0;
 		}

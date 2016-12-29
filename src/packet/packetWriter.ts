@@ -1,4 +1,4 @@
-import { encodeString, stringLengthInBytes } from '../utf8';
+import { stringLengthInBytes } from '../utf8';
 
 export interface PacketWriter<TBuffer> {
 	getBuffer(): TBuffer;
@@ -54,8 +54,6 @@ export abstract class BasePacketWriter {
 	measureLength(value: number) {
 		return value === -1 ? 2 : (value < 0x7f ? 1 : (value < 0x3fff ? 2 : (value < 0x1fffff ? 3 : 4)));
 	}
-	abstract writeUint8(value: number): void;
-	abstract writeBytes(value: Uint8Array): void;
 	writeBoolean(value: boolean) {
 		this.writeUint8(value ? 1 : 0);
 	}
@@ -63,9 +61,8 @@ export abstract class BasePacketWriter {
 		if (value == null) {
 			this.writeLength(-1);
 		} else {
-			const buffer = encodeString(value)!;
-			this.writeLength(buffer.length);
-			this.writeBytes(buffer);
+			this.writeLength(stringLengthInBytes(value));
+			this.writeStringValue(value);
 		}
 	}
 	writeObject(value: any) {
@@ -93,4 +90,7 @@ export abstract class BasePacketWriter {
 			} while (value);
 		}
 	}
+	abstract writeUint8(value: number): void;
+	abstract writeBytes(value: Uint8Array): void;
+	protected abstract writeStringValue(value: string): void;
 }

@@ -7,7 +7,7 @@ import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore
 import { randomString, checkRateLimit, parseRateLimit, RateLimit } from './utils';
 import { SocketServerClient, ErrorHandler } from './server';
 import { getSocketMetadata, getMethods } from './method';
-import { PacketHandler, MessageType } from './packet/packetHandler';
+import { PacketHandler, MessageType, Packet } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
 import { createHandlers } from './packet/binaryHandler';
 import BufferPacketWriter from './packet/bufferPacketWriter';
@@ -18,12 +18,21 @@ export interface Token {
 	expire: number;
 }
 
+export interface ServerHooks {
+	sendPacket(packet: Packet): void;
+	executeForClients(clients: any[], action: (client: any) => any): void;
+}
+
+export interface ClientInternal {
+	__internalHooks: ServerHooks;
+}
+
 export interface Client {
 	lastMessageTime: number;
 	lastMessageId: number;
 	token: Token | null;
 	ping(): void;
-	client: SocketServerClient;
+	client: SocketServerClient & ClientInternal;
 	supportsBinary: boolean;
 }
 
@@ -52,6 +61,18 @@ function callWithErrorHandling(action: () => any, handle: (e: Error) => void) {
 		}
 	} catch (e) {
 		handle(e);
+	}
+}
+
+export function broadcast<TClient>(clients: TClient[], action: (client: TClient) => any) {
+	if (clients && clients.length) {
+		const hooks = (clients[0] as any as ClientInternal).__internalHooks;
+
+		if (!hooks) {
+			throw new Error('Invalid client');
+		}
+
+		hooks.executeForClients(clients, action);
 	}
 }
 
@@ -157,17 +178,35 @@ export function create(
 	const serverMethods = getNames(options.server);
 	const clientMethods = getNames(options.client);
 	const ignore = getIgnore(options.client).concat(getIgnore(options.server));
-	const packet = options.debug ?
+	const packetHandler = options.debug ?
 		new DebugPacketHandler(serverMethods, serverMethods, writer, reader, handlers, ignore, log) :
 		new PacketHandler(serverMethods, serverMethods, writer, reader, handlers);
+
+	const proxy: any = {};
+	let proxyPacket: Packet | null = null;
+	//let clients: any[];
+
+	clientMethods.forEach((name, id) => proxy[name] = (...args: any[]) => proxyPacket = { id, name, args: [id, ...args] });
+
+	function createPacket(action: (client: any) => any): Packet {
+		action(proxy);
+		const packet = proxyPacket!;
+		proxyPacket = null;
+		return packet;
+	}
+
+	function executeForClients(clients: ClientInternal[], action: (client: any) => any) {
+		const packet = createPacket(action);
+		clients.forEach(c => c.__internalHooks.sendPacket(packet));
+	}
 
 	function handleResult(socket: any, obj: Client, funcId: number, funcName: string, result: Promise<any>, messageId: number) {
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
-				packet.send(socket, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result], obj.supportsBinary);
+				packetHandler.send(socket, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result], obj.supportsBinary);
 			}, (e: Error) => {
 				errorHandler.handleRejection(obj.client, e);
-				packet.send(socket, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'], obj.supportsBinary);
+				packetHandler.send(socket, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'], obj.supportsBinary);
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
 	}
@@ -198,6 +237,10 @@ export function create(
 				socket.send('');
 			},
 			client: {
+				__internalHooks: {
+					executeForClients,
+					sendPacket,
+				},
 				id: currentClientId++,
 				isConnected: true,
 				tokenId: token ? token.id : void 0,
@@ -215,6 +258,10 @@ export function create(
 				},
 			},
 		};
+
+		function sendPacket(packet: Packet) {
+			packetHandler.sendPacket(socket as any, packet, obj.supportsBinary)
+		}
 
 		const serverActions: SocketServer = createServer(obj.client);
 
@@ -241,7 +288,7 @@ export function create(
 				const messageId = obj.lastMessageId;
 
 				try {
-					packet.recv(message, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
+					packetHandler.recv(message, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
 						const rate = rates[funcId];
 
 						if (checkRateLimit(funcId, rates)) {
@@ -282,12 +329,12 @@ export function create(
 
 		socket.on('error', e => errorHandler.handleError(obj.client, e));
 
-		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packet.send(<any>socket, name, id, args, obj.supportsBinary));
+		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packetHandler.send(<any>socket, name, id, args, obj.supportsBinary));
 
 		if (options.debug)
 			log('client connected');
 
-		packet.send(<any>socket, '*version', MessageType.Version, [options.hash], obj.supportsBinary);
+		packetHandler.send(<any>socket, '*version', MessageType.Version, [options.hash], obj.supportsBinary);
 
 		clients.push(obj);
 

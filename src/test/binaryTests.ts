@@ -37,7 +37,7 @@ describe('binaryHandler', function () {
 			const handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
 			const writer = new BufferPacketWriter();
 
-			handlers.write['foo'](writer, 1, [8, 1.5]);
+			handlers.write['foo'](writer, [1, 8, 1.5]);
 
 			expect(writer.getBuffer().equals(new Buffer([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]))).true;
 		});
@@ -82,7 +82,7 @@ describe('binaryHandler', function () {
 		});
 
 		it('shoud read write simple method', function () {
-			serverSide.write['foo'](writer, 1, [8, 1.5]);
+			serverSide.write['foo'](writer, [1, 8, 1.5]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
 			clientSide.read['foo'](reader, result);
@@ -91,7 +91,7 @@ describe('binaryHandler', function () {
 		});
 
 		it('shoud read write complex arrays method', function () {
-			serverSide.write['far'](writer, 3, [[[10, [[1, 2]]]]]);
+			serverSide.write['far'](writer, [3, [[10, [[1, 2]]]]]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
 			clientSide.read['far'](reader, result);
@@ -100,7 +100,7 @@ describe('binaryHandler', function () {
 		});
 
 		it('shoud read write simple arrays method', function () {
-			serverSide.write['fab'](writer, 4, [[[10, [3, 3, 4]]]]);
+			serverSide.write['fab'](writer, [4, [[10, [3, 3, 4]]]]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
 			clientSide.read['fab'](reader, result);
@@ -109,7 +109,7 @@ describe('binaryHandler', function () {
 		});
 
 		it('shoud read write arrays of objects method', function () {
-			serverSide.write['obj'](writer, 4, [[{ a: 1 }, { b: 2 }]]);
+			serverSide.write['obj'](writer, [4, [{ a: 1 }, { b: 2 }]]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
 			clientSide.read['obj'](reader, result);
@@ -118,7 +118,7 @@ describe('binaryHandler', function () {
 		});
 
 		it('shoud read write complex method', function () {
-			serverSide.write['boo'](writer, 2, [{ foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
+			serverSide.write['boo'](writer, [2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
 			clientSide.read['boo'](reader, result);
@@ -127,7 +127,7 @@ describe('binaryHandler', function () {
 		});
 
 		it('should read write all types', function () {
-			serverSide.write['all'](writer, 5, [-123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
+			serverSide.write['all'](writer, [5, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
 			clientSide.read['all'](reader, result);

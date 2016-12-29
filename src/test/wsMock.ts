@@ -1,3 +1,4 @@
+import { range } from 'lodash';
 import * as ws from 'ws';
 
 let lastServer: MockWebSocketServer;
@@ -20,10 +21,14 @@ export class MockWebSocketServer extends MockEventEmitter {
 	}
 	close() { }
 	// mock helpers
-	connectClient() {
+	connectClient(binary = false) {
 		const client = new MockWebSocket();
+		client.upgradeReq.url = `?bin=${binary}`;
 		this.invoke('connection', client);
 		return client;
+	}
+	connectClients(count: number) {
+		return range(count).map(() => this.connectClient());
 	}
 }
 
@@ -34,6 +39,7 @@ export class MockWebSocket extends MockEventEmitter {
 		super();
 	}
 	terminate() { }
+	send() { }
 }
 
 export function getLastServer() {

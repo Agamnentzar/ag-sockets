@@ -1,4 +1,5 @@
 import { BasePacketWriter, PacketWriter } from './packetWriter';
+import { encodeStringTo } from '../utf8';
 
 export default class ArrayBufferPacketWriter extends BasePacketWriter implements PacketWriter<ArrayBuffer> {
 	private offset = 0;
@@ -49,5 +50,8 @@ export default class ArrayBufferPacketWriter extends BasePacketWriter implements
 	writeBytes(value: Uint8Array) {
 		this.bytes.set(value, this.offset);
 		this.offset += value.length;
+	}
+	protected writeStringValue(value: string) {
+		this.offset = encodeStringTo(this.bytes, this.offset, value);
 	}
 }

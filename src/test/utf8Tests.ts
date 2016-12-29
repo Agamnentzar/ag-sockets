@@ -1,11 +1,31 @@
 import './common';
 import { expect } from 'chai';
-import { encodeString, decodeString } from '../utf8';
+import { encodeString, encodeStringTo, decodeString } from '../utf8';
 
 describe('utf8', function () {
 	describe('encodeString()', function () {
 		it('should return null for null input', function () {
 			expect(encodeString(null)).null;
+		});
+	});
+
+	describe('encodeStringTo()', function () {
+		it('should write string to Uint8Array at specified offset', function () {
+			const buffer = new Uint8Array(10);
+			encodeStringTo(buffer, 5, 'abc');
+
+			expect(buffer[5]).equal('a'.charCodeAt(0));
+			expect(buffer[6]).equal('b'.charCodeAt(0));
+			expect(buffer[7]).equal('c'.charCodeAt(0));
+		});
+
+		it('should write string to Buffer at specified offset', function () {
+			const buffer = new Buffer(10);
+			encodeStringTo(buffer, 5, 'abc');
+
+			expect(buffer[5]).equal('a'.charCodeAt(0));
+			expect(buffer[6]).equal('b'.charCodeAt(0));
+			expect(buffer[7]).equal('c'.charCodeAt(0));
 		});
 	});
 
