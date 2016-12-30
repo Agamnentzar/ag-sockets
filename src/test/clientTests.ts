@@ -8,6 +8,23 @@ import { ClientOptions, ClientSocket, SocketClient, SocketServer, SocketService,
 
 let lastWebSocket: MockWebSocket;
 
+class MockWebSocket {
+	static readonly CONNECTING = 0;
+	static readonly OPEN = 1;
+	static readonly CLOSING = 2;
+	static readonly CLOSED = 3;
+	readyState = MockWebSocket.OPEN;
+	constructor(public url: string) {
+		lastWebSocket = this;
+	}
+	onmessage(_message: any) { }
+	onopen() { }
+	onerror() { }
+	onclose() { }
+	close() { }
+	send() { }
+}
+
 interface Client extends SocketClient {
 	test(): void;
 	foo(): void;
@@ -19,18 +36,6 @@ interface Server extends SocketServer {
 	fooInProgress: boolean;
 	foo2(): Promise<any>;
 	foo3(): void;
-}
-
-class MockWebSocket {
-	constructor(public url: string) {
-		lastWebSocket = this;
-	}
-	onmessage(_message: { data: string | Buffer | ArrayBuffer }) { }
-	onopen() { }
-	onerror() { }
-	onclose() { }
-	close() { }
-	send() { }
 }
 
 describe('ClientSocket', function () {
@@ -108,6 +113,17 @@ describe('ClientSocket', function () {
 			lastWebSocket.onmessage({ data: '' });
 
 			assert.calledWith(send, '');
+		});
+
+		it('should not send ping if connection is not open', function () {
+			service.connect();
+			const send = stub(lastWebSocket, 'send');
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
+			lastWebSocket.readyState = WebSocket.CLOSED;
+
+			lastWebSocket.onmessage({ data: '' });
+
+			assert.notCalled(send);
 		});
 
 		it('should not respond to empty message with ping if ping was already sent', function () {
@@ -215,13 +231,13 @@ describe('ClientSocket', function () {
 		});
 	});
 
-	describe('server', function () {
+	describe('(not connected)', function () {
 		it('should reject if called promise methods when not connected', function () {
 			return expect(service.server.foo()).rejectedWith('not connected');
 		});
 	});
 
-	describe('server (connected)', function () {
+	describe('(connected)', function () {
 		beforeEach(function () {
 			service.connect();
 			lastWebSocket.onopen();
@@ -229,6 +245,14 @@ describe('ClientSocket', function () {
 
 		it('should have methods', function () {
 			service.server.test2();
+		});
+
+		it('should send data to socket', function () {
+			const send = stub(lastWebSocket, 'send');
+
+			service.server.test2();
+
+			assert.calledWith(send, '[0]');
 		});
 
 		it('should reject when rate limit is exceeded', function () {
@@ -263,9 +287,18 @@ describe('ClientSocket', function () {
 
 			assert.notCalled(send);
 		});
+
+		it('should not send data when socket readyState is not OPEN', function () {
+			const send = stub(lastWebSocket, 'send');
+			lastWebSocket.readyState = WebSocket.CLOSED;
+
+			service.server.test2();
+
+			assert.notCalled(send);
+		});
 	});
 
-	describe('websocket', function () {
+	describe('(websocket events)', function () {
 		beforeEach(function () {
 			service.connect();
 		});

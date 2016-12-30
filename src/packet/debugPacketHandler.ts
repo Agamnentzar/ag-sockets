@@ -1,15 +1,15 @@
 import { FuncList, Logger } from '../interfaces';
 import { PacketWriter } from './packetWriter';
 import { PacketReader } from './packetReader';
-import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction, Packet } from './packetHandler';
+import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction, Packet, Send } from './packetHandler';
 
 export class DebugPacketHandler<T> extends PacketHandler<T> {
 	constructor(readNames: string[], remoteNames: string[], packetWriter: PacketWriter<T>, packetReader: PacketReader<T>,
 		handlers: IBinaryHandlers<T>, private ignorePackets: string[], private log: Logger) {
 		super(readNames, remoteNames, packetWriter, packetReader, handlers);
 	}
-	sendPacket(socket: WebSocket, packet: Packet, supportsBinary: boolean): number {
-		const size = this.writePacket(socket, packet, supportsBinary);
+	sendPacket(send: Send, packet: Packet, supportsBinary: boolean): number {
+		const size = this.writePacket(send, packet, supportsBinary);
 
 		if (this.ignorePackets.indexOf(packet.name) === -1) {
 			const mode = this.lastWriteBinary ? 'bin' : 'str';

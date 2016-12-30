@@ -7,13 +7,8 @@ import BufferPacketWriter from '../packet/bufferPacketWriter';
 import BufferPacketReader from '../packet/bufferPacketReader';
 import { createHandlers } from '../packet/binaryHandler';
 
-class MockWebSocket {
-	send() { }
-}
-
 describe('DebugPacketHandler', function () {
 	let handler: DebugPacketHandler<Buffer>;
-	let websocket: WebSocket;
 	let funcs: any;
 	let special: any;
 	let binary: any;
@@ -30,24 +25,20 @@ describe('DebugPacketHandler', function () {
 	});
 
 	describe('send()', function () {
-		beforeEach(function () {
-			websocket = <any>new MockWebSocket();
-		});
-
 		it('should log sent message', function () {
-			handler.send(websocket, 'foo', 1, ['a', 'b', 5], false);
+			handler.send(spy(), 'foo', 1, ['a', 'b', 5], false);
 
 			assert.calledWithMatch(log, 'SEND [13] (str)', 'foo', [1, 'a', 'b', 5]);
 		});
 
 		it('should log sent binary message', function () {
-			handler.send(websocket, 'foo', 1, [8], true);
+			handler.send(spy(), 'foo', 1, [8], true);
 
 			assert.calledWithMatch(log, 'SEND [2] (bin)', 'foo', [1, 8]);
 		});
 
 		it('should not log ignored message', function () {
-			handler.send(websocket, 'abc', 2, ['a', 'b', 5], true);
+			handler.send(spy(), 'abc', 2, ['a', 'b', 5], true);
 
 			assert.notCalled(log);
 		});

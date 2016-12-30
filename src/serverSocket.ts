@@ -7,7 +7,7 @@ import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore
 import { randomString, checkRateLimit, parseRateLimit, RateLimit } from './utils';
 import { SocketServerClient, ErrorHandler } from './server';
 import { getSocketMetadata, getMethods } from './method';
-import { PacketHandler, MessageType, Packet } from './packet/packetHandler';
+import { PacketHandler, MessageType, Packet, Send } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
 import { createHandlers } from './packet/binaryHandler';
 import BufferPacketWriter from './packet/bufferPacketWriter';
@@ -200,13 +200,13 @@ export function create(
 		clients.forEach(c => c.__internalHooks.sendPacket(packet));
 	}
 
-	function handleResult(socket: any, obj: Client, funcId: number, funcName: string, result: Promise<any>, messageId: number) {
+	function handleResult(send: Send, obj: Client, funcId: number, funcName: string, result: Promise<any>, messageId: number) {
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
-				packetHandler.send(socket, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result], obj.supportsBinary);
+				packetHandler.send(send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result], obj.supportsBinary);
 			}, (e: Error) => {
 				errorHandler.handleRejection(obj.client, e);
-				packetHandler.send(socket, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'], obj.supportsBinary);
+				packetHandler.send(send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'], obj.supportsBinary);
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
 	}
@@ -259,8 +259,12 @@ export function create(
 			},
 		};
 
+		function send(data: any) {
+			socket.send(data);
+		}
+
 		function sendPacket(packet: Packet) {
-			packetHandler.sendPacket(socket as any, packet, obj.supportsBinary);
+			packetHandler.sendPacket(send, packet, obj.supportsBinary);
 		}
 
 		const serverActions: SocketServer = createServer(obj.client);
@@ -292,9 +296,9 @@ export function create(
 						const rate = rates[funcId];
 
 						if (checkRateLimit(funcId, rates)) {
-							handleResult(socket, obj, funcId, funcName, func.apply(funcObj, args), messageId);
+							handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
 						} else if (rate && rate.promise) {
-							handleResult(socket, obj, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
+							handleResult(send, obj, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
 						} else {
 							throw new Error(`rate limit exceeded (${funcName})`);
 						}
@@ -329,12 +333,12 @@ export function create(
 
 		socket.on('error', e => errorHandler.handleError(obj.client, e));
 
-		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packetHandler.send(<any>socket, name, id, args, obj.supportsBinary));
+		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packetHandler.send(send, name, id, args, obj.supportsBinary));
 
 		if (options.debug)
 			log('client connected');
 
-		packetHandler.send(<any>socket, '*version', MessageType.Version, [options.hash], obj.supportsBinary);
+		packetHandler.send(send, '*version', MessageType.Version, [options.hash], obj.supportsBinary);
 
 		clients.push(obj);
 

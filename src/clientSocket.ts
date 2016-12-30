@@ -148,8 +148,8 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			this.isConnected = true;
 
 			// notify server of binary support
-			if (this.socket && this.supportsBinary)
-				this.socket.send(typeof Buffer !== 'undefined' ? new Buffer(0) : new ArrayBuffer(0));
+			if (this.supportsBinary)
+				this.send(typeof Buffer !== 'undefined' ? new Buffer(0) : new ArrayBuffer(0));
 
 			if (this.client.connected)
 				this.client.connected();
@@ -215,13 +215,20 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 
 		window.removeEventListener('beforeunload', this.beforeunload);
 	}
+	private send = (data: any) => {
+		if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+			this.socket.send(data);
+			return true;
+		} else {
+			return false;
+		}
+	}
 	private sendPing() {
 		try {
 			const now = Date.now();
 
-			if (this.socket && this.versionValidated && (now - this.lastPing) > this.options.pingInterval) {
-				this.socket.send('');
-				this.lastPing = Date.now();
+			if (this.versionValidated && (now - this.lastPing) > this.options.pingInterval && this.send('')) {
+				this.lastPing = now;
 			}
 		} catch (e) { }
 	}
@@ -235,7 +242,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private createSimpleMethod(name: string, id: number) {
 		this.server[name] = (...args: any[]) => {
 			if (checkRateLimit(id, this.rateLimits)) {
-				this.sentSize += this.packet.send(this.socket!, name, id, args, this.supportsBinary);
+				this.sentSize += this.packet.send(this.send, name, id, args, this.supportsBinary);
 				this.lastSentId++;
 				return true;
 			} else {
@@ -259,7 +266,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			if (!checkRateLimit(id, this.rateLimits))
 				return Promise.reject<any>(new Error('rate limit exceeded'));
 
-			this.sentSize += this.packet.send(this.socket!, name, id, args, this.supportsBinary);
+			this.sentSize += this.packet.send(this.send, name, id, args, this.supportsBinary);
 			const messageId = ++this.lastSentId;
 			const defer = deferred<any>();
 			this.defers.set(messageId, defer);

@@ -9,13 +9,8 @@ import ArrayBufferPacketWriter from '../packet/arrayBufferPacketWriter';
 import ArrayBufferPacketReader from '../packet/arrayBufferPacketReader';
 import { createHandlers } from '../packet/binaryHandler';
 
-class MockWebSocket {
-	send() { }
-}
-
 describe('PacketHandler', function () {
 	let handler: PacketHandler<Buffer>;
-	let websocket: WebSocket;
 	let funcs: any;
 	let special: any;
 	let binary: any;
@@ -30,38 +25,34 @@ describe('PacketHandler', function () {
 	});
 
 	describe('send()', function () {
-		beforeEach(function () {
-			websocket = <any>new MockWebSocket();
-		});
-
 		it('should send message to websocket', function () {
-			const send = stub(websocket, 'send');
+			const send = spy();
 
-			handler.send(websocket, 'foo', 1, ['a', 'b', 5], false);
+			handler.send(send, 'foo', 1, ['a', 'b', 5], false);
 
 			assert.calledWith(send, '[1,"a","b",5]');
 		});
 
 		it('should return message length', function () {
-			expect(handler.send(websocket, 'foo', 1, ['a', 'b', 5], false)).equal('[1,"a","b",5]'.length);
+			expect(handler.send(spy(), 'foo', 1, ['a', 'b', 5], false)).equal('[1,"a","b",5]'.length);
 		});
 
 		it('should return 0 on error', function () {
-			stub(websocket, 'send').throws(new Error(''));
+			const send = stub().throws(new Error(''));
 
-			expect(handler.send(websocket, 'foo', 1, ['a', 'b', 5], true)).equal(0);
+			expect(handler.send(send, 'foo', 1, ['a', 'b', 5], true)).equal(0);
 		});
 
 		it('should send binary message', function () {
-			const send = stub(websocket, 'send');
+			const send = spy();
 
-			handler.send(websocket, 'foo', 1, [8], true);
+			handler.send(send, 'foo', 1, [8], true);
 
 			assert.calledWith(send, writer.getBuffer());
 		});
 
 		it('should return binary message length', function () {
-			expect(handler.send(websocket, 'foo', 1, [8], true)).equal(2);
+			expect(handler.send(spy(), 'foo', 1, [8], true)).equal(2);
 		});
 
 		it('should return binary message length (ArrayBuffer)', function () {
@@ -69,7 +60,7 @@ describe('PacketHandler', function () {
 			const reader = new ArrayBufferPacketReader();
 			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
 
-			expect(handler.send(websocket, 'foo', 1, [8], true)).equal(2);
+			expect(handler.send(spy(), 'foo', 1, [8], true)).equal(2);
 		});
 	});
 
