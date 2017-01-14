@@ -13,6 +13,11 @@ const Builder = require('systemjs-builder')
 const liveServer = require('gulp-live-server');
 const argv = require('yargs').argv;
 
+function seq() {
+	const tasks = Array.prototype.slice.call(arguments, 0);
+	return done => runSequence.apply(runSequence, tasks.concat([done]));
+}
+
 gulp.task('clean', function () {
 	return del([
 		'dist/*',
@@ -83,30 +88,6 @@ gulp.task('lint', function () {
 		.pipe(tslint.report());
 });
 
-gulp.task('build-demo', function (done) {
-	runSequence('build', 'demo', done);
-});
-
-gulp.task('build-demo-tests', function (done) {
-	runSequence('build', 'demo', 'tests', done);
-});
-
-gulp.task('build-demo-coverage-remap', function (done) {
-	runSequence('build', 'demo', 'coverage', 'remap', done);
-});
-
-gulp.task('dev', function (done) {
-	runSequence('clean', buildTask, 'server', 'watch', done);
-});
-
-gulp.task('cov', function (done) {
-	runSequence('build', 'coverage', 'remap', done);
-});
-
-gulp.task('test', function (done) {
-	runSequence('build', 'tests', done);
-});
-
 gulp.task('remap', function () {
 	return gulp.src('coverage/coverage.json')
 		.pipe(remapIstanbul({
@@ -115,3 +96,10 @@ gulp.task('remap', function () {
 			}
 		}));
 });
+
+gulp.task('build-demo', seq('build', 'demo'));
+gulp.task('build-demo-tests', seq('build', 'demo', 'tests'));
+gulp.task('build-demo-coverage-remap', seq('build', 'demo', 'coverage', 'remap'));
+gulp.task('dev', seq('clean', buildTask, 'server', 'watch'));
+gulp.task('cov', seq('build', 'coverage', 'remap'));
+gulp.task('test', seq('build', 'tests'));
