@@ -97,7 +97,7 @@ describe('serverSocket', function () {
 			createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
 			getLastServer().invoke('error', new Error('test'));
 		});
-		
+
 		it('passes request info to client if keepOriginalRequest option is true', function () {
 			let server1: Server1;
 			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, keepOriginalRequest: true });

@@ -262,7 +262,7 @@ export function create(
 				isConnected: true,
 				tokenId: token ? token.id : void 0,
 				tokenData: token ? token.data : void 0,
-				originalRequest: options.keepOriginalRequest ? toOriginalRequest(socket.upgradeReq): void 0,
+				originalRequest: options.keepOriginalRequest ? toOriginalRequest(socket.upgradeReq) : void 0,
 				disconnect(force = false, invalidateToken = false) {
 					if (invalidateToken) {
 						delete obj.token;
