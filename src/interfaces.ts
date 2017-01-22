@@ -1,4 +1,4 @@
-import { ServerRequest } from 'http';
+import { IncomingMessage } from 'http';
 
 export interface Logger {
 	(...args: any[]): void;
@@ -70,7 +70,7 @@ export interface MethodMetadata {
 	options: MethodOptions;
 }
 
-export interface ServerOptions {
+export interface CommonOptions {
 	/** host of websocket endpoint, the same host as the site by default */
 	host?: string;
 	/** path to websocket endpoint, '/ws' by default */
@@ -81,36 +81,42 @@ export interface ServerOptions {
 	pingInterval?: number;
 	/** delay for client to wait before trying to reconnect in milliseconds */
 	reconnectTimeout?: number;
-	/** time after after last message from client when server assumes client is not in milliseconds */
-	connectionTimeout?: number;
 	/** log messages to console */
 	debug?: boolean;
 	/** version hash */
 	hash?: number;
-	/** per message deflate compression switch */
-	perMessageDeflate?: boolean;
+	/** custom request parameters */
+	requestParams?: any;
+}
+
+export interface ServerOptions extends CommonOptions {
+	/** time after after last message from client when server assumes client is not in milliseconds */
+	connectionTimeout?: number;
 	/** limit connections to one per generated token */
 	connectionTokens?: boolean;
 	/** lifetime of connection token */
 	tokenLifetime?: number;
 	/** maximum number of connected clients */
 	clientLimit?: number;
+	/** per message deflate compression switch */
+	perMessageDeflate?: boolean;
 	/** transfer limit (bytes per second) */
 	transferLimit?: number;
-	/** custom request parameters */
-	requestParams?: any;
 	/** custom client verification method */
-	verifyClient?: (request: ServerRequest) => boolean;
+	verifyClient?: (req: IncomingMessage) => boolean;
 	/** ws library or alternative */
 	ws?: any;
 	/** use ArrayBuffer instead of Buffer on server side */
 	arrayBuffer?: boolean;
+	/** keep original request info in client.originalRequest field */
+	keepOriginalRequest?: boolean;
+	client?: MethodDef[];
+	server?: MethodDef[];
 }
 
-export interface ClientOptions extends ServerOptions {
+export interface ClientOptions extends CommonOptions {
 	client: MethodDef[];
 	server: MethodDef[];
-	token?: string;
 }
 
 export function getNames(methods: MethodDef[]) {

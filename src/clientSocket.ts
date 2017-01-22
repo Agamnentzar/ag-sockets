@@ -1,7 +1,7 @@
 import * as Promise from 'bluebird';
-import { assign, map } from 'lodash';
+import { assign } from 'lodash';
 import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
-import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary, Deferred, deferred } from './utils';
+import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary, Deferred, deferred, queryString } from './utils';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
@@ -48,6 +48,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private rateLimits: RateLimit[] = [];
 	constructor(
 		private options: ClientOptions,
+		private token?: string | null,
 		private errorHandler: ClientErrorHandler = defaultErrorHandler,
 		private apply: (f: () => any) => void = f => f(),
 		private log: Logger = console.log.bind(console)
@@ -78,13 +79,11 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	}
 	private getWebsocketUrl() {
 		const options = this.options;
+		const protocol = (options.ssl || location.protocol === 'https:') ? 'wss://' : 'ws://';
 		const host = options.host || location.host;
 		const path = options.path || '/ws';
-		const protocol = (options.ssl || location.protocol === 'https:') ? 'wss://' : 'ws://';
-		const bin = this.supportsBinary;
-		const params = assign({}, options.requestParams, options.token ? { t: options.token } : {}, { bin });
-		const query = map(params, (value: any, key: string) => `${key}=${encodeURIComponent(value)}`).join('&');
-		return `${protocol}${host}${path}?${query}`;
+		const query = queryString(assign({}, options.requestParams, { t: this.token, bin: this.supportsBinary }));
+		return `${protocol}${host}${path}${query}`;
 	}
 	connect() {
 		this.connecting = true;

@@ -1,6 +1,6 @@
 import './common';
 import { expect } from 'chai';
-import { randomString, parseRateLimit, checkRateLimit, getLength } from '../utils';
+import { randomString, parseRateLimit, checkRateLimit, getLength, queryString } from '../utils';
 
 describe('randomString()', function () {
 	it('returns random string of given length', function () {
@@ -35,6 +35,41 @@ describe('getLength()', function () {
 	it('returns integer value', function () {
 		expect(getLength({ length: 0.5 })).equal(0);
 		expect(getLength({ length: 5.1 })).equal(5);
+	});
+});
+
+describe('queryString()', function () {
+	it('returns empty string for empty object', function () {
+		expect(queryString({})).equal('');
+	});
+
+	it('returns empty string for null or undefined', function () {
+		expect(queryString(null)).equal('');
+		expect(queryString(void 0)).equal('');
+	});
+
+	it('returns correct query string', function () {
+		expect(queryString({ foo: 'aaa', bar: 'test' })).equal('?foo=aaa&bar=test');
+	});
+
+	it('encodes parameters', function () {
+		expect(queryString({ bar: '&x=5 aaa' })).equal('?bar=%26x%3D5%20aaa');
+	});
+
+	it('encodes numbers', function () {
+		expect(queryString({ foo: 5, bar: 4.5 })).equal('?foo=5&bar=4.5');
+	});
+
+	it('encodes booleans', function () {
+		expect(queryString({ foo: true, bar: false })).equal('?foo=true&bar=false');
+	});
+
+	it('encodes empty strings', function () {
+		expect(queryString({ foo: '', bar: 'aaa' })).equal('?foo=&bar=aaa');
+	});
+
+	it('ignores empty parameters', function () {
+		expect(queryString({ foo: 'a', boo: null, baa: void 0 })).equal('?foo=a');
 	});
 });
 

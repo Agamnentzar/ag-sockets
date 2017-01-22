@@ -1,11 +1,16 @@
-import { ServerRequest } from 'http';
 import { SocketClient } from './interfaces';
+
+export interface OriginalRequest {
+	headers: any;
+	url?: string;
+}
 
 export interface ClientExtensions {
 	id: number;
 	isConnected: boolean;
 	tokenId?: string;
-	originalRequest: ServerRequest;
+	tokenData?: any;
+	originalRequest?: OriginalRequest;
 	disconnect(force?: boolean, invalidateToken?: boolean): void;
 }
 

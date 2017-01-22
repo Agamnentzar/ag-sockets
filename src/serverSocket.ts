@@ -1,11 +1,11 @@
-import { Server as HttpServer, ServerRequest } from 'http';
+import { Server as HttpServer, IncomingMessage } from 'http';
 import * as ws from 'ws';
 import * as Promise from 'bluebird';
-import { cloneDeep, assign, remove, findIndex } from 'lodash';
+import { cloneDeep, remove, findIndex } from 'lodash';
 import { parse as parseUrl } from 'url';
 import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger } from './interfaces';
 import { randomString, checkRateLimit, parseRateLimit, RateLimit, getLength } from './utils';
-import { SocketServerClient, ErrorHandler } from './server';
+import { SocketServerClient, ErrorHandler, OriginalRequest } from './server';
 import { getSocketMetadata, getMethods } from './method';
 import { PacketHandler, MessageType, Packet, Send } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
@@ -17,6 +17,7 @@ import ArrayBufferPacketReader from './packet/arrayBufferPacketReader';
 
 export interface Token {
 	id: string;
+	data?: any;
 	expire: number;
 }
 
@@ -32,7 +33,7 @@ export interface ClientInternal {
 export interface Client {
 	lastMessageTime: number;
 	lastMessageId: number;
-	token: Token | null;
+	token: Token | undefined;
 	ping(): void;
 	client: SocketServerClient & ClientInternal;
 	supportsBinary: boolean;
@@ -42,6 +43,7 @@ export interface Server {
 	clients: Client[];
 	close(): void;
 	options(): ClientOptions;
+	token(data?: any): string;
 }
 
 const defaultErrorHandler: ErrorHandler = {
@@ -49,6 +51,10 @@ const defaultErrorHandler: ErrorHandler = {
 	handleRejection() { },
 	handleRecvError() { },
 };
+
+function toOriginalRequest({ headers, url }: IncomingMessage): OriginalRequest {
+	return { headers, url };
+}
 
 function getMethodsFromType(ctor: Function) {
 	return getMethods(ctor).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
@@ -79,7 +85,7 @@ export function broadcast<TClient>(clients: TClient[], action: (client: TClient)
 }
 
 export function createServer<TServer, TClient>(
-	server: HttpServer,
+	httpServer: HttpServer,
 	serverType: new (...args: any[]) => TServer,
 	clientType: new (...args: any[]) => TClient,
 	createServer: (client: TClient & SocketServerClient) => TServer,
@@ -87,10 +93,9 @@ export function createServer<TServer, TClient>(
 	errorHandler?: ErrorHandler,
 	log?: Logger
 ) {
-	return create(server, createServer, assign({}, getSocketMetadata(serverType), options, {
-		client: getMethodsFromType(clientType),
-		server: getMethodsFromType(serverType),
-	}) as ClientOptions, errorHandler, log);
+	const client = getMethodsFromType(clientType);
+	const server = getMethodsFromType(serverType);
+	return create(httpServer, createServer, Object.assign({ client, server }, getSocketMetadata(serverType), options), errorHandler, log);
 }
 
 type AnyBuffer = Buffer | ArrayBuffer;
@@ -98,12 +103,15 @@ type AnyBuffer = Buffer | ArrayBuffer;
 export function create(
 	server: HttpServer,
 	createServer: (client: any) => SocketServer,
-	options: ClientOptions,
+	options: ServerOptions,
 	errorHandler: ErrorHandler = defaultErrorHandler,
 	log: Logger = console.log.bind(console)
 ): Server {
+	if (!options.client || !options.server)
+		throw new Error('Missing server or client method definitions');
+
 	if (options.client.length > 250 || options.server.length > 250)
-		throw new Error('too many methods');
+		throw new Error('Too many methods');
 
 	options.hash = options.hash || Date.now();
 	options.path = options.path || '/ws';
@@ -116,14 +124,23 @@ export function create(
 	const clients: Client[] = [];
 	const verifyClient = options.verifyClient;
 	const wsLibrary: typeof ws = (options.ws || ws) as any;
+	const clientOptions: ClientOptions = {
+		host: options.host,
+		path: options.path,
+		ssl: options.ssl,
+		pingInterval: options.pingInterval,
+		reconnectTimeout: options.reconnectTimeout,
+		debug: options.debug,
+		hash: options.hash,
+		requestParams: options.requestParams,
+		client: options.client,
+		server: options.server,
+	};
 
-	// TODO: create new options object instead
-	delete options.ws;
-	delete options.verifyClient;
-
-	function createToken(): Token {
+	function createToken(data?: any): Token {
 		const token = {
 			id: randomString(16),
+			data,
 			expire: Date.now() + options.tokenLifetime,
 		};
 		tokens.push(token);
@@ -135,15 +152,13 @@ export function create(
 		return token && token.expire < Date.now() ? null : token;
 	}
 
-	function getTokenFromClient(id: string): Token | null {
+	function getTokenFromClient(id: string): Token | undefined {
 		const index = findIndex(clients, c => c.token && c.token.id === id);
 
 		if (index !== -1) {
 			const { client, token } = clients[index];
 			client.disconnect(true);
 			return token;
-		} else {
-			return null;
 		}
 	}
 
@@ -155,7 +170,7 @@ export function create(
 		server: server,
 		path: options.path,
 		perMessageDeflate: typeof options.perMessageDeflate === 'undefined' ? true : options.perMessageDeflate,
-		verifyClient({ req }: { req: ServerRequest }) {
+		verifyClient({ req }) {
 			try {
 				if (verifyClient && !verifyClient(req))
 					return false;
@@ -214,17 +229,17 @@ export function create(
 
 	function onConnection(socket: ws) {
 		const query = parseUrl(socket.upgradeReq.url || '', true).query;
-		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : null;
+		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : void 0;
 
 		if (options.connectionTokens && !token) {
-			errorHandler.handleError({ originalRequest: socket.upgradeReq } as any, new Error(`invalid token: ${query.t}`));
+			errorHandler.handleError({ originalRequest: toOriginalRequest(socket.upgradeReq) } as any, new Error(`Invalid token: ${query.t}`));
 			socket.terminate();
 			return;
 		}
 
-		const rates = options.server
+		const rates = options.server!
 			.map(v => typeof v !== 'string' && v[1].rateLimit ? v[1] : null)
-			.map(v => v ? assign({ calls: [], promise: !!v.promise }, parseRateLimit(v.rateLimit!)) as RateLimit : null);
+			.map(v => v ? Object.assign({ calls: [], promise: !!v.promise }, parseRateLimit(v.rateLimit!)) as RateLimit : null);
 
 		let bytesReset = Date.now();
 		let bytesReceived = 0;
@@ -246,10 +261,11 @@ export function create(
 				id: currentClientId++,
 				isConnected: true,
 				tokenId: token ? token.id : void 0,
-				originalRequest: socket.upgradeReq,
+				tokenData: token ? token.data : void 0,
+				originalRequest: options.keepOriginalRequest ? toOriginalRequest(socket.upgradeReq): void 0,
 				disconnect(force = false, invalidateToken = false) {
 					if (invalidateToken) {
-						obj.token = null;
+						delete obj.token;
 					}
 
 					if (force) {
@@ -284,7 +300,7 @@ export function create(
 			if (options.transferLimit && options.transferLimit < bytesPerSecond) {
 				transferLimitExceeded = true;
 				obj.client.disconnect(true, true);
-				errorHandler.handleRecvError(obj.client, new Error(`transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${options.transferLimit} (${diff}ms)`), message);
+				errorHandler.handleRecvError(obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${options.transferLimit} (${diff}ms)`), message);
 				return;
 			}
 
@@ -302,9 +318,9 @@ export function create(
 						if (checkRateLimit(funcId, rates)) {
 							handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
 						} else if (rate && rate.promise) {
-							handleResult(send, obj, funcId, funcName, Promise.reject(new Error('rate limit exceeded')), messageId);
+							handleResult(send, obj, funcId, funcName, Promise.reject(new Error('Rate limit exceeded')), messageId);
 						} else {
-							throw new Error(`rate limit exceeded (${funcName})`);
+							throw new Error(`Rate limit exceeded (${funcName})`);
 						}
 					});
 				} catch (e) {
@@ -403,10 +419,13 @@ export function create(
 
 			wsServer.close();
 		},
-		options() {
-			const clone = cloneDeep(options);
-			const token = options.connectionTokens ? { token: createToken().id } : {};
-			return assign(token, clone, { clientLimit: 0 }) as ClientOptions;
+		options(): ClientOptions {
+			return cloneDeep(clientOptions);
+		},
+		token(data?: any) {
+			if (!options.connectionTokens)
+				throw new Error('Option connectionTokens not set');
+			return createToken(data).id;
 		},
 	};
 }

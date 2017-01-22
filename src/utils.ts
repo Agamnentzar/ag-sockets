@@ -17,6 +17,15 @@ export function getLength(message: any): number {
 	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
 }
 
+export function queryString(params: any) {
+	const query = Object.keys(params || {})
+		.filter(key => params[key] != null)
+		.map(key => `${key}=${encodeURIComponent(params[key])}`)
+		.join('&');
+
+	return query ? `?${query}` : '';
+}
+
 const times: { [key: string]: number; } = {
 	s: 1000,
 	m: 1000 * 60,

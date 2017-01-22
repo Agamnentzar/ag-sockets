@@ -1,18 +1,18 @@
 import './common';
 import * as Promise from 'bluebird';
 import * as http from 'http';
-import * as ws from 'ws';
 import { expect } from 'chai';
-import { assert, stub, spy, SinonStub, SinonSpy, match } from 'sinon';
+import { assert, stub, spy, match } from 'sinon';
 import {
-	createServer, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions, broadcast, SocketClient, ClientExtensions, Bin
+	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions, broadcast,
+	SocketClient, ClientExtensions, Bin
 } from '../index';
 import { MessageType } from '../packet/packetHandler';
 import { MockWebSocket, MockWebSocketServer, getLastServer } from './wsMock';
 
 @Socket()
-class Server2 {
-	constructor(public client: Client2 & SocketClient & ClientExtensions) { }
+class Server1 {
+	constructor(public client: Client1 & SocketClient & ClientExtensions) { }
 	connected() { }
 	disconnected() { }
 	@Method()
@@ -21,7 +21,7 @@ class Server2 {
 	login(_login: string) { return Promise.resolve(0); }
 }
 
-class Client2 {
+class Client1 {
 	@Method()
 	hi(_message: string) { }
 	@Method({ binary: [Bin.U8] })
@@ -41,6 +41,16 @@ function bufferEqual(expectation: number[]) {
 		}));
 };
 
+function defaultErrorHandler(): ErrorHandler {
+	return {
+		handleError(...args: any[]) { console.error('handleError', ...args); },
+		handleRecvError(...args: any[]) { console.error('handleRecvError', ...args); },
+		handleRejection(...args: any[]) { console.error('handleRejection', ...args); },
+	};
+}
+
+const ws = MockWebSocket as any;
+
 describe('serverSocket', function () {
 	describe('createServer() (real)', function () {
 		let server: http.Server;
@@ -54,12 +64,12 @@ describe('serverSocket', function () {
 		});
 
 		it('should be able to start server', function (done) {
-			createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+			createServer(server, Server1, Client1, c => new Server1(c), { path: '/test2' });
 			server.listen(12345, done);
 		});
 
 		it('should be able to close server', function (done) {
-			const socket = createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+			const socket = createServer(server, Server1, Client1, c => new Server1(c), { path: '/test2' });
 			server.listen(12345, () => {
 				socket.close();
 				done();
@@ -73,129 +83,102 @@ describe('serverSocket', function () {
 				Ctor.prototype[`foo${i}`] = () => { };
 			}
 
-			expect(() => createServer(server, Ctor, Ctor, () => null)).throw('too many methods');
+			expect(() => createServer(server, Ctor, Ctor, () => null)).throw('Too many methods');
+		});
+	});
+
+	describe('createServer() (mock)', function () {
+		it('createServerRaw() should throw if passed empty client or server method definitions', function () {
+			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: [], server: null } as any)).throws('Missing server or client method definitions');
+			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: null, server: [] } as any)).throws('Missing server or client method definitions');
 		});
 
-		describe('(mock WebSocketServer)', function () {
-			let wsServer: SinonStub;
-			let on: SinonSpy;
+		it('handles server errors without error handler', function () {
+			createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
+			getLastServer().invoke('error', new Error('test'));
+		});
+		
+		it('passes request info to client if keepOriginalRequest option is true', function () {
+			let server1: Server1;
+			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, keepOriginalRequest: true });
+			getLastServer().connectClient();
 
-			beforeEach(function () {
-				wsServer = stub(ws, 'Server');
-				wsServer.prototype.on = on = spy();
+			return Promise.delay(50)
+				.then(() => expect(server1.client.originalRequest).eql({ url: 'ws://test/?bin=false', headers: { foo: 'bar' } }));
+		});
+
+		it('does not pass request info to client', function () {
+			let server1: Server1;
+			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws });
+			getLastServer().connectClient();
+
+			return Promise.delay(50)
+				.then(() => expect(server1.client.originalRequest).undefined);
+		});
+
+		describe('.token()', function () {
+			it('returns new token string', function () {
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+
+				expect(socketServer.token()).a('string');
 			});
 
-			afterEach(function () {
-				wsServer.restore();
+			it('passes custom token data to client', function () {
+				let server1: Server1;
+				const data = {};
+				const socketServer = createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, connectionTokens: true });
+				getLastServer().connectClient(false, socketServer.token(data));
+
+				return Promise.delay(50)
+					.then(() => expect(server1.client.tokenData).equal(data));
 			});
 
-			it('should pass http server to websocket server', function () {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
+			it('throws if connection tokens are turned off', function () {
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
 
-				assert.calledOnce(wsServer);
-				const options = wsServer.getCall(0).args[0];
-				expect(options.server).equal(server);
-				expect(options.path).equal('/test2');
-			});
-
-			it('should pass perMessageDeflate option to websocket server', function () {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2', perMessageDeflate: false });
-
-				assert.calledOnce(wsServer);
-				const options = wsServer.getCall(0).args[0];
-				expect(options.perMessageDeflate).false;
-			});
-
-			it('should setup error handler', function () {
-				const handleError = spy();
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' }, { handleError } as any);
-
-				assert.calledWith(on, 'error');
-				const [event, callback] = on.getCall(1).args;
-				expect(event).equal('error');
-				const error = new Error('test');
-				callback(error);
-				assert.calledWith(handleError, null, error);
-			});
-
-			it('should setup work without error handler', function () {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
-
-				assert.calledWith(on, 'error');
-				const [event, callback] = on.getCall(1).args;
-				expect(event).equal('error');
-				callback(new Error('test'));
-			});
-
-			it('should setup connetion handler', function () {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
-
-				assert.calledWith(on, 'connection');
-				const [event] = on.getCall(0).args;
-				expect(event).equal('connection');
-			});
-
-			// connecting
-
-			function createTestServer() {
-				createServer(server, Server2, Client2, c => new Server2(c), { path: '/test2' });
-			}
-
-			function connectTestServer(socket: any) {
-				const [event, callback] = on.getCall(0).args;
-				expect(event).equal('connection');
-				callback(socket);
-			}
-
-			function createSocket() {
-				return {
-					on() { },
-					upgradeReq: { url: '/path' }
-				};
-			}
-
-			it('should attach message handler', function () {
-				createTestServer();
-				const socket = createSocket();
-				const on = stub(socket, 'on');
-
-				connectTestServer(socket);
-
-				assert.calledWith(on, 'message');
+				expect(() => socketServer.token()).throw();
 			});
 		});
 	});
 
 	describe('createServer() (mock)', function () {
-		const ws = MockWebSocket as any;
+		const httpServer: http.Server = {} as any;
 
 		let server: MockWebSocketServer;
 		let serverSocket: TheServer;
 		let errorHandler: ErrorHandler;
-		let servers: Server2[] = [];
-		let onServer: (s: Server2) => void;
+		let servers: Server1[] = [];
+		let onServer: (s: Server1) => void;
 
 		beforeEach(function () {
-			errorHandler = {
-				handleError(...args: any[]) { console.error('handleError', ...args); },
-				handleRecvError(...args: any[]) { console.error('handleRecvError', ...args); },
-				handleRejection(...args: any[]) { console.error('handleRejection', ...args); },
-			};
+			errorHandler = defaultErrorHandler();
 			servers = [];
 			onServer = s => servers.push(s);
-			serverSocket = createServer({} as any, Server2, Client2, client => {
-				const s = new Server2(client);
+			serverSocket = createServer(httpServer, Server1, Client1, client => {
+				const s = new Server1(client);
 				onServer(s);
 				return s;
-			}, { ws }, errorHandler);
+			}, { ws, path: '/foo', perMessageDeflate: false }, errorHandler);
 			server = getLastServer();
 		});
 
-		it('should connect client', function () {
+		it('passes http server to websocket server', function () {
+			expect(server.options.server).equal(httpServer);
+		});
+
+		it('passes path to websocket server', function () {
+			expect(server.options.path).equal('/foo');
+		});
+
+		it('passes perMessageDeflate option to websocket server', function () {
+			expect(server.options.perMessageDeflate).false;
+		});
+
+		it('connects client', function () {
 			server.connectClient();
 		});
 
-		it('should handle socket server error', function () {
+		it('reports socket server error', function () {
 			const error = new Error('test');
 			const handleError = stub(errorHandler, 'handleError');
 
@@ -204,7 +187,7 @@ describe('serverSocket', function () {
 			assert.calledWith(handleError, null, error);
 		});
 
-		it('should handle socket error', function () {
+		it('reports socket error', function () {
 			const client = server.connectClient();
 			const error = new Error('test');
 			const handleError = stub(errorHandler, 'handleError');
@@ -214,7 +197,7 @@ describe('serverSocket', function () {
 			assert.calledWith(handleError, serverSocket.clients[0].client, error);
 		});
 
-		it('should terminate and handle error on connection error', function () {
+		it('terminates and reports connection error', function () {
 			const client = new MockWebSocket();
 			const error = new Error('test');
 			stub(client, 'on').throws(error);
@@ -227,7 +210,7 @@ describe('serverSocket', function () {
 			assert.calledWith(handleError, null, error);
 		});
 
-		it('should handle exception from server.connected method', function () {
+		it('reports exception from server.connected()', function () {
 			const error = new Error('test');
 			onServer = s => stub(s, 'connected').throws(error);
 			const handleError = stub(errorHandler, 'handleError');
@@ -237,7 +220,7 @@ describe('serverSocket', function () {
 			assert.calledWithMatch(handleError, match.any, error);
 		});
 
-		it('should handle rejection from server.connected method', function () {
+		it('reports rejection from server.connected()', function () {
 			const error = new Error('test');
 			onServer = s => stub(s, 'connected').returns(Promise.reject(error));
 			const handleError = stub(errorHandler, 'handleError');
@@ -248,7 +231,7 @@ describe('serverSocket', function () {
 				.then(() => assert.calledWithMatch(handleError, match.any, error));
 		});
 
-		it('should handle exception from server.disconnected method', function () {
+		it('reports exception from server.disconnected()', function () {
 			const error = new Error('test');
 			onServer = s => stub(s, 'disconnected').throws(error);
 			const handleError = stub(errorHandler, 'handleError');
@@ -259,7 +242,7 @@ describe('serverSocket', function () {
 			assert.calledWithMatch(handleError, match.any, error);
 		});
 
-		it('should handle rejection from server.disconnected method', function () {
+		it('reports rejection from server.disconnected()', function () {
 			const error = new Error('test');
 			onServer = s => stub(s, 'disconnected').returns(Promise.reject(error));
 			const handleError = stub(errorHandler, 'handleError');
@@ -271,7 +254,7 @@ describe('serverSocket', function () {
 				.then(() => assert.calledWithMatch(handleError, match.any, error));
 		});
 
-		it('should be able to handle message from client', function () {
+		it('handles message from client', function () {
 			const client = server.connectClient();
 			const hello = stub(servers[0]!, 'hello');
 
@@ -280,7 +263,7 @@ describe('serverSocket', function () {
 			assert.calledWith(hello, 'test');
 		});
 
-		it('should be able to send promise result back to client', function () {
+		it('sends promise result back to client', function () {
 			const client = server.connectClient();
 			const send = stub(client, 'send');
 			stub(servers[0], 'login').returns(Promise.resolve({ foo: 'bar' }));
@@ -291,7 +274,7 @@ describe('serverSocket', function () {
 				.then(() => assert.calledWith(send, JSON.stringify([MessageType.Resolved, 1, 1, { foo: 'bar' }])));
 		});
 
-		it('should be able to send message to client (JSON)', function () {
+		it('sends message to client (JSON)', function () {
 			const client = server.connectClient();
 			const send = stub(client, 'send');
 
@@ -300,7 +283,7 @@ describe('serverSocket', function () {
 			assert.calledWith(send, '[0,"boop"]');
 		});
 
-		it('should be able to send message to client (binary)', function () {
+		it('sends message to client (binary)', function () {
 			const client = server.connectClient(true);
 			const send = stub(client, 'send');
 
@@ -310,7 +293,7 @@ describe('serverSocket', function () {
 		});
 
 		describe('.close()', function () {
-			it('should close the web socket server', function () {
+			it('closes web socket server', function () {
 				const close = stub(getLastServer(), 'close');
 
 				serverSocket.close();
@@ -319,8 +302,30 @@ describe('serverSocket', function () {
 			});
 		});
 
+		describe('.options()', function () {
+			it('returns socket options', function () {
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
+
+				const options = socketServer.options();
+
+				expect(JSON.parse(JSON.stringify(options))).eql({
+					client: [
+						'hi',
+						['bye', { binary: [1] }],
+					],
+					hash: options.hash,
+					path: '/ws',
+					reconnectTimeout: 500,
+					server: [
+						'hello',
+						['login', { promise: true }]
+					],
+				});
+			});
+		});
+
 		describe('broadcast()', function () {
-			it('should send message to all clients (JSON)', function () {
+			it('sends message to all clients (JSON)', function () {
 				const send1 = stub(server.connectClient(), 'send');
 				const send2 = stub(server.connectClient(), 'send');
 				const clients = servers.map(s => s.client);
@@ -331,7 +336,7 @@ describe('serverSocket', function () {
 				assert.calledWith(send2, '[0,"boop"]');
 			});
 
-			it('should send message to all clients (binary)', function () {
+			it('sends message to all clients (binary)', function () {
 				const send1 = stub(server.connectClient(true), 'send');
 				const send2 = stub(server.connectClient(true), 'send');
 				const clients = servers.map(s => s.client);
@@ -342,7 +347,7 @@ describe('serverSocket', function () {
 				assert.calledWith(send2, bufferEqual([1, 5]));
 			});
 
-			it('should send message to all clients (mixed)', function () {
+			it('sends message to all clients (mixed)', function () {
 				const send1 = stub(server.connectClient(true), 'send');
 				const send2 = stub(server.connectClient(), 'send');
 				const clients = servers.map(s => s.client);
@@ -353,15 +358,15 @@ describe('serverSocket', function () {
 				assert.calledWith(send2, '[1,5]');
 			});
 
-			it('should do nothing for empty client list', function () {
-				broadcast([] as Client2[], c => c.hi('boop'));
+			it('does nothing for empty client list', function () {
+				broadcast([] as Client1[], c => c.hi('boop'));
 			});
 
-			it('should throw for invalid client object', function () {
+			it('throws for invalid client object', function () {
 				expect(() => broadcast([{}] as any[], c => c.hi('boop'))).throw('Invalid client');
 			});
 
-			it('should call callback only once', function () {
+			it('calls callback only once', function () {
 				server.connectClients(3);
 				const clients = servers.map(s => s.client);
 				const action = spy();
@@ -377,7 +382,7 @@ describe('serverSocket', function () {
 		const ws = MockWebSocket as any;
 
 		function create(options: ServerOptions, errorHandler?: ErrorHandler) {
-			createServer({} as any, Server2, Client2, c => new Server2(c), options, errorHandler);
+			createServer({} as any, Server1, Client1, c => new Server1(c), options, errorHandler);
 			return getLastServer();
 		}
 
@@ -385,13 +390,13 @@ describe('serverSocket', function () {
 			return server.options.verifyClient!(info, () => { });
 		}
 
-		it('should return true by default', function () {
+		it('returns true by default', function () {
 			const server = create({ ws });
 
 			expect(verify(server)).true;
 		});
 
-		it('should pass request to custom verifyClient', function () {
+		it('passes request to custom verifyClient', function () {
 			const verifyClient = spy();
 			const server = create({ ws, verifyClient });
 			const req = {};
@@ -400,35 +405,35 @@ describe('serverSocket', function () {
 			assert.calledWith(verifyClient, req);
 		});
 
-		it('should return false if custom verifyClient returns false', function () {
+		it('returns false if custom verifyClient returns false', function () {
 			const verifyClient = stub().returns(false);
 			const server = create({ ws, verifyClient });
 
 			expect(verify(server)).false;
 		});
 
-		it('should return true if custom verifyClient returns true', function () {
+		it('returns true if custom verifyClient returns true', function () {
 			const verifyClient = stub().returns(true);
 			const server = create({ ws, verifyClient });
 
 			expect(verify(server)).true;
 		});
 
-		it('should return false if client limit is reached', function () {
+		it('returns false if client limit is reached', function () {
 			const server = create({ ws, clientLimit: 1 });
 			server.connectClient();
 
 			expect(verify(server)).false;
 		});
 
-		it('should return false if custom verifyClient throws an error', function () {
+		it('returns false if custom verifyClient throws an error', function () {
 			const verifyClient = stub().throws(new Error('test'));
 			const server = create({ ws, verifyClient });
 
 			expect(verify(server)).false;
 		});
 
-		it('should report error if custom verifyClient throws an error', function () {
+		it('reports error if custom verifyClient throws an error', function () {
 			const error = new Error('test');
 			const errorHandler: any = { handleError() { } };
 			const handleError = stub(errorHandler, 'handleError');

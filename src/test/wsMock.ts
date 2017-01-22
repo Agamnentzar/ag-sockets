@@ -1,5 +1,6 @@
 import { range } from 'lodash';
 import * as ws from 'ws';
+import { queryString } from '../utils';
 
 let lastServer: MockWebSocketServer;
 
@@ -21,9 +22,9 @@ export class MockWebSocketServer extends MockEventEmitter {
 	}
 	close() { }
 	// mock helpers
-	connectClient(binary = false) {
+	connectClient(bin = false, t?: string) {
 		const client = new MockWebSocket();
-		client.upgradeReq.url = `?bin=${binary}`;
+		client.upgradeReq.url = `ws://test/${queryString({ bin, t })}`;
 		this.invoke('connection', client);
 		return client;
 	}
@@ -34,7 +35,7 @@ export class MockWebSocketServer extends MockEventEmitter {
 
 export class MockWebSocket extends MockEventEmitter {
 	static Server = MockWebSocketServer;
-	upgradeReq = { url: '' };
+	upgradeReq = { url: '', headers: { foo: 'bar' } };
 	constructor() {
 		super();
 	}

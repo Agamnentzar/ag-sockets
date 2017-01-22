@@ -67,9 +67,9 @@ describe('ClientSocket + Server', function () {
 	let log: SinonSpy;
 	let version: SinonStub;
 
-	function setupClient(options: ClientOptions) {
+	function setupClient(options: ClientOptions, token?: string) {
 		return new Promise(resolve => {
-			clientSocket = new ClientSocket<Client, Server>(options, void 0, apply, <any>log);
+			clientSocket = new ClientSocket<Client, Server>(options, token, void 0, apply, <any>log);
 			version = stub((<any>clientSocket).special, '*version');
 			clientSocket.client = new Client();
 			clientSocket.client.connected = resolve;
@@ -77,7 +77,7 @@ describe('ClientSocket + Server', function () {
 		});
 	}
 
-	function setupServerClient(done: () => void, options: ServerOptions = {}, onClient: (options: ClientOptions) => void = () => { }) {
+	function setupServerClient(done: () => void, options: ServerOptions = {}, onClient: (options: ClientOptions, token?: string) => void = () => { }) {
 		connected = spy();
 
 		serverSocket = createServer(httpServer, Server, Client, c => {
@@ -87,8 +87,13 @@ describe('ClientSocket + Server', function () {
 		}, options, errorHandler, <any>log);
 
 		const clientOptions = serverSocket.options();
-		onClient(clientOptions);
-		httpServer.listen(12345, () => setupClient(clientOptions).then(done));
+		const token = options.connectionTokens ? serverSocket.token() : void 0;
+
+		onClient(clientOptions, token);
+
+		httpServer.listen(12345, () => {
+			setupClient(clientOptions, token).then(done);
+		});
 	}
 
 	function closeServerClient(done: () => void) {
@@ -258,8 +263,9 @@ describe('ClientSocket + Server', function () {
 
 	describe('(server side rate limit)', function () {
 		beforeEach(function (done) {
-			setupServerClient(done, {}, opt => {
-				opt.server.forEach(x => {
+			setupServerClient(done, {}, options => {
+				// disable rate limiting on client side
+				options.server.forEach(x => {
 					if (typeof x !== 'string') {
 						delete x[1].rateLimit;
 					}
@@ -271,7 +277,7 @@ describe('ClientSocket + Server', function () {
 			closeServerClient(done);
 		});
 
-		it('should not call method if rate limit is exceeded', function () {
+		it('does not call method if rate limit is exceeded', function () {
 			const limited = stub(server, 'limited');
 
 			clientSocket.server.limited();
@@ -281,12 +287,12 @@ describe('ClientSocket + Server', function () {
 				.then(() => assert.calledOnce(limited));
 		});
 
-		it('should reject if rate limit is exceeded', function () {
+		it('rejects if rate limit is exceeded', function () {
 			stub(server, 'limited');
 
 			clientSocket.server.limitedPromise();
 
-			return expect(clientSocket.server.limitedPromise()).rejectedWith('rate limit exceeded');
+			return expect(clientSocket.server.limitedPromise()).rejectedWith('Rate limit exceeded');
 		});
 	});
 
@@ -349,11 +355,15 @@ describe('ClientSocket + Server', function () {
 		});
 	});
 
-	describe('(security token)', function () {
+	describe('(connection token)', function () {
 		let clientOptions: ClientOptions;
+		let clientToken: string;
 
 		beforeEach(function (done) {
-			setupServerClient(done, { connectionTokens: true, perMessageDeflate: false }, opt => clientOptions = opt);
+			setupServerClient(done, { connectionTokens: true, perMessageDeflate: false }, (opt, token) => {
+				clientOptions = opt;
+				clientToken = token!;
+			});
 		});
 
 		afterEach(function (done) {
@@ -365,7 +375,7 @@ describe('ClientSocket + Server', function () {
 		});
 
 		it('should replace user with the same token', function () {
-			return setupClient(clientOptions)
+			return setupClient(clientOptions, clientToken)
 				.then(() => assert.calledTwice(connected));
 		});
 	});

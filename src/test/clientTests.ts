@@ -75,7 +75,7 @@ describe('ClientSocket', function () {
 		lastWebSocket = null as any;
 		errorHandler = { handleRecvError() { } };
 
-		service = new ClientSocket<Client, Server>(clientOptions, errorHandler);
+		service = new ClientSocket<Client, Server>(clientOptions, void 0, errorHandler);
 	});
 
 	describe('invalidVersion', function () {
