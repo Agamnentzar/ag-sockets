@@ -44,6 +44,7 @@ export interface Server {
 	close(): void;
 	options(): ClientOptions;
 	token(data?: any): string;
+	clearTokens(test: (id: string, data?: any) => boolean): void;
 }
 
 const defaultErrorHandler: ErrorHandler = {
@@ -426,6 +427,17 @@ export function create(
 			if (!options.connectionTokens)
 				throw new Error('Option connectionTokens not set');
 			return createToken(data).id;
+		},
+		clearTokens(test: (id: string, data?: any) => boolean) {
+			if (!options.connectionTokens)
+				throw new Error('Option connectionTokens not set');
+
+			tokens = tokens
+				.filter(t => !test(t.id, t.data));
+
+			clients
+				.filter(c => c.token && test(c.token.id, c.token.data))
+				.forEach(c => c.client.disconnect(true, true));
 		},
 	};
 }

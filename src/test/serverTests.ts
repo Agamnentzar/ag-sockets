@@ -2,7 +2,7 @@ import './common';
 import * as Promise from 'bluebird';
 import * as http from 'http';
 import { expect } from 'chai';
-import { assert, stub, spy, match } from 'sinon';
+import { assert, stub, spy, match, SinonStub } from 'sinon';
 import {
 	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions, broadcast,
 	SocketClient, ClientExtensions, Bin
@@ -19,6 +19,10 @@ class Server1 {
 	hello(_message: string) { }
 	@Method({ promise: true })
 	login(_login: string) { return Promise.resolve(0); }
+	@Method({ rateLimit: '1/s' })
+	rate() { }
+	@Method({ rateLimit: '1/s', promise: true })
+	ratePromise() { return Promise.resolve(0); }
 }
 
 class Client1 {
@@ -136,7 +140,50 @@ describe('serverSocket', function () {
 			it('throws if connection tokens are turned off', function () {
 				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
 
-				expect(() => socketServer.token()).throw();
+				expect(() => socketServer.token()).throw('Option connectionTokens not set');
+			});
+		});
+
+		describe('.clearTokens()', function () {
+			it('does nothing for no tokens and no clients', function () {
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+
+				socketServer.clearTokens(() => true);
+			});
+
+			it('clears marked token', function () {
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+				const token = socketServer.token({ remove: true });
+
+				socketServer.clearTokens((_, data) => data.remove);
+
+				expect(getLastServer().options.verifyClient!({ req: { url: `?t=${token}` } } as any, () => { })).false;
+			});
+
+			it('does not clear not marked token', function () {
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+				const token = socketServer.token({ remove: false });
+
+				socketServer.clearTokens((_, data) => data.remove);
+
+				expect(getLastServer().options.verifyClient!({ req: { url: `?t=${token}` } } as any, () => { })).true;
+			});
+
+			it('disconnects client using marked token', function () {
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+				const token = socketServer.token({ remove: true });
+				const client = getLastServer().connectClient(false, token);
+				const terminate = stub(client, 'terminate');
+
+				socketServer.clearTokens((_, data) => data.remove);
+
+				assert.calledOnce(terminate);
+			});
+
+			it('throws if connection tokens are turned off', function () {
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
+
+				expect(() => socketServer.clearTokens(() => true)).throw('Option connectionTokens not set');
 			});
 		});
 	});
@@ -292,6 +339,54 @@ describe('serverSocket', function () {
 			assert.calledWith(send, bufferEqual([1, 5]));
 		});
 
+		describe('(rate limit)', function () {
+			let handleRecvError: SinonStub;
+			let handleRejection: SinonStub;
+
+			beforeEach(function () {
+				handleRecvError = stub(errorHandler, 'handleRecvError');
+				handleRejection = stub(errorHandler, 'handleRejection');
+			});
+
+			it('does not call method if rate limit is exceeded', function () {
+				const client = server.connectClient();
+				const rate = stub(servers[0]!, 'rate');
+
+				client.invoke('message', '[2]');
+				client.invoke('message', '[2]');
+
+				assert.calledOnce(rate);
+			});
+
+			it('logs recv error if rate limit is exceeded', function () {
+				const client = server.connectClient();
+
+				client.invoke('message', '[2]');
+				client.invoke('message', '[2]');
+
+				assert.calledOnce(handleRecvError);
+			});
+
+			it.skip('sends reject if rate limit is exceeded on method with promise', function () {
+				const client = server.connectClient();
+				const send = stub(client, 'send');
+
+				client.invoke('message', '[3]');
+				client.invoke('message', '[3]');
+
+				assert.calledWith(send, JSON.stringify([MessageType.Rejected, 3, 2, 'Rate limit exceeded']));
+			});
+
+			it.skip('logs rejection error if rate limit is exceeded on method with promise', function () {
+				const client = server.connectClient();
+
+				client.invoke('message', '[3]');
+				client.invoke('message', '[3]');
+
+				assert.calledOnce(handleRejection);
+			});
+		});
+
 		describe('.close()', function () {
 			it('closes web socket server', function () {
 				const close = stub(getLastServer(), 'close');
@@ -303,12 +398,16 @@ describe('serverSocket', function () {
 		});
 
 		describe('.options()', function () {
+			function withoutUndefinedProperties(obj: any) {
+				return JSON.parse(JSON.stringify(obj));
+			}
+
 			it('returns socket options', function () {
 				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
 
 				const options = socketServer.options();
 
-				expect(JSON.parse(JSON.stringify(options))).eql({
+				expect(withoutUndefinedProperties(options)).eql({
 					client: [
 						'hi',
 						['bye', { binary: [1] }],
@@ -318,7 +417,9 @@ describe('serverSocket', function () {
 					reconnectTimeout: 500,
 					server: [
 						'hello',
-						['login', { promise: true }]
+						['login', { promise: true }],
+						['rate', { rateLimit: '1/s' }],
+						['ratePromise', { rateLimit: '1/s', promise: true }]
 					],
 				});
 			});
