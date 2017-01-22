@@ -314,7 +314,7 @@ export function create(
 			if (transferLimitExceeded)
 				return;
 
-			bytesReceived += socket.bytesReceived ? socket.bytesReceived : getLength(message);
+			bytesReceived += getLength(message);
 
 			const now = Date.now();
 			const diff = now - bytesReset;

@@ -2,11 +2,12 @@ import './common';
 import * as Promise from 'bluebird';
 import * as http from 'http';
 import { expect } from 'chai';
-import { assert, stub, spy, match, SinonStub } from 'sinon';
+import { assert, stub, spy, match, SinonStub, useFakeTimers, SinonFakeTimers } from 'sinon';
 import {
 	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions, broadcast,
 	SocketClient, ClientExtensions, Bin, createClientOptions,
 } from '../index';
+import { randomString } from '../utils';
 import { MessageType } from '../packet/packetHandler';
 import { MockWebSocket, MockWebSocketServer, getLastServer } from './wsMock';
 
@@ -238,6 +239,85 @@ describe('serverSocket', function () {
 				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
 
 				expect(() => socketServer.clearTokens(() => true)).throw('Option connectionTokens not set');
+			});
+		});
+
+		describe('(transfer limit)', function () {
+			let errorHandler: ErrorHandler;
+			let socketServer: TheServer;
+			let server: Server1;
+			let clock: SinonFakeTimers;
+
+			beforeEach(function () {
+				clock = useFakeTimers();
+				errorHandler = emptyErrorHandler();
+				socketServer = createServer({} as any, Server1, Client1, c => server = new Server1(c), { ws, transferLimit: 1000 }, errorHandler);
+			});
+
+			afterEach(function () {
+				clock.restore();
+			});
+
+			it('calls method if not exceeding limit', function () {
+				const client = getLastServer().connectClient();
+				const hello = stub(server, 'hello');
+
+				client.invoke('message', '[0,"hello there"]');
+
+				assert.calledWith(hello, "hello there");
+			});
+
+			it('does not call method if exceeded limit (one message)', function () {
+				const client = getLastServer().connectClient();
+				const hello = stub(server, 'hello');
+
+				client.invoke('message', `[0,"${randomString(1000)}"]`);
+
+				assert.notCalled(hello);
+			});
+
+			it('does not call method if exceeded limit (multiple messages)', function () {
+				const client = getLastServer().connectClient();
+				const hello = stub(server, 'hello');
+
+				for (let i = 0; i < 10; i++) {
+					client.invoke('message', `[0,"${randomString(100)}"]`);
+				}
+
+				client.invoke('message', `[0,"hi"]`);
+
+				assert.neverCalledWith(hello, 'hi');
+			});
+
+			it('reports error when limit is exceeded', function () {
+				const client = getLastServer().connectClient();
+				const handleRecvError = stub(errorHandler, 'handleRecvError');
+
+				client.invoke('message', `[0,"${randomString(1000)}"]`);
+
+				assert.calledOnce(handleRecvError);
+			});
+
+			it('terminates socket connection when limit is exceeded', function () {
+				const client = getLastServer().connectClient();
+				const terminate = stub(client, 'terminate');
+
+				client.invoke('message', `[0,"${randomString(1000)}"]`);
+
+				assert.calledOnce(terminate);
+			});
+
+			it('resets counter after a second', function () {
+				const client = getLastServer().connectClient();
+				const hello = stub(server, 'hello');
+
+				client.invoke('message', `[0,"${randomString(900)}"]`);
+
+				clock.tick(2000);
+
+				client.invoke('message', `[0,"${randomString(900)}"]`);
+
+				assert.calledTwice(hello);
 			});
 		});
 	});

@@ -6,7 +6,6 @@ import * as uWebSocket from 'uws';
 import { expect } from 'chai';
 import { assert, stub, spy, SinonSpy, SinonStub } from 'sinon';
 import { Bin, ServerOptions, ClientOptions } from '../interfaces';
-import { randomString } from '../utils';
 import {
 	Socket, Method, ClientSocket, createServer, ClientExtensions, Server as ServerController,
 	SocketClient, SocketServer, ErrorHandler
@@ -119,7 +118,7 @@ describe('ClientSocket + Server', function () {
 		{ name: 'ws', ws: WebSocket, arrayBuffer: false },
 		{ name: 'µWS', ws: uWebSocket, arrayBuffer: true },
 	].forEach(({ name, ws, arrayBuffer }) => {
-		describe(`[${name}] (default)`, function () {
+		describe(`[${name}]`, function () {
 			beforeEach(function (done) {
 				setupServerClient(done, { ws, arrayBuffer });
 			});
@@ -225,65 +224,6 @@ describe('ClientSocket + Server', function () {
 					serverSocket.close();
 				});
 			});
-		});
-	});
-
-	describe('(transfer limit)', function () {
-		beforeEach(function (done) {
-			setupServerClient(done, { transferLimit: 100 });
-		});
-
-		afterEach(function (done) {
-			closeServerClient(done);
-		});
-
-		it('should work if not exceeding limit', function () {
-			const test = stub(server, 'test');
-
-			clientSocket.server.test('foo bar boo');
-
-			return Promise.delay(50)
-				.then(() => assert.calledWith(test, 'foo bar boo'));
-		});
-
-		it('should not call method if exceeded limit (one message)', function () {
-			const test = stub(server, 'test');
-
-			clientSocket.server.test('LJKzNQwbEF7xOTW4aoXiXBrIKQLg2DS2tWkhGNK4HL2K1HLidWPNs0q0O3pVMKD77diXrfLjhudLmd7bGHwPSijtcwtkSEnpqKTMm2BOP6N');
-
-			return Promise.delay(50)
-				.then(() => assert.notCalled(test));
-		});
-
-		it('should disconnect if exceeded limit (one message)', function () {
-			const disconnected = stub(clientSocket.client, 'disconnected');
-
-			clientSocket.server.test('LJKzNQwbEF7xOTW4aoXiXBrIKQLg2DS2tWkhGNK4HL2K1HLidWPNs0q0O3pVMKD77diXrfLjhudLmd7bGHwPSijtcwtkSEnpqKTMm2BOP6N');
-
-			return Promise.delay(50)
-				.then(() => assert.calledOnce(disconnected));
-		});
-
-		it('should disconnect if exceeded limit (many messages)', function () {
-			const disconnected = stub(clientSocket.client, 'disconnected');
-
-			for (let i = 0; i < 15; i++)
-				clientSocket.server.test(randomString(10));
-
-			return Promise.delay(50)
-				.then(() => assert.calledOnce(disconnected));
-		});
-
-		// TODO: fix unreliable timing
-		it.skip('should reset transfer after a second', function () {
-			const test = stub(server, 'test');
-
-			clientSocket.server.test(randomString(10));
-
-			return Promise.delay(1100)
-				.then(() => clientSocket.server.test(randomString(10)))
-				.delay(300)
-				.then(() => assert.calledTwice(test));
 		});
 	});
 
