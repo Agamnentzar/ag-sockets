@@ -85,6 +85,45 @@ export function broadcast<TClient>(clients: TClient[], action: (client: TClient)
 	}
 }
 
+export function createClientOptions<TServer, TClient>(
+	serverType: new (...args: any[]) => TServer,
+	clientType: new (...args: any[]) => TClient,
+	options?: ServerOptions
+) {
+	return toClientOptions(optionsWithDefaults(createServerOptions(serverType, clientType, options)));
+}
+
+function createServerOptions(serverType: Function, clientType: Function, options?: ServerOptions) {
+	const client = getMethodsFromType(clientType);
+	const server = getMethodsFromType(serverType);
+	return Object.assign({ client, server }, getSocketMetadata(serverType), options);
+}
+
+function optionsWithDefaults(options: ServerOptions): ServerOptions {
+	return Object.assign({
+		hash: Date.now(),
+		path: '/ws',
+		tokenLifetime: 3600 * 1000, // 1 hour
+		reconnectTimeout: 500, // 0.5 sec
+		connectionTimeout: 10000, // 10 sec
+	}, options);
+}
+
+function toClientOptions(options: ServerOptions): ClientOptions {
+	return {
+		host: options.host,
+		path: options.path,
+		ssl: options.ssl,
+		pingInterval: options.pingInterval,
+		reconnectTimeout: options.reconnectTimeout,
+		debug: options.debug,
+		hash: options.hash,
+		requestParams: options.requestParams,
+		client: options.client!,
+		server: options.server!,
+	};
+}
+
 export function createServer<TServer, TClient>(
 	httpServer: HttpServer,
 	serverType: new (...args: any[]) => TServer,
@@ -94,9 +133,7 @@ export function createServer<TServer, TClient>(
 	errorHandler?: ErrorHandler,
 	log?: Logger
 ) {
-	const client = getMethodsFromType(clientType);
-	const server = getMethodsFromType(serverType);
-	return create(httpServer, createServer, Object.assign({ client, server }, getSocketMetadata(serverType), options), errorHandler, log);
+	return create(httpServer, createServer, createServerOptions(serverType, clientType, options), errorHandler, log);
 }
 
 type AnyBuffer = Buffer | ArrayBuffer;
@@ -108,35 +145,20 @@ export function create(
 	errorHandler: ErrorHandler = defaultErrorHandler,
 	log: Logger = console.log.bind(console)
 ): Server {
+	options = optionsWithDefaults(options);
+
 	if (!options.client || !options.server)
 		throw new Error('Missing server or client method definitions');
 
 	if (options.client.length > 250 || options.server.length > 250)
 		throw new Error('Too many methods');
 
-	options.hash = options.hash || Date.now();
-	options.path = options.path || '/ws';
-	options.tokenLifetime = options.tokenLifetime || 3600 * 1000; // 1 hour
-	options.reconnectTimeout = options.reconnectTimeout || 500; // 0.5 sec
-	options.connectionTimeout = options.connectionTimeout || 10000; // 10 sec
-
 	let currentClientId = 1;
 	let tokens: Token[] = [];
 	const clients: Client[] = [];
 	const verifyClient = options.verifyClient;
 	const wsLibrary: typeof ws = (options.ws || ws) as any;
-	const clientOptions: ClientOptions = {
-		host: options.host,
-		path: options.path,
-		ssl: options.ssl,
-		pingInterval: options.pingInterval,
-		reconnectTimeout: options.reconnectTimeout,
-		debug: options.debug,
-		hash: options.hash,
-		requestParams: options.requestParams,
-		client: options.client,
-		server: options.server,
-	};
+	const clientOptions = toClientOptions(options);
 
 	function createToken(data?: any): Token {
 		const token = {

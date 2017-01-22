@@ -228,41 +228,6 @@ describe('ClientSocket + Server', function () {
 		});
 	});
 
-	//describe('(server side rate limit)', function () {
-	//	beforeEach(function (done) {
-	//		setupServerClient(done, {}, options => {
-	//			// disable rate limiting on client side
-	//			options.server.forEach(x => {
-	//				if (typeof x !== 'string') {
-	//					delete x[1].rateLimit;
-	//				}
-	//			});
-	//		});
-	//	});
-
-	//	afterEach(function (done) {
-	//		closeServerClient(done);
-	//	});
-
-	//	it('does not call method if rate limit is exceeded', function () {
-	//		const limited = stub(server, 'limited');
-
-	//		clientSocket.server.limited();
-	//		clientSocket.server.limited();
-
-	//		return Promise.delay(50)
-	//			.then(() => assert.calledOnce(limited));
-	//	});
-
-	//	it('rejects if rate limit is exceeded', function () {
-	//		stub(server, 'limited');
-
-	//		clientSocket.server.limitedPromise();
-
-	//		return expect(clientSocket.server.limitedPromise()).rejectedWith('Rate limit exceeded');
-	//	});
-	//});
-
 	describe('(transfer limit)', function () {
 		beforeEach(function (done) {
 			setupServerClient(done, { transferLimit: 100 });

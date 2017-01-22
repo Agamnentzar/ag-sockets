@@ -5,7 +5,7 @@ import { expect } from 'chai';
 import { assert, stub, spy, match, SinonStub } from 'sinon';
 import {
 	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions, broadcast,
-	SocketClient, ClientExtensions, Bin
+	SocketClient, ClientExtensions, Bin, createClientOptions,
 } from '../index';
 import { MessageType } from '../packet/packetHandler';
 import { MockWebSocket, MockWebSocketServer, getLastServer } from './wsMock';
@@ -32,6 +32,21 @@ class Client1 {
 	bye(_value: number) { }
 }
 
+const CLIENT_OPTIONS = {
+	client: [
+		'hi',
+		['bye', { binary: [1] }],
+	],
+	path: '/ws',
+	reconnectTimeout: 500,
+	server: [
+		'hello',
+		['login', { promise: true }],
+		['rate', { rateLimit: '1/s' }],
+		['ratePromise', { rateLimit: '1/s', promise: true }]
+	],
+};
+
 function bufferEqual(expectation: number[]) {
 	return match.instanceOf(Buffer)
 		.and(match((value: Buffer) => value.length === expectation.length))
@@ -45,12 +60,24 @@ function bufferEqual(expectation: number[]) {
 		}));
 };
 
+function emptyErrorHandler(): ErrorHandler {
+	return {
+		handleError() { },
+		handleRecvError() { },
+		handleRejection() { },
+	};
+}
+
 function defaultErrorHandler(): ErrorHandler {
 	return {
 		handleError(...args: any[]) { console.error('handleError', ...args); },
 		handleRecvError(...args: any[]) { console.error('handleRecvError', ...args); },
 		handleRejection(...args: any[]) { console.error('handleRejection', ...args); },
 	};
+}
+
+function withoutUndefinedProperties(obj: any) {
+	return JSON.parse(JSON.stringify(obj));
 }
 
 const ws = MockWebSocket as any;
@@ -111,13 +138,40 @@ describe('serverSocket', function () {
 				.then(() => expect(server1.client.originalRequest).eql({ url: 'ws://test/?bin=false', headers: { foo: 'bar' } }));
 		});
 
-		it('does not pass request info to client', function () {
+		it('does not pass request info to client if keepOriginalRequest option is not true', function () {
 			let server1: Server1;
 			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws });
 			getLastServer().connectClient();
 
 			return Promise.delay(50)
 				.then(() => expect(server1.client.originalRequest).undefined);
+		});
+
+		describe('if token does not exist', function () {
+			let webSocket: MockWebSocket;
+			let errorHandler: ErrorHandler;
+
+			beforeEach(function () {
+				createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true }, errorHandler = emptyErrorHandler());
+				webSocket = new MockWebSocket();
+				webSocket.upgradeReq.url = '?t=foobar';
+			});
+
+			it('terminates connection', function () {
+				const terminate = stub(webSocket, 'terminate');
+
+				getLastServer().connectWebSocket(webSocket);
+
+				assert.calledOnce(terminate);
+			});
+
+			it('reports error', function () {
+				const handleError = stub(errorHandler, 'handleError');
+
+				getLastServer().connectWebSocket(webSocket);
+
+				assert.calledOnce(handleError);
+			});
 		});
 
 		describe('.token()', function () {
@@ -367,23 +421,26 @@ describe('serverSocket', function () {
 				assert.calledOnce(handleRecvError);
 			});
 
-			it.skip('sends reject if rate limit is exceeded on method with promise', function () {
+			it('sends reject if rate limit is exceeded on method with promise', function () {
 				const client = server.connectClient();
 				const send = stub(client, 'send');
+				const data = JSON.stringify([MessageType.Rejected, 3, 2, 'Rate limit exceeded']);
 
 				client.invoke('message', '[3]');
 				client.invoke('message', '[3]');
 
-				assert.calledWith(send, JSON.stringify([MessageType.Rejected, 3, 2, 'Rate limit exceeded']));
+				return Promise.delay(10)
+					.then(() => assert.calledWith(send, data));
 			});
 
-			it.skip('logs rejection error if rate limit is exceeded on method with promise', function () {
+			it('logs rejection error if rate limit is exceeded on method with promise', function () {
 				const client = server.connectClient();
 
 				client.invoke('message', '[3]');
 				client.invoke('message', '[3]');
 
-				assert.calledOnce(handleRejection);
+				return Promise.delay(10)
+					.then(() => assert.calledOnce(handleRejection));
 			});
 		});
 
@@ -398,30 +455,12 @@ describe('serverSocket', function () {
 		});
 
 		describe('.options()', function () {
-			function withoutUndefinedProperties(obj: any) {
-				return JSON.parse(JSON.stringify(obj));
-			}
-
 			it('returns socket options', function () {
 				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
 
 				const options = socketServer.options();
 
-				expect(withoutUndefinedProperties(options)).eql({
-					client: [
-						'hi',
-						['bye', { binary: [1] }],
-					],
-					hash: options.hash,
-					path: '/ws',
-					reconnectTimeout: 500,
-					server: [
-						'hello',
-						['login', { promise: true }],
-						['rate', { rateLimit: '1/s' }],
-						['ratePromise', { rateLimit: '1/s', promise: true }]
-					],
-				});
+				expect(withoutUndefinedProperties(options)).eql(Object.assign({ hash: options.hash }, CLIENT_OPTIONS));
 			});
 		});
 
@@ -543,6 +582,14 @@ describe('serverSocket', function () {
 
 			verify(server);
 			assert.calledWith(handleError, null, error);
+		});
+	});
+
+	describe('createClientOptions()', function () {
+		it('returns client options', function () {
+			const options = createClientOptions(Server1, Client1, { ws });
+
+			expect(withoutUndefinedProperties(options)).eql(Object.assign({ hash: options.hash }, CLIENT_OPTIONS));
 		});
 	});
 });

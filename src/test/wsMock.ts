@@ -28,6 +28,10 @@ export class MockWebSocketServer extends MockEventEmitter {
 		this.invoke('connection', client);
 		return client;
 	}
+	connectWebSocket(socket: MockWebSocket) {
+		this.invoke('connection', socket);
+		return socket;
+	}
 	connectClients(count: number) {
 		return range(count).map(() => this.connectClient());
 	}
