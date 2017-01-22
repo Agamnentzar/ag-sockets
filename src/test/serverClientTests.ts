@@ -2,8 +2,9 @@ import './common';
 import * as Promise from 'bluebird';
 import * as http from 'http';
 import * as WebSocket from 'ws';
+import * as uWebSocket from 'uws';
 import { expect } from 'chai';
-import { assert, stub, spy, SinonSpy } from 'sinon';
+import { assert, stub, spy, SinonSpy, SinonStub } from 'sinon';
 import { Bin, ServerOptions, ClientOptions } from '../interfaces';
 import { randomString } from '../utils';
 import {
@@ -64,10 +65,12 @@ describe('ClientSocket + Server', function () {
 	let errorHandler: ErrorHandler;
 	let connected: SinonSpy;
 	let log: SinonSpy;
+	let version: SinonStub;
 
 	function setupClient(options: ClientOptions) {
 		return new Promise(resolve => {
 			clientSocket = new ClientSocket<Client, Server>(options, void 0, apply, <any>log);
+			version = stub((<any>clientSocket).special, '*version');
 			clientSocket.client = new Client();
 			clientSocket.client.connected = resolve;
 			clientSocket.connect();
@@ -107,109 +110,114 @@ describe('ClientSocket + Server', function () {
 		httpServer = http.createServer();
 	});
 
-	describe('(default)', function () {
-		beforeEach(function (done) {
-			setupServerClient(done);
-		});
+	[
+		{ name: 'ws', ws: WebSocket, arrayBuffer: false },
+		{ name: 'µWS', ws: uWebSocket, arrayBuffer: true },
+	].forEach(({ name, ws, arrayBuffer }) => {
+		describe(`[${name}] (default)`, function () {
+			beforeEach(function (done) {
+				setupServerClient(done, { ws, arrayBuffer });
+			});
 
-		afterEach(function (done) {
-			closeServerClient(done);
-		});
+			afterEach(function (done) {
+				closeServerClient(done);
+			});
 
-		it('should call connected when client connects', function () {
-			assert.calledOnce(connected);
-		});
+			it('should call connected when client connects', function () {
+				assert.calledOnce(connected);
+			});
 
-		it('should send version info to client', function () {
-			const version = stub((<any>clientSocket).special, '*version');
+			it('should send version info to client', function () {
+				return Promise.delay(50)
+					.then(() => assert.calledWith(version, serverSocket.options().hash));
+			});
 
-			return Promise.delay(50)
-				.then(() => assert.calledWith(version, serverSocket.options().hash));
-		});
+			it.skip('should ping clients', function () {
+				return Promise.delay(200);
+				// TODO: add asserts
+			});
 
-		it('should ping clients', function () {
-			return Promise.delay(200);
-		});
+			it('should receive message from client', function () {
+				const hello = stub(server, 'hello');
 
-		it('should receive message from client', function () {
-			const hello = stub(server, 'hello');
+				return Promise.resolve()
+					.then(() => clientSocket.server.hello('yay'))
+					.delay(50)
+					.then(() => assert.calledWith(hello, 'yay'));
+			});
 
-			return Promise.resolve()
-				.then(() => clientSocket.server.hello('yay'))
-				.delay(50)
-				.then(() => assert.calledWith(hello, 'yay'));
-		});
+			it('should handle resolved promise from server method', function () {
+				return expect(clientSocket.server.login('ok')).eventually.true;
+			});
 
-		it('should handle resolved promise from server method', function () {
-			return expect(clientSocket.server.login('ok')).eventually.true;
-		});
+			it('should handle rejected promise from server method', function () {
+				return expect(clientSocket.server.login('fail')).rejectedWith('fail');
+			});
 
-		it('should handle rejected promise from server method', function () {
-			return expect(clientSocket.server.login('fail')).rejectedWith('fail');
-		});
+			it('should handle rejected promise with null error from server method', function () {
+				return expect(clientSocket.server.nullReject()).rejectedWith('error');
+			});
 
-		it('should handle rejected promise with null error from server method', function () {
-			return expect(clientSocket.server.nullReject()).rejectedWith('error');
-		});
+			it('should report promise rejection to error handler', function () {
+				const handleRejection = stub(errorHandler, 'handleRejection');
 
-		it('should report promise rejection to error handler', function () {
-			const handleRejection = stub(errorHandler, 'handleRejection');
+				return Promise.resolve()
+					.then(() => clientSocket.server.login('fail'))
+					.catch(() => { })
+					.then(() => assert.calledOnce(handleRejection));
+			});
 
-			return Promise.resolve()
-				.then(() => clientSocket.server.login('fail'))
-				.catch(() => { })
-				.then(() => assert.calledOnce(handleRejection));
-		});
+			it('should be able to disconnect the client', function () {
+				const disconnected = stub(clientSocket.client, 'disconnected');
 
-		it('should be able to disconnect the client', function () {
-			const disconnected = stub(clientSocket.client, 'disconnected');
+				serverSocket.clients[0].client.disconnect();
 
-			serverSocket.clients[0].client.disconnect();
+				return Promise.delay(50)
+					.then(() => assert.calledOnce(disconnected));
+			});
 
-			return Promise.delay(50)
-				.then(() => assert.calledOnce(disconnected));
-		});
+			it('should call disconnected on client disconnect', function () {
+				const disconnected = stub(server, 'disconnected');
 
-		it('should call disconnected on client disconnect', function () {
-			const disconnected = stub(server, 'disconnected');
+				clientSocket.disconnect();
 
-			clientSocket.disconnect();
+				return Promise.delay(50)
+					.then(() => assert.calledOnce(disconnected));
+			});
 
-			return Promise.delay(50)
-				.then(() => assert.calledOnce(disconnected));
-		});
+			it('should be able to call client methods from server', function () {
+				const hi = stub(clientSocket.client, 'hi');
 
-		it('should be able to call client methods from server', function () {
-			const hi = stub(clientSocket.client, 'hi');
-			server.client.hi('yay');
+				server.client.hi('yay');
 
-			return Promise.delay(50)
-				.then(() => assert.calledWith(hi, 'yay'));
-		});
+				return Promise.delay(50)
+					.then(() => assert.calledWith(hi, 'yay'));
+			});
 
-		it('should pass exception to error handler', function () {
-			const handleRecvError = stub(errorHandler, 'handleRecvError');
+			it('should pass exception to error handler', function () {
+				const handleRecvError = stub(errorHandler, 'handleRecvError');
 
-			clientSocket.server.err();
+				clientSocket.server.err();
 
-			return Promise.delay(50)
-				.then(() => assert.calledOnce(handleRecvError));
-		});
+				return Promise.delay(50)
+					.then(() => assert.calledOnce(handleRecvError));
+			});
 
-		it('should log client connected', function () {
-			log.calledWith('client connected');
-		});
+			it('should log client connected', function () {
+				log.calledWith('client connected');
+			});
 
-		it('should log client disconnected', function () {
-			clientSocket.disconnect();
+			it('should log client disconnected', function () {
+				clientSocket.disconnect();
 
-			return Promise.delay(50)
-				.then(() => log.calledWith('client disconnected'));
-		});
+				return Promise.delay(50)
+					.then(() => log.calledWith('client disconnected'));
+			});
 
-		describe('close()', function () {
-			it('should close the socket', function () {
-				serverSocket.close();
+			describe('close()', function () {
+				it('should close the socket', function () {
+					serverSocket.close();
+				});
 			});
 		});
 	});

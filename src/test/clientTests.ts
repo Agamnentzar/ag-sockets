@@ -50,9 +50,12 @@ describe('ClientSocket', function () {
 			['foo', { promise: true, progress: 'fooInProgress' }],
 			['foo2', { promise: true, rateLimit: '1/s' }],
 			['foo3', { rateLimit: '1/s' }],
+			'',
+			'',
 		],
 		pingInterval: 1000,
 		requestParams: { foo: 'bar', x: 5 },
+		reconnectTimeout: 1000, // prevent immediate reconnect changing lastWebSocket
 	};
 
 	let service: SocketService<Client, Server>;
@@ -186,6 +189,7 @@ describe('ClientSocket', function () {
 			let close = stub(lastWebSocket, 'close');
 
 			addEventListener.args[0][1]();
+			lastWebSocket.onclose();
 
 			assert.calledOnce(close);
 		});
@@ -329,8 +333,7 @@ describe('ClientSocket', function () {
 				expect(service.isConnected).false;
 			});
 
-			// TODO: fix unpredictable results
-			it.skip('should call client.disconnected', function () {
+			it('should call client.disconnected', function () {
 				const disconnected = spy();
 				service.client.disconnected = disconnected;
 				lastWebSocket.onopen();
@@ -349,8 +352,7 @@ describe('ClientSocket', function () {
 				assert.notCalled(disconnected);
 			});
 
-			// TODO: fix unpredictable results
-			it.skip('should reject all pending promises', function () {
+			it('should reject all pending promises', function () {
 				lastWebSocket.onopen();
 
 				const promise = service.server.foo();

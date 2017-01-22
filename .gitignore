@@ -9,4 +9,5 @@
 /typings/globals
 /typings/modules
 /.vs
+/.vscode
 *.sln

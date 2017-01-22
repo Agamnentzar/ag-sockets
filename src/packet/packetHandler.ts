@@ -1,4 +1,5 @@
 import { FuncList } from '../interfaces';
+import { getLength } from '../utils';
 import { PacketWriter } from './packetWriter';
 import { PacketReader } from './packetReader';
 
@@ -73,7 +74,7 @@ export class PacketHandler<T> {
 			const data = this.getBinary(packet, handler);
 			send(data);
 			this.lastWriteBinary = true;
-			return (<ArrayBuffer>data).byteLength || (<Buffer>data).length || 0;
+			return getLength(data);
 		} else {
 			const data = this.getJSON(packet);
 			send(data);
@@ -129,6 +130,6 @@ export class PacketHandler<T> {
 			handleFunction(funcId, funcName, func, funcObj, args);
 		}
 
-		return (<any>data).length || (<any>data).byteLength || 0;
+		return getLength(data);
 	}
 }

@@ -1,3 +1,4 @@
+import * as Promise from 'bluebird';
 import { remove } from 'lodash';
 
 const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
@@ -10,6 +11,10 @@ export function randomString(length: number) {
 	}
 
 	return result;
+}
+
+export function getLength(message: any): number {
+	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
 }
 
 const times: { [key: string]: number; } = {
@@ -75,4 +80,21 @@ export function supportsBinary() {
 	}
 
 	return false;
+}
+
+export interface Deferred<T> {
+	promise: Promise<T>;
+	resolve(result?: T): void;
+	reject(error?: Error): void;
+}
+
+export function deferred<T>(): Deferred<T> {
+	const obj: Deferred<T> = <any>{};
+
+	obj.promise = new Promise<T>(function (resolve, reject) {
+		obj.resolve = resolve;
+		obj.reject = reject;
+	});
+
+	return obj;
 }

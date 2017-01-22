@@ -13,12 +13,9 @@ const Builder = require('systemjs-builder')
 const liveServer = require('gulp-live-server');
 const argv = require('yargs').argv;
 
-function seq() {
-	const tasks = Array.prototype.slice.call(arguments, 0);
-	return done => runSequence.apply(runSequence, tasks.concat([done]));
-}
+const seq = (...tasks) => done => runSequence(...tasks, done);
 
-gulp.task('clean', function () {
+gulp.task('clean', () => {
 	return del([
 		'dist/*',
 	]);
@@ -26,9 +23,8 @@ gulp.task('clean', function () {
 
 const project = ts.createProject('tsconfig.json');
 const scripts = ['src/**/*.ts'];
-const buildTask = argv.coverage ? 'build-demo-coverage-remap' : (argv.tests ? 'build-demo-tests' : 'build-demo');
 
-gulp.task('build', function () {
+gulp.task('build', () => {
 	const result = gulp.src(scripts)
 		.pipe(sourcemaps.init())
 		.pipe(project(ts.reporter.defaultReporter()));
@@ -42,19 +38,19 @@ gulp.task('build', function () {
 	]);
 });
 
-gulp.task('demo', function () {
+gulp.task('demo', () => {
 	const builder = new Builder('', 'src/demo/config.js');
 	return builder.buildStatic('dist/demo/demoClient.js', 'dist/demo/demo.js');
 });
 
-gulp.task('tests', function () {
+gulp.task('tests', () => {
 	return gulp.src('dist/test/**/*.js', { read: false })
 		.pipe(mocha({
 			reporter: 'dot',
 		}));
 });
 
-gulp.task('coverage', function () {
+gulp.task('coverage', () => {
 	return gulp.src('dist/test/**/*.js', { read: false })
 		.pipe(mocha({
 			reporter: 'dot',
@@ -64,21 +60,21 @@ gulp.task('coverage', function () {
 		}));
 });
 
-gulp.task('server', function () {
+gulp.task('server', () => {
 	const server = liveServer(['dist/demo/demoServer.js'], {});
 	server.start();
 
 	gulp.watch(['src/demo/**/*.html'], server.notify.bind(server));
-	gulp.watch(['dist/**/*.js'], function () {
+	gulp.watch(['dist/**/*.js'], () => {
 		server.start();
 	});
 });
 
-gulp.task('watch', function () {
-	gulp.watch(scripts, [buildTask]);
+gulp.task('watch', () => {
+	gulp.watch(scripts, ['build-task']);
 });
 
-gulp.task('lint', function () {
+gulp.task('lint', () => {
 	return gulp.src(scripts)
 		.pipe(plumber())
 		.pipe(tslint({
@@ -88,7 +84,7 @@ gulp.task('lint', function () {
 		.pipe(tslint.report());
 });
 
-gulp.task('remap', function () {
+gulp.task('remap', () => {
 	return gulp.src('coverage/coverage.json')
 		.pipe(remapIstanbul({
 			reports: {
@@ -97,9 +93,16 @@ gulp.task('remap', function () {
 		}));
 });
 
-gulp.task('build-demo', seq('build', 'demo'));
-gulp.task('build-demo-tests', seq('build', 'demo', 'tests'));
-gulp.task('build-demo-coverage-remap', seq('build', 'demo', 'coverage', 'remap'));
-gulp.task('dev', seq('clean', buildTask, 'server', 'watch'));
+const buildTasks = [
+	'build',
+	argv.demo ? 'demo' : '',
+	argv.tests && !argv.coverage ? 'tests' : '',
+	argv.coverage ? 'coverage' : '',
+	argv.coverage ? 'remap' : ''
+].filter(x => !!x);
+
+gulp.task('empty', () => { });
+gulp.task('build-task', seq(...buildTasks));
+gulp.task('dev', seq('clean', ...buildTasks, argv.demo ? 'server' : 'empty', 'watch'));
 gulp.task('cov', seq('build', 'coverage', 'remap'));
 gulp.task('test', seq('build', 'tests'));

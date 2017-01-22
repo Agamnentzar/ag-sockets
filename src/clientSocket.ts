@@ -1,7 +1,7 @@
 import * as Promise from 'bluebird';
 import { assign, map } from 'lodash';
 import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
-import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary } from './utils';
+import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary, Deferred, deferred } from './utils';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
@@ -17,23 +17,6 @@ const defaultErrorHandler: ClientErrorHandler = {
 		throw error;
 	}
 };
-
-interface Deferred<T> {
-	promise: Promise<T>;
-	resolve(result?: T): void;
-	reject(error?: Error): void;
-}
-
-function deferred<T>(): Deferred<T> {
-	const obj: Deferred<T> = <any>{};
-
-	obj.promise = new Promise<T>(function (resolve, reject) {
-		obj.resolve = resolve;
-		obj.reject = reject;
-	});
-
-	return obj;
-}
 
 export class ClientSocket<TClient extends SocketClient, TServer extends SocketServer> implements SocketService<TClient, TServer> {
 	client: TClient = <any>{};
@@ -99,7 +82,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		const path = options.path || '/ws';
 		const protocol = (options.ssl || location.protocol === 'https:') ? 'wss://' : 'ws://';
 		const bin = this.supportsBinary;
-		const params = assign({}, options.requestParams || {}, options.token ? { t: options.token } : {}, { bin });
+		const params = assign({}, options.requestParams, options.token ? { t: options.token } : {}, { bin });
 		const query = map(params, (value: any, key: string) => `${key}=${encodeURIComponent(value)}`).join('&');
 		return `${protocol}${host}${path}?${query}`;
 	}
@@ -146,10 +129,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 
 			this.lastSentId = 0;
 			this.isConnected = true;
-
-			// notify server of binary support
-			if (this.supportsBinary)
-				this.send(typeof Buffer !== 'undefined' ? new Buffer(0) : new ArrayBuffer(0));
+			this.notifyServerOfBinarySupport();
 
 			if (this.client.connected)
 				this.client.connected();
@@ -215,6 +195,11 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 
 		window.removeEventListener('beforeunload', this.beforeunload);
 	}
+	private notifyServerOfBinarySupport() {
+		if (this.supportsBinary) {
+			this.send(typeof Buffer !== 'undefined' ? new Buffer(0) : new ArrayBuffer(0));
+		}
+	}
 	private send = (data: any) => {
 		if (this.socket && this.socket.readyState === WebSocket.OPEN) {
 			this.socket.send(data);
@@ -233,10 +218,12 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		} catch (e) { }
 	}
 	private createMethod(name: string, id: number, options: MethodOptions) {
-		if (options.promise) {
-			this.createPromiseMethod(name, id, options.progress);
-		} else {
-			this.createSimpleMethod(name, id);
+		if (name) {
+			if (options.promise) {
+				this.createPromiseMethod(name, id, options.progress);
+			} else {
+				this.createSimpleMethod(name, id);
+			}
 		}
 	}
 	private createSimpleMethod(name: string, id: number) {
@@ -259,7 +246,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			});
 		}
 
-		this.server[name] = (...args: any[]) => {
+		this.server[name] = (...args: any[]): Promise<any> => {
 			if (!this.isConnected)
 				return Promise.reject<any>(new Error('not connected'));
 

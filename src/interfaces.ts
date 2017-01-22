@@ -100,9 +100,11 @@ export interface ServerOptions {
 	/** custom request parameters */
 	requestParams?: any;
 	/** custom client verification method */
-	verifyClient?: (request: ServerRequest) => any;
+	verifyClient?: (request: ServerRequest) => boolean;
 	/** ws library or alternative */
 	ws?: any;
+	/** use ArrayBuffer instead of Buffer on server side */
+	arrayBuffer?: boolean;
 }
 
 export interface ClientOptions extends ServerOptions {

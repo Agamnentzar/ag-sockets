@@ -4,7 +4,7 @@ import * as Promise from 'bluebird';
 import { cloneDeep, assign, remove, findIndex } from 'lodash';
 import { parse as parseUrl } from 'url';
 import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger } from './interfaces';
-import { randomString, checkRateLimit, parseRateLimit, RateLimit } from './utils';
+import { randomString, checkRateLimit, parseRateLimit, RateLimit, getLength } from './utils';
 import { SocketServerClient, ErrorHandler } from './server';
 import { getSocketMetadata, getMethods } from './method';
 import { PacketHandler, MessageType, Packet, Send } from './packet/packetHandler';
@@ -12,6 +12,8 @@ import { DebugPacketHandler } from './packet/debugPacketHandler';
 import { createHandlers } from './packet/binaryHandler';
 import BufferPacketWriter from './packet/bufferPacketWriter';
 import BufferPacketReader from './packet/bufferPacketReader';
+import ArrayBufferPacketWriter from './packet/arrayBufferPacketWriter';
+import ArrayBufferPacketReader from './packet/arrayBufferPacketReader';
 
 export interface Token {
 	id: string;
@@ -91,6 +93,8 @@ export function createServer<TServer, TClient>(
 	}) as ClientOptions, errorHandler, log);
 }
 
+type AnyBuffer = Buffer | ArrayBuffer;
+
 export function create(
 	server: HttpServer,
 	createServer: (client: any) => SocketServer,
@@ -113,6 +117,7 @@ export function create(
 	const verifyClient = options.verifyClient;
 	const wsLibrary: typeof ws = (options.ws || ws) as any;
 
+	// TODO: create new options object instead
 	delete options.ws;
 	delete options.verifyClient;
 
@@ -150,41 +155,37 @@ export function create(
 		server: server,
 		path: options.path,
 		perMessageDeflate: typeof options.perMessageDeflate === 'undefined' ? true : options.perMessageDeflate,
-		verifyClient({ req }: { req: ServerRequest }, callback: (result: boolean) => void) {
-			Promise.resolve()
-				.then(() => verifyClient ? verifyClient(req) : true)
-				.then(result => {
-					if (!result) {
-						return false;
-					} else if (options.clientLimit && options.clientLimit <= clients.length) {
-						return false;
-					} else if (options.connectionTokens) {
-						return hasToken(parseUrl(req.url || '', true).query.t);
-					} else {
-						return true;
-					}
-				})
-				.then(result => callback(result))
-				.catch((e: Error) => {
-					errorHandler.handleError(null, e);
-					callback(false);
-				});
+		verifyClient({ req }: { req: ServerRequest }) {
+			try {
+				if (verifyClient && !verifyClient(req))
+					return false;
+
+				if (options.clientLimit && options.clientLimit <= clients.length)
+					return false;
+
+				if (options.connectionTokens)
+					return hasToken(parseUrl(req.url || '', true).query.t);
+
+				return true;
+			} catch (e) {
+				errorHandler.handleError(null, e);
+				return false;
+			};
 		}
 	});
 
 	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
-	const reader = new BufferPacketReader();
-	const writer = new BufferPacketWriter();
+	const reader = options.arrayBuffer ? new ArrayBufferPacketReader() : new BufferPacketReader();
+	const writer = options.arrayBuffer ? new ArrayBufferPacketWriter() : new BufferPacketWriter();
 	const serverMethods = getNames(options.server);
 	const clientMethods = getNames(options.client);
 	const ignore = getIgnore(options.client).concat(getIgnore(options.server));
-	const packetHandler = options.debug ?
-		new DebugPacketHandler(serverMethods, serverMethods, writer, reader, handlers, ignore, log) :
-		new PacketHandler(serverMethods, serverMethods, writer, reader, handlers);
+	const packetHandler: PacketHandler<AnyBuffer> = options.debug ?
+		new DebugPacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers, ignore, log) :
+		new PacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers);
 
 	const proxy: any = {};
 	let proxyPacket: Packet | null = null;
-	//let clients: any[];
 
 	clientMethods.forEach((name, id) => proxy[name] = (...args: any[]) => proxyPacket = { id, name, args: [id, ...args] });
 
@@ -226,6 +227,7 @@ export function create(
 			.map(v => v ? assign({ calls: [], promise: !!v.promise }, parseRateLimit(v.rateLimit!)) as RateLimit : null);
 
 		let bytesReset = Date.now();
+		let bytesReceived = 0;
 		let transferLimitExceeded = false;
 
 		const obj: Client = {
@@ -269,13 +271,15 @@ export function create(
 
 		const serverActions: SocketServer = createServer(obj.client);
 
-		socket.on('message', (message: string | Buffer, flags?: { binary: boolean; }) => {
+		socket.on('message', (message: string | Buffer | ArrayBuffer, flags?: { binary: boolean; }) => {
 			if (transferLimitExceeded)
 				return;
 
+			bytesReceived += socket.bytesReceived ? socket.bytesReceived : getLength(message);
+
 			const now = Date.now();
 			const diff = now - bytesReset;
-			const bytesPerSecond = socket.bytesReceived * 1000 / Math.max(1000, diff);
+			const bytesPerSecond = bytesReceived * 1000 / Math.max(1000, diff);
 
 			if (options.transferLimit && options.transferLimit < bytesPerSecond) {
 				transferLimitExceeded = true;
@@ -287,7 +291,7 @@ export function create(
 			obj.lastMessageTime = Date.now();
 			obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
 
-			if (message && message.length) {
+			if (message && getLength(message)) {
 				obj.lastMessageId++;
 				const messageId = obj.lastMessageId;
 
@@ -309,7 +313,7 @@ export function create(
 			}
 
 			if (diff > 1000) {
-				socket.bytesReceived = 0;
+				bytesReceived = 0;
 				bytesReset = now;
 			}
 		});
