@@ -14,6 +14,20 @@ npm install ws # peer dependency
 
 ## Usage
 
+### Using with [µWebSockets](https://github.com/uWebSockets/uWebSockets)
+
+```
+npm install uws
+```
+
+```typescript
+import * as uws from 'uws';
+import { createServer } from 'ag-sockets';
+
+// ...
+const wsServer = createServer(..., { ws: uws, arrayBuffer: true });
+```
+
 ### Set up sockets
 
 #### Common interfaces
