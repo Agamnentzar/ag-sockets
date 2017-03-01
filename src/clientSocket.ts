@@ -210,8 +210,9 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private sendPing() {
 		try {
 			const now = Date.now();
+			const interval = this.options.pingInterval;
 
-			if (this.versionValidated && (now - this.lastPing) > this.options.pingInterval && this.send('')) {
+			if (this.versionValidated && interval && (now - this.lastPing) > interval && this.send('')) {
 				this.lastPing = now;
 			}
 		} catch (e) { }

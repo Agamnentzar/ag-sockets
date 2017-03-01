@@ -157,14 +157,14 @@ export function create(
 	let tokens: Token[] = [];
 	const clients: Client[] = [];
 	const verifyClient = options.verifyClient;
-	const wsLibrary: typeof ws = (options.ws || ws) as any;
+	const wsLibrary: typeof ws = (options.ws || require('ws')) as any;
 	const clientOptions = toClientOptions(options);
 
 	function createToken(data?: any): Token {
 		const token = {
 			id: randomString(16),
 			data,
-			expire: Date.now() + options.tokenLifetime,
+			expire: Date.now() + options.tokenLifetime!,
 		};
 		tokens.push(token);
 		return token;
@@ -193,7 +193,7 @@ export function create(
 		server: server,
 		path: options.path,
 		perMessageDeflate: typeof options.perMessageDeflate === 'undefined' ? true : options.perMessageDeflate,
-		verifyClient({ req }) {
+		verifyClient({ req }: { req: IncomingMessage }) {
 			try {
 				if (verifyClient && !verifyClient(req))
 					return false;
@@ -369,7 +369,7 @@ export function create(
 			}
 
 			if (obj.token) {
-				obj.token.expire = Date.now() + options.tokenLifetime;
+				obj.token.expire = Date.now() + options.tokenLifetime!;
 				tokens.push(obj.token);
 			}
 		});
@@ -410,7 +410,7 @@ export function create(
 
 			clients.forEach(c => {
 				try {
-					if ((now - c.lastMessageTime) > options.connectionTimeout) {
+					if ((now - c.lastMessageTime) > options.connectionTimeout!) {
 						c.client.disconnect();
 					} else {
 						c.ping();

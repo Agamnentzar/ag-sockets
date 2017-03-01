@@ -1,4 +1,5 @@
 import './common';
+import { VerifyClientCallbackSync } from 'ws';
 import * as Promise from 'bluebird';
 import * as http from 'http';
 import { expect } from 'chai';
@@ -212,7 +213,8 @@ describe('serverSocket', function () {
 
 				socketServer.clearTokens((_, data) => data.remove);
 
-				expect(getLastServer().options.verifyClient!({ req: { url: `?t=${token}` } } as any, () => { })).false;
+				const verifyClient = getLastServer().options.verifyClient! as VerifyClientCallbackSync;
+				expect(verifyClient({ req: { url: `?t=${token}` } } as any)).false;
 			});
 
 			it('does not clear not marked token', function () {
@@ -221,7 +223,8 @@ describe('serverSocket', function () {
 
 				socketServer.clearTokens((_, data) => data.remove);
 
-				expect(getLastServer().options.verifyClient!({ req: { url: `?t=${token}` } } as any, () => { })).true;
+				const verifyClient = getLastServer().options.verifyClient! as VerifyClientCallbackSync;
+				expect(verifyClient({ req: { url: `?t=${token}` } } as any)).true;
 			});
 
 			it('disconnects client using marked token', function () {
@@ -607,7 +610,8 @@ describe('serverSocket', function () {
 		}
 
 		function verify(server: MockWebSocketServer, info: any = {}) {
-			return server.options.verifyClient!(info, () => { });
+			const verifyClient = server.options.verifyClient! as VerifyClientCallbackSync;
+			return verifyClient(info);
 		}
 
 		it('returns true by default', function () {
