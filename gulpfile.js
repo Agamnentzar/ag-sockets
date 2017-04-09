@@ -45,18 +45,14 @@ gulp.task('demo', () => {
 
 gulp.task('tests', () => {
 	return gulp.src('dist/test/**/*.js', { read: false })
-		.pipe(mocha({
-			reporter: 'dot',
-		}));
+		.pipe(mocha({ reporter: 'dot' }));
 });
 
 gulp.task('coverage', () => {
 	return gulp.src('dist/test/**/*.js', { read: false })
 		.pipe(mocha({
 			reporter: 'dot',
-			istanbul: {
-				print: 'none',
-			},
+			istanbul: { print: 'none' },
 		}));
 });
 
@@ -76,21 +72,13 @@ gulp.task('watch', () => {
 
 gulp.task('lint', () => {
 	return gulp.src(scripts)
-		.pipe(plumber())
-		.pipe(tslint({
-			report: 'verbose',
-			configuration: require('./tslint.json')
-		}))
+		.pipe(tslint({ formatter: 'verbose' }))
 		.pipe(tslint.report());
 });
 
 gulp.task('remap', () => {
 	return gulp.src('coverage/coverage.json')
-		.pipe(remapIstanbul({
-			reports: {
-				html: 'coverage-remapped'
-			}
-		}));
+		.pipe(remapIstanbul({ reports: { html: 'coverage-remapped' } }));
 });
 
 const buildTasks = [

@@ -124,6 +124,14 @@ function toClientOptions(options: ServerOptions): ClientOptions {
 	};
 }
 
+function createRateLimit(method: MethodDef): RateLimit | undefined {
+	return Array.isArray(method) && method[1].rateLimit ? {
+		calls: [],
+		promise: !!method[1].promise,
+		...parseRateLimit(method[1].rateLimit!, 2),
+	} : void 0;
+}
+
 export function createServer<TServer, TClient>(
 	httpServer: HttpServer,
 	serverType: new (...args: any[]) => TServer,
@@ -182,6 +190,8 @@ export function create(
 			const { client, token } = clients[index];
 			client.disconnect(true);
 			return token;
+		} else {
+			return void 0;
 		}
 	}
 
@@ -208,7 +218,7 @@ export function create(
 			} catch (e) {
 				errorHandler.handleError(null, e);
 				return false;
-			};
+			}
 		}
 	});
 
@@ -223,14 +233,14 @@ export function create(
 		new PacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers);
 
 	const proxy: any = {};
-	let proxyPacket: Packet | null = null;
+	let proxyPacket: Packet | undefined;
 
 	clientMethods.forEach((name, id) => proxy[name] = (...args: any[]) => proxyPacket = { id, name, args: [id, ...args] });
 
 	function createPacket(action: (client: any) => any): Packet {
 		action(proxy);
 		const packet = proxyPacket!;
-		proxyPacket = null;
+		proxyPacket = void 0;
 		return packet;
 	}
 
@@ -260,9 +270,7 @@ export function create(
 			return;
 		}
 
-		const rates = options.server!
-			.map(v => typeof v !== 'string' && v[1].rateLimit ? v[1] : null)
-			.map(v => v ? Object.assign({ calls: [], promise: !!v.promise }, parseRateLimit(v.rateLimit!)) as RateLimit : null);
+		const rates = options.server!.map(createRateLimit);
 
 		let bytesReset = Date.now();
 		let bytesReceived = 0;

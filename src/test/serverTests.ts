@@ -60,7 +60,7 @@ function bufferEqual(expectation: number[]) {
 
 			return true;
 		}));
-};
+}
 
 function emptyErrorHandler(): ErrorHandler {
 	return {
@@ -267,7 +267,7 @@ describe('serverSocket', function () {
 
 				client.invoke('message', '[0,"hello there"]');
 
-				assert.calledWith(hello, "hello there");
+				assert.calledWith(hello, 'hello there');
 			});
 
 			it('does not call method if exceeded limit (one message)', function () {
@@ -491,13 +491,15 @@ describe('serverSocket', function () {
 
 				client.invoke('message', '[2]');
 				client.invoke('message', '[2]');
+				client.invoke('message', '[2]');
 
-				assert.calledOnce(rate);
+				assert.calledTwice(rate);
 			});
 
 			it('logs recv error if rate limit is exceeded', function () {
 				const client = server.connectClient();
 
+				client.invoke('message', '[2]');
 				client.invoke('message', '[2]');
 				client.invoke('message', '[2]');
 
@@ -507,8 +509,9 @@ describe('serverSocket', function () {
 			it('sends reject if rate limit is exceeded on method with promise', function () {
 				const client = server.connectClient();
 				const send = stub(client, 'send');
-				const data = JSON.stringify([MessageType.Rejected, 3, 2, 'Rate limit exceeded']);
+				const data = JSON.stringify([MessageType.Rejected, 3, 3, 'Rate limit exceeded']);
 
+				client.invoke('message', '[3]');
 				client.invoke('message', '[3]');
 				client.invoke('message', '[3]');
 
@@ -519,6 +522,7 @@ describe('serverSocket', function () {
 			it('logs rejection error if rate limit is exceeded on method with promise', function () {
 				const client = server.connectClient();
 
+				client.invoke('message', '[3]');
 				client.invoke('message', '[3]');
 				client.invoke('message', '[3]');
 

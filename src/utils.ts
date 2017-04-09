@@ -32,15 +32,15 @@ const times: { [key: string]: number; } = {
 	h: 1000 * 60 * 60,
 };
 
-export function parseRateLimit(value: string) {
+export function parseRateLimit(value: string, mutiplier = 1) {
 	const m = /^(\d+)\/(\d+)?([smh])$/.exec(value);
 
 	if (!m) {
 		throw new Error('Invalid rate limit value');
 	}
 
-	const limit = +m[1];
-	const frame = +(m[2] || '1') * times[m[3]];
+	const limit = +m[1] * mutiplier;
+	const frame = +(m[2] || '1') * times[m[3]] * mutiplier;
 	return { limit, frame };
 }
 
@@ -51,7 +51,7 @@ export interface RateLimit {
 	promise?: boolean;
 }
 
-export function checkRateLimit(funcId: number, rates: (RateLimit | null)[]) {
+export function checkRateLimit(funcId: number, rates: (RateLimit | undefined)[]) {
 	const rate = rates[funcId];
 
 	if (rate) {
