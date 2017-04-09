@@ -1,5 +1,4 @@
 import * as Promise from 'bluebird';
-import { assign } from 'lodash';
 import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
 import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary, Deferred, deferred, queryString } from './utils';
 import { createHandlers } from './packet/binaryHandler';
@@ -62,7 +61,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				const rateLimit = item[1].rateLimit;
 
 				if (rateLimit) {
-					this.rateLimits[id] = assign({ calls: [] }, parseRateLimit(rateLimit)) as RateLimit;
+					this.rateLimits[id] = { calls: [], ...parseRateLimit(rateLimit, false) };
 				}
 			}
 		});
@@ -82,7 +81,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		const protocol = (options.ssl || location.protocol === 'https:') ? 'wss://' : 'ws://';
 		const host = options.host || location.host;
 		const path = options.path || '/ws';
-		const query = queryString(assign({}, options.requestParams, { t: this.token, bin: this.supportsBinary }));
+		const query = queryString({ ...options.requestParams, t: this.token, bin: this.supportsBinary });
 		return `${protocol}${host}${path}${query}`;
 	}
 	connect() {

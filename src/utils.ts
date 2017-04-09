@@ -32,15 +32,21 @@ const times: { [key: string]: number; } = {
 	h: 1000 * 60 * 60,
 };
 
-export function parseRateLimit(value: string, mutiplier = 1) {
+export function parseRateLimit(value: string, extended: boolean) {
 	const m = /^(\d+)\/(\d+)?([smh])$/.exec(value);
 
 	if (!m) {
 		throw new Error('Invalid rate limit value');
 	}
 
-	const limit = +m[1] * mutiplier;
-	const frame = +(m[2] || '1') * times[m[3]] * mutiplier;
+	let limit = +m[1];
+	let frame = +(m[2] || '1') * times[m[3]];
+
+	if (extended && frame < 5000) {
+		limit *= 2;
+		frame *= 2;
+	}
+
 	return { limit, frame };
 }
 

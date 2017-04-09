@@ -128,7 +128,7 @@ function createRateLimit(method: MethodDef): RateLimit | undefined {
 	return Array.isArray(method) && method[1].rateLimit ? {
 		calls: [],
 		promise: !!method[1].promise,
-		...parseRateLimit(method[1].rateLimit!, 2),
+		...parseRateLimit(method[1].rateLimit!, true),
 	} : void 0;
 }
 

@@ -75,35 +75,43 @@ describe('queryString()', function () {
 
 describe('parseRateLimit()', function () {
 	it('throws on null', function () {
-		expect(() => parseRateLimit(null as any)).throw();
+		expect(() => parseRateLimit(null as any, false)).throw();
 	});
 
 	it('throws on empty', function () {
-		expect(() => parseRateLimit('')).throw();
+		expect(() => parseRateLimit('', false)).throw();
 	});
 
 	it('throws on invalid', function () {
-		expect(() => parseRateLimit('sgdf')).throw();
+		expect(() => parseRateLimit('sgdf', false)).throw();
 	});
 
 	it('returns correct value for 1/s', function () {
-		expect(parseRateLimit('1/s')).eql({ limit: 1, frame: 1000 });
+		expect(parseRateLimit('1/s', false)).eql({ limit: 1, frame: 1000 });
 	});
 
 	it('returns correct value for 5/s', function () {
-		expect(parseRateLimit('5/s')).eql({ limit: 5, frame: 1000 });
+		expect(parseRateLimit('5/s', false)).eql({ limit: 5, frame: 1000 });
 	});
 
 	it('returns correct value for 5/10s', function () {
-		expect(parseRateLimit('5/10s')).eql({ limit: 5, frame: 10000 });
+		expect(parseRateLimit('5/10s', false)).eql({ limit: 5, frame: 10000 });
 	});
 
 	it('returns correct value for 5/m', function () {
-		expect(parseRateLimit('5/m')).eql({ limit: 5, frame: 60 * 1000 });
+		expect(parseRateLimit('5/m', false)).eql({ limit: 5, frame: 60 * 1000 });
 	});
 
 	it('returns correct value for 1/h', function () {
-		expect(parseRateLimit('1/h')).eql({ limit: 1, frame: 3600 * 1000 });
+		expect(parseRateLimit('1/h', false)).eql({ limit: 1, frame: 3600 * 1000 });
+	});
+
+	it('extends time', function () {
+		expect(parseRateLimit('1/s', true)).eql({ limit: 2, frame: 2 * 1000 });
+	});
+
+	it('does not extend long time', function () {
+		expect(parseRateLimit('1/h', true)).eql({ limit: 1, frame: 3600 * 1000 });
 	});
 });
 
