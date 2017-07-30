@@ -2,9 +2,9 @@ import './common';
 import * as Promise from 'bluebird';
 import { expect } from 'chai';
 import { stub, spy, assert } from 'sinon';
-import { cloneDeep } from 'lodash';
 import { MessageType } from '../packet/packetHandler';
 import { ClientOptions, ClientSocket, SocketClient, SocketServer, SocketService, ClientErrorHandler } from '../index';
+import { cloneDeep } from '../utils';
 
 let lastWebSocket: MockWebSocket;
 

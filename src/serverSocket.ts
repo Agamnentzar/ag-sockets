@@ -1,10 +1,9 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
 import * as ws from 'ws';
 import * as Promise from 'bluebird';
-import { cloneDeep, remove, findIndex } from 'lodash';
 import { parse as parseUrl } from 'url';
 import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger } from './interfaces';
-import { randomString, checkRateLimit, parseRateLimit, RateLimit, getLength } from './utils';
+import { randomString, checkRateLimit, parseRateLimit, RateLimit, getLength, cloneDeep } from './utils';
 import { SocketServerClient, ErrorHandler, OriginalRequest } from './server';
 import { getSocketMetadata, getMethods } from './method';
 import { PacketHandler, MessageType, Packet, Send } from './packet/packetHandler';
@@ -52,10 +51,6 @@ const defaultErrorHandler: ErrorHandler = {
 	handleRejection() { },
 	handleRecvError() { },
 };
-
-function toOriginalRequest({ headers, url }: IncomingMessage): OriginalRequest {
-	return { headers, url };
-}
 
 function getMethodsFromType(ctor: Function) {
 	return getMethods(ctor).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
@@ -179,12 +174,30 @@ export function create(
 	}
 
 	function getToken(id: string): Token | null {
-		const token = remove(tokens, t => t.id === id)[0];
-		return token && token.expire < Date.now() ? null : token;
+		for (let i = 0; i < tokens.length; i++) {
+			const token = tokens[i];
+
+			if (token.id === id) {
+				tokens.splice(i, 1);
+				return token.expire < Date.now() ? null : token;
+			}
+		}
+
+		return null;
+	}
+
+	function findIndex<T>(array: T[], test: (item: T) => boolean): number {
+		for (let i = 0; i < array.length; i++) {
+			if (test(array[i])) {
+				return i;
+			}
+		}
+
+		return -1;
 	}
 
 	function getTokenFromClient(id: string): Token | undefined {
-		const index = findIndex(clients, c => c.token && c.token.id === id);
+		const index = findIndex(clients, c => !!c.token && c.token.id === id);
 
 		if (index !== -1) {
 			const { client, token } = clients[index];
@@ -260,12 +273,23 @@ export function create(
 		}
 	}
 
-	function onConnection(socket: ws) {
-		const query = parseUrl(socket.upgradeReq.url || '', true).query;
+	function createOriginalRequest(socket: ws & { upgradeReq?: IncomingMessage; }, request: IncomingMessage | undefined): OriginalRequest {
+		if (request) {
+			return { url: request.url || '', headers: request.headers };
+		} else if (socket.upgradeReq) {
+			return { url: socket.upgradeReq.url || '', headers: socket.upgradeReq.headers };
+		} else {
+			return { url: '', headers: {} };
+		}
+	}
+
+	function onConnection(socket: ws, request: IncomingMessage | undefined) {
+		const originalRequest = createOriginalRequest(socket, request);
+		const query = parseUrl(originalRequest.url, true).query;
 		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : void 0;
 
 		if (options.connectionTokens && !token) {
-			errorHandler.handleError({ originalRequest: toOriginalRequest(socket.upgradeReq) } as any, new Error(`Invalid token: ${query.t}`));
+			errorHandler.handleError({ originalRequest } as any, new Error(`Invalid token: ${query.t}`));
 			socket.terminate();
 			return;
 		}
@@ -293,7 +317,7 @@ export function create(
 				isConnected: true,
 				tokenId: token ? token.id : void 0,
 				tokenData: token ? token.data : void 0,
-				originalRequest: options.keepOriginalRequest ? toOriginalRequest(socket.upgradeReq) : void 0,
+				originalRequest: options.keepOriginalRequest ? originalRequest : void 0,
 				disconnect(force = false, invalidateToken = false) {
 					if (invalidateToken) {
 						delete obj.token;
@@ -398,9 +422,9 @@ export function create(
 		}
 	}
 
-	wsServer.on('connection', socket => {
+	wsServer.on('connection', (socket, request) => {
 		try {
-			onConnection(socket);
+			onConnection(socket, request);
 		} catch (e) {
 			socket.terminate();
 			errorHandler.handleError(null, e);

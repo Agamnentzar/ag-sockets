@@ -1,5 +1,4 @@
 import * as Promise from 'bluebird';
-import { remove } from 'lodash';
 
 const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
 
@@ -24,6 +23,10 @@ export function queryString(params: any) {
 		.join('&');
 
 	return query ? `?${query}` : '';
+}
+
+export function cloneDeep<T>(value: T): T {
+	return JSON.parse(JSON.stringify(value));
 }
 
 const times: { [key: string]: number; } = {
@@ -64,7 +67,11 @@ export function checkRateLimit(funcId: number, rates: (RateLimit | undefined)[])
 		const now = Date.now();
 		const min = now - rate.frame;
 
-		remove(rate.calls, x => x < min);
+		for (let i = rate.calls.length - 1; i >= 0; i--) {
+			if (rate.calls[i] < min) {
+				rate.calls.splice(i, 1);
+			}
+		}
 
 		if (rate.calls.length >= rate.limit) {
 			return false;

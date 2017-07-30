@@ -87,7 +87,7 @@ const buildTasks = [
 	argv.tests && !argv.coverage ? 'tests' : '',
 	argv.coverage ? 'coverage' : '',
 	argv.coverage ? 'remap' : ''
-].filter(x => !!x);
+].filter(x => x);
 
 gulp.task('empty', () => { });
 gulp.task('build-task', seq(...buildTasks));

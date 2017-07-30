@@ -18,8 +18,7 @@
     "main": "dist/browser.js",
     "jspmNodeConversion": false,
     "dependencies": {
-      "bluebird": "^3.4.7",
-      "lodash": "^4.17.4"
+      "bluebird": "^3.4.7"
     }
   },
   "author": "Agamnentzar",
@@ -31,40 +30,38 @@
     "ws": "*"
   },
   "devDependencies": {
-    "@types/bluebird": "^3.0.37",
-    "@types/express": "^4.0.35",
-    "@types/lodash": "^4.14.53",
-    "@types/mocha": "^2.2.39",
-    "@types/node": "^7.0.5",
+    "@types/bluebird": "^3.5.8",
+    "@types/express": "^4.0.36",
+    "@types/mocha": "^2.2.41",
+    "@types/node": "^8.0.17",
     "@types/promises-a-plus": "0.0.27",
-    "@types/sinon": "^2.1.2",
+    "@types/sinon": "^2.3.3",
     "@types/uws": "^0.13.0",
-    "@types/ws": "0.0.39",
-    "chai": "^3.5.0",
-    "chai-as-promised": "^6.0.0",
-    "del": "^2.2.2",
-    "express": "^4.14.1",
+    "@types/ws": "^3.0.2",
+    "chai": "^4.1.0",
+    "chai-as-promised": "^7.1.1",
+    "del": "^3.0.0",
+    "express": "^4.15.3",
     "gulp": "^3.9.1",
-    "gulp-live-server": "0.0.30",
+    "gulp-live-server": "0.0.31",
     "gulp-plumber": "^1.1.0",
-    "gulp-spawn-mocha": "^3.1.0",
-    "gulp-tslint": "^7.1.0",
-    "gulp-typescript": "^3.1.5",
+    "gulp-spawn-mocha": "^3.3.1",
+    "gulp-tslint": "^8.1.1",
+    "gulp-typescript": "^3.2.1",
     "istanbul": "^0.4.5",
-    "merge2": "^1.0.3",
-    "mocha": "^3.2.0",
+    "merge2": "^1.1.0",
+    "mocha": "^3.4.2",
     "remap-istanbul": "^0.9.1",
-    "run-sequence": "^1.2.2",
-    "sinon": "^2.1.0",
-    "source-map-support": "^0.4.11",
-    "systemjs-builder": "^0.16.3",
-    "tslint": "^5.0.0",
-    "typescript": "^2.2.1",
-    "ws": "*",
-    "uws": "*"
+    "run-sequence": "^2.1.0",
+    "sinon": "^2.4.1",
+    "source-map-support": "^0.4.15",
+    "systemjs-builder": "^0.16.9",
+    "tslint": "^5.5.0",
+    "typescript": "^2.4.2",
+    "uws": "^8.14.0",
+    "ws": "^3.1.0"
   },
   "dependencies": {
-    "bluebird": "*",
-    "lodash": "*"
+    "bluebird": "*"
   }
 }

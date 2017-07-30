@@ -1,7 +1,10 @@
-import { isNumber, isString, isObject } from 'lodash';
 import { Bin } from './interfaces';
 
 type Validator = (value: any) => boolean;
+
+function isNumber(value: any): value is number {
+	return typeof value === 'number';
+}
 
 function isInt(min: number, max: number) {
 	return (value: any) => isNumber(value) && ((value | 0) === value) && value >= min && value <= max;
@@ -21,8 +24,8 @@ validators[Bin.I32] = isInt(-2147483648, 2147483647);
 validators[Bin.F32] = value => isNumber(value);
 validators[Bin.F64] = value => isNumber(value);
 validators[Bin.Bool] = value => value === true || value === false;
-validators[Bin.Str] = value => value === null || isString(value);
-validators[Bin.Obj] = value => value === null || isObject(value);
+validators[Bin.Str] = value => value === null || typeof value === 'string';
+validators[Bin.Obj] = value => value === null || typeof value === 'object';
 
 export function isValid(value: any, def: any): boolean {
 	if (Array.isArray(def)) {

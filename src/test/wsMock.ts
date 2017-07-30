@@ -1,4 +1,3 @@
-import { range } from 'lodash';
 import * as ws from 'ws';
 import { queryString } from '../utils';
 
@@ -33,7 +32,12 @@ export class MockWebSocketServer extends MockEventEmitter {
 		return socket;
 	}
 	connectClients(count: number) {
-		return range(count).map(() => this.connectClient());
+		const result: MockWebSocket[] = [];
+
+		for (let i = 0; i < count; i++)
+			result.push(this.connectClient());
+
+		return result;
 	}
 }
 

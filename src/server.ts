@@ -2,7 +2,7 @@ import { SocketClient } from './interfaces';
 
 export interface OriginalRequest {
 	headers: any;
-	url?: string;
+	url: string;
 }
 
 export interface ClientExtensions {
