@@ -158,6 +158,12 @@ describe('ClientSocket + Server', function () {
 				return expect(clientSocket.server.login('fail')).rejectedWith('fail');
 			});
 
+			it('should send error from error handler instead of original error', function () {
+				stub(errorHandler, 'handleRejection').returns(new Error('aaa'));
+
+				return expect(clientSocket.server.login('fail')).rejectedWith('aaa');
+			});
+
 			it('should handle rejected promise with null error from server method', function () {
 				return expect(clientSocket.server.nullReject()).rejectedWith('error');
 			});

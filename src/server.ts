@@ -18,6 +18,6 @@ export type SocketServerClient = SocketClient & ClientExtensions;
 
 export interface ErrorHandler {
 	handleError(obj: SocketServerClient | null, e: Error): void;
-	handleRejection(obj: SocketServerClient, e: Error): void;
+	handleRejection(obj: SocketServerClient, e: Error): Error | void;
 	handleRecvError(obj: SocketServerClient, e: Error, message: string | Buffer | ArrayBuffer): void;
 }

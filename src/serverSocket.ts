@@ -267,7 +267,7 @@ export function create(
 			result.then(result => {
 				packetHandler.send(send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result], obj.supportsBinary);
 			}, (e: Error) => {
-				errorHandler.handleRejection(obj.client, e);
+				e = errorHandler.handleRejection(obj.client, e) || e;
 				packetHandler.send(send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'], obj.supportsBinary);
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}

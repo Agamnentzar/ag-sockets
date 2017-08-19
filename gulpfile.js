@@ -84,8 +84,7 @@ gulp.task('remap', () => {
 const buildTasks = [
 	'build',
 	argv.demo ? 'demo' : '',
-	argv.tests && !argv.coverage ? 'tests' : '',
-	argv.coverage ? 'coverage' : '',
+	argv.coverage ? 'coverage' : 'tests',
 	argv.coverage ? 'remap' : ''
 ].filter(x => x);
 
