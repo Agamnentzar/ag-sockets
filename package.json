@@ -12,7 +12,7 @@
   "scripts": {
     "test": "gulp test",
     "build": "gulp build",
-    "prepublish": "gulp build"
+    "prepublishOnly": "gulp build"
   },
   "jspm": {
     "main": "dist/browser.js",
