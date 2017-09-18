@@ -89,6 +89,14 @@ export interface CommonOptions {
 	requestParams?: any;
 }
 
+export interface Packet {
+	id: number;
+	name: string;
+	args: any[];
+	binary?: any;
+	json?: string;
+}
+
 export interface ServerOptions extends CommonOptions {
 	/** time after after last message from client when server assumes client is not in milliseconds */
 	connectionTimeout?: number;
@@ -110,6 +118,9 @@ export interface ServerOptions extends CommonOptions {
 	arrayBuffer?: boolean;
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
+	/** send/recv handlers */
+	onSend?: (packet: Packet) => void;
+	onRecv?: (packet: Packet) => void;
 	client?: MethodDef[];
 	server?: MethodDef[];
 }

@@ -1,18 +1,10 @@
-import { FuncList } from '../interfaces';
+import { FuncList, Packet } from '../interfaces';
 import { getLength } from '../utils';
 import { PacketWriter } from './packetWriter';
 import { PacketReader } from './packetReader';
 
 export interface Send {
 	(data: any): void;
-}
-
-export interface Packet {
-	id: number;
-	name: string;
-	args: any[];
-	binary?: any;
-	json?: string;
 }
 
 export const enum MessageType {
@@ -42,13 +34,22 @@ export interface IFunctionHandler {
 	(funcId: number, funcName: string, func: Function, funcObj: any, args: any[]): void;
 }
 
-export const defaultHandleFunction: IFunctionHandler = (_funcId, _funcName, func, funcObj, args) => func.apply(funcObj, args);
+export const defaultHandleFunction: IFunctionHandler =
+	(_funcId, _funcName, func, funcObj, args) => func.apply(funcObj, args);
 
 export class PacketHandler<T> {
 	private writeHandlers: IBinaryWriteHandlers<T>;
 	private readHandlers: IBinaryReadHandlers<T>;
 	protected lastWriteBinary = false;
-	constructor(private readNames: string[], private remoteNames: string[], private packetWriter: PacketWriter<T>, private packetReader: PacketReader<T>, handlers: IBinaryHandlers<T>) {
+	constructor(
+		private readNames: string[],
+		private remoteNames: string[],
+		private packetWriter: PacketWriter<T>,
+		private packetReader: PacketReader<T>,
+		handlers: IBinaryHandlers<T>,
+		private onSend?: (packet: Packet) => void,
+		private onRecv?: (packet: Packet) => void,
+	) {
 		this.writeHandlers = handlers.write;
 		this.readHandlers = handlers.read;
 	}
@@ -113,7 +114,13 @@ export class PacketHandler<T> {
 	}
 	sendPacket(send: Send, packet: Packet, supportsBinary: boolean): number {
 		try {
-			return this.writePacket(send, packet, supportsBinary);
+			const size = this.writePacket(send, packet, supportsBinary);
+
+			if (this.onSend) {
+				this.onSend(packet);
+			}
+
+			return size;
 		} catch (e) {
 			return 0;
 		}
@@ -128,6 +135,17 @@ export class PacketHandler<T> {
 
 		if (func) {
 			handleFunction(funcId, funcName, func, funcObj, args);
+		}
+
+		if (this.onRecv) {
+			const binary = typeof data !== 'string';
+			this.onRecv({
+				id: funcId,
+				name: funcName,
+				args, binary:
+				binary ? data : void 0,
+				json: binary ? void 0 : data as any,
+			});
 		}
 
 		return getLength(data);

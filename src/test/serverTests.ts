@@ -120,7 +120,7 @@ describe('serverSocket', function () {
 		});
 	});
 
-	describe('createServer() (mock)', function () {
+	describe('createServer() (mock) (creation)', function () {
 		it('createServerRaw() should throw if passed empty client or server method definitions', function () {
 			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: [], server: null } as any)).throws('Missing server or client method definitions');
 			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: null, server: [] } as any)).throws('Missing server or client method definitions');
@@ -333,16 +333,20 @@ describe('serverSocket', function () {
 		let errorHandler: ErrorHandler;
 		let servers: Server1[] = [];
 		let onServer: (s: Server1) => void;
+		let onSend: SinonStub;
+		let onRecv: SinonStub;
 
 		beforeEach(function () {
 			errorHandler = defaultErrorHandler();
 			servers = [];
 			onServer = s => servers.push(s);
+			onSend = stub();
+			onRecv = stub();
 			serverSocket = createServer(httpServer, Server1, Client1, client => {
 				const s = new Server1(client);
 				onServer(s);
 				return s;
-			}, { ws, path: '/foo', perMessageDeflate: false }, errorHandler);
+			}, { ws, path: '/foo', perMessageDeflate: false, onSend, onRecv }, errorHandler);
 			server = getLastServer();
 		});
 
@@ -440,11 +444,19 @@ describe('serverSocket', function () {
 
 		it('handles message from client', function () {
 			const client = server.connectClient();
-			const hello = stub(servers[0]!, 'hello');
+			const hello = stub(servers[0], 'hello');
 
-			client.invoke('message', '[0, "test"]');
+			client.invoke('message', '[0,"test"]');
 
 			assert.calledWith(hello, 'test');
+		});
+
+		it('reports received packet to onRecv hook', function () {
+			const client = server.connectClient();
+
+			client.invoke('message', '[0,"test"]');
+
+			assert.calledWithMatch(onRecv, { id: 0, name: 'hello', json: '[0,"test"]', args: ['test'] });
 		});
 
 		it('sends promise result back to client', function () {
@@ -474,6 +486,15 @@ describe('serverSocket', function () {
 			servers[0].client.bye(5);
 
 			assert.calledWith(send, bufferEqual([1, 5]));
+		});
+
+		it('reports sent packet to onSend hook', function () {
+			const client = server.connectClient(true);
+			const send = stub(client, 'send');
+
+			servers[0].client.bye(5);
+
+			assert.calledWithMatch(onSend, { id: 1, name: 'bye', binary: send.args[0][0], args: [1, 5] });
 		});
 
 		describe('(rate limit)', function () {
@@ -677,7 +698,7 @@ describe('serverSocket', function () {
 		it('returns client options', function () {
 			const options = createClientOptions(Server1, Client1, { ws });
 
-			expect(withoutUndefinedProperties(options)).eql(Object.assign({ hash: options.hash }, CLIENT_OPTIONS));
+			expect(withoutUndefinedProperties(options)).eql({ hash: options.hash, ...CLIENT_OPTIONS });
 		});
 	});
 });

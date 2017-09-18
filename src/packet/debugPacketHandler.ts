@@ -1,7 +1,7 @@
-import { FuncList, Logger } from '../interfaces';
+import { FuncList, Logger, Packet } from '../interfaces';
 import { PacketWriter } from './packetWriter';
 import { PacketReader } from './packetReader';
-import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction, Packet, Send } from './packetHandler';
+import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction, Send } from './packetHandler';
 
 export class DebugPacketHandler<T> extends PacketHandler<T> {
 	constructor(readNames: string[], remoteNames: string[], packetWriter: PacketWriter<T>, packetReader: PacketReader<T>,

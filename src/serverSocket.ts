@@ -2,11 +2,11 @@ import { Server as HttpServer, IncomingMessage } from 'http';
 import * as ws from 'ws';
 import * as Promise from 'bluebird';
 import { parse as parseUrl } from 'url';
-import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger } from './interfaces';
+import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger, Packet } from './interfaces';
 import { randomString, checkRateLimit, parseRateLimit, RateLimit, getLength, cloneDeep } from './utils';
 import { SocketServerClient, ErrorHandler, OriginalRequest } from './server';
 import { getSocketMetadata, getMethods } from './method';
-import { PacketHandler, MessageType, Packet, Send } from './packet/packetHandler';
+import { PacketHandler, MessageType, Send } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
 import { createHandlers } from './packet/binaryHandler';
 import BufferPacketWriter from './packet/bufferPacketWriter';
@@ -243,7 +243,7 @@ export function create(
 	const ignore = getIgnore(options.client).concat(getIgnore(options.server));
 	const packetHandler: PacketHandler<AnyBuffer> = options.debug ?
 		new DebugPacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers, ignore, log) :
-		new PacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers);
+		new PacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers, options.onSend, options.onRecv);
 
 	const proxy: any = {};
 	let proxyPacket: Packet | undefined;
