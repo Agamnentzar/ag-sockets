@@ -102,10 +102,11 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		const clientmethods = getNames(options.client);
 		const ignore = getIgnore(options.server).concat(getIgnore(options.client));
 
-		if (options.debug)
-			this.packet = new DebugPacketHandler(clientmethods, serverMethods, writer, reader, handlers, ignore, this.log);
-		else
-			this.packet = new PacketHandler(clientmethods, serverMethods, writer, reader, handlers);
+		if (options.debug) {
+			this.packet = new DebugPacketHandler(clientmethods, serverMethods, writer, reader, handlers, {}, ignore, this.log);
+		} else {
+			this.packet = new PacketHandler(clientmethods, serverMethods, writer, reader, handlers, {});
+		}
 
 		this.supportsBinary = !!this.socket.binaryType;
 		this.socket.binaryType = 'arraybuffer';

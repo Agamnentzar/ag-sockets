@@ -47,6 +47,7 @@ export class PacketHandler<T> {
 		private packetWriter: PacketWriter<T>,
 		private packetReader: PacketReader<T>,
 		handlers: IBinaryHandlers<T>,
+		private onlyBinary: any,
 		private onSend?: (packet: Packet) => void,
 		private onRecv?: (packet: Packet) => void,
 	) {
@@ -62,6 +63,10 @@ export class PacketHandler<T> {
 		return packet.binary;
 	}
 	private getJSON(packet: Packet) {
+		if (this.onlyBinary[packet.name]) {
+			throw new Error(`Packet "${packet.name}" supports only binary protocol`);
+		}
+
 		if (!packet.json) {
 			packet.json = JSON.stringify(packet.args);
 		}

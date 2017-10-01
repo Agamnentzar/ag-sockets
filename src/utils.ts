@@ -92,6 +92,10 @@ export function supportsBinary() {
 
 	const protocol = 'https:' === location.protocol ? 'wss' : 'ws';
 
+	if (typeof global !== 'undefined' && 'WebSocket' in global) {
+		return true;
+	}
+
 	if ('WebSocket' in window) {
 		if ('binaryType' in WebSocket.prototype)
 			return true;

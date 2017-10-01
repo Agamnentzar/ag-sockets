@@ -21,7 +21,8 @@ describe('DebugPacketHandler', function () {
 		reader = new BufferPacketReader();
 		binary = createHandlers({ foo: [Bin.U8] }, { foo: [Bin.U8] });
 		log = spy();
-		handler = new DebugPacketHandler<Buffer>(['', 'foo', 'abc'], ['', 'bar', 'abc'], writer, reader, binary, ['abc'], log);
+		handler = new DebugPacketHandler<Buffer>(
+			['', 'foo', 'abc'], ['', 'bar', 'abc'], writer, reader, binary, {}, ['abc'], log);
 	});
 
 	describe('send()', function () {

@@ -155,7 +155,7 @@ describe('ClientSocket', function () {
 			service.connect();
 
 			expect(lastWebSocket).not.undefined;
-			expect(lastWebSocket.url).equal('ws://example.com/test?foo=bar&x=5&bin=false');
+			expect(lastWebSocket.url).equal('ws://example.com/test?foo=bar&x=5&bin=true');
 		});
 
 		it('should use "/ws" as default path', function () {
@@ -164,7 +164,7 @@ describe('ClientSocket', function () {
 			service = new ClientSocket<Client, Server>(options);
 			service.connect();
 
-			expect(lastWebSocket.url).equal('ws://example.com/ws?foo=bar&x=5&bin=false');
+			expect(lastWebSocket.url).equal('ws://example.com/ws?foo=bar&x=5&bin=true');
 		});
 
 		it('should create websocket with SSL for HTTPS url', function () {
@@ -172,7 +172,7 @@ describe('ClientSocket', function () {
 
 			service.connect();
 
-			expect(lastWebSocket.url).equal('wss://example.com/test?foo=bar&x=5&bin=false');
+			expect(lastWebSocket.url).equal('wss://example.com/test?foo=bar&x=5&bin=true');
 		});
 
 		it('should add event listener for "beforeunload"', function () {

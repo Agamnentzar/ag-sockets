@@ -4,9 +4,17 @@ import { PacketReader } from './packetReader';
 import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction, Send } from './packetHandler';
 
 export class DebugPacketHandler<T> extends PacketHandler<T> {
-	constructor(readNames: string[], remoteNames: string[], packetWriter: PacketWriter<T>, packetReader: PacketReader<T>,
-		handlers: IBinaryHandlers<T>, private ignorePackets: string[], private log: Logger) {
-		super(readNames, remoteNames, packetWriter, packetReader, handlers);
+	constructor(
+		readNames: string[],
+		remoteNames: string[],
+		packetWriter: PacketWriter<T>,
+		packetReader: PacketReader<T>,
+		handlers: IBinaryHandlers<T>,
+		onlyBinary: any,
+		private ignorePackets: string[],
+		private log: Logger
+	) {
+		super(readNames, remoteNames, packetWriter, packetReader, handlers, onlyBinary);
 	}
 	sendPacket(send: Send, packet: Packet, supportsBinary: boolean): number {
 		const size = this.writePacket(send, packet, supportsBinary);

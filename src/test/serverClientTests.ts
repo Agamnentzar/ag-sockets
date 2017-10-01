@@ -52,6 +52,9 @@ class Client implements SocketClient {
 	hi(message: string) {
 		console.log('hi', message);
 	}
+	@Method({ binary: [Bin.Buffer, [Bin.U8]] })
+	bin2(_buffer: ArrayBuffer, _values: number[]) {
+	}
 	connected() { }
 	disconnected() { }
 }
@@ -196,7 +199,20 @@ describe('ClientSocket + Server', function () {
 					.then(() => assert.calledOnce(disconnected));
 			});
 
-			it('should be able to call client methods from server', function () {
+			it('should be able to call client methods with arrayBuffer from server', function () {
+				const bin2 = stub(clientSocket.client, 'bin2');
+
+				server.client.bin2(new Uint8Array([1, 2, 3]).buffer, [4, 5, 6]);
+
+				return Promise.delay(50)
+					.then(() => {
+						assert.calledOnce(bin2);
+						expect(new Uint8Array(bin2.args[0][0])).eql(new Uint8Array([1, 2, 3]));
+						expect(bin2.args[0][1]).eql([4, 5, 6]);
+					});
+			});
+
+			it('should be able to call client methods with array buffer from server ', function () {
 				const hi = stub(clientSocket.client, 'hi');
 
 				server.client.hi('yay');

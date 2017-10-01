@@ -2,7 +2,7 @@ import { Server as HttpServer, IncomingMessage } from 'http';
 import * as ws from 'ws';
 import * as Promise from 'bluebird';
 import { parse as parseUrl } from 'url';
-import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger, Packet, MethodOptions } from './interfaces';
+import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger, Packet, MethodOptions, BinaryDef, Bin } from './interfaces';
 import { randomString, checkRateLimit, parseRateLimit, RateLimit, getLength, cloneDeep } from './utils';
 import { SocketServerClient, ErrorHandler, OriginalRequest } from './server';
 import { getSocketMetadata, getMethods } from './method';
@@ -133,6 +133,10 @@ function createRateLimit(method: MethodDef): RateLimit | undefined {
 	} : undefined;
 }
 
+function hasArrayBuffer(def: BinaryDef | Bin): boolean {
+	return Array.isArray(def) ? def.some(hasArrayBuffer) : def === Bin.Buffer;
+}
+
 export function createServer<TServer, TClient>(
 	httpServer: HttpServer,
 	serverType: new (...args: any[]) => TServer,
@@ -241,6 +245,13 @@ export function create(
 		}
 	});
 
+	const onlyBinary: any = {};
+
+	options.client
+		.filter(x => typeof x !== 'string' && hasArrayBuffer(x[1].binary!))
+		.map(x => x[0] as string)
+		.forEach(key => onlyBinary[key] = true);
+
 	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
 	const reader = options.arrayBuffer ? new ArrayBufferPacketReader() : new BufferPacketReader();
 	const writer = options.arrayBuffer ? new ArrayBufferPacketWriter() : new BufferPacketWriter();
@@ -248,8 +259,8 @@ export function create(
 	const clientMethods = getNames(options.client);
 	const ignore = getIgnore(options.client).concat(getIgnore(options.server));
 	const packetHandler: PacketHandler<AnyBuffer> = options.debug ?
-		new DebugPacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers, ignore, log) :
-		new PacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers, options.onSend, options.onRecv);
+		new DebugPacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers, onlyBinary, ignore, log) :
+		new PacketHandler<AnyBuffer>(serverMethods, serverMethods, writer, reader, handlers, onlyBinary, options.onSend, options.onRecv);
 
 	const proxy: any = {};
 	let proxyPacket: Packet | undefined;

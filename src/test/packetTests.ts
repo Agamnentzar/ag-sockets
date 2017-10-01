@@ -21,7 +21,7 @@ describe('PacketHandler', function () {
 		writer = new BufferPacketWriter();
 		reader = new BufferPacketReader();
 		binary = createHandlers({ foo: [Bin.U8] }, { foo: [Bin.U8] });
-		handler = new PacketHandler<Buffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
+		handler = new PacketHandler<Buffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary, {});
 	});
 
 	describe('send()', function () {
@@ -58,7 +58,7 @@ describe('PacketHandler', function () {
 		it('should return binary message length (ArrayBuffer)', function () {
 			const writer = new ArrayBufferPacketWriter();
 			const reader = new ArrayBufferPacketReader();
-			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
+			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary, {});
 
 			expect(handler.send(spy(), 'foo', 1, [8], true)).equal(2);
 		});
@@ -138,7 +138,7 @@ describe('PacketHandler', function () {
 		it('should return binary message length (ArrayBuffer)', function () {
 			const writer = new ArrayBufferPacketWriter();
 			const reader = new ArrayBufferPacketReader();
-			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary);
+			const handler = new PacketHandler<ArrayBuffer>(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary, {});
 
 			const buffer = new ArrayBuffer(2);
 			const bytes = new Uint8Array(buffer);
