@@ -15,10 +15,12 @@ export interface PacketWriter<TBuffer> {
 	writeBytes(value: Uint8Array): void;
 	writeString(value: string | null): void;
 	writeObject(value: any): void;
+	writeArrayBuffer(value: ArrayBuffer | null): void;
 	writeArray<T>(value: T[] | null, writeOne: (item: T) => void): void;
 	writeLength(value: number): void;
 	measureString(value: string | null): number;
 	measureObject(value: any): number;
+	measureArrayBuffer(value: ArrayBuffer | null): number;
 	measureArray<T>(value: T[] | null, measureOne: (item: T) => number): number;
 	measureSimpleArray<T>(value: T[] | null, itemSize: number): number;
 	measureLength(value: number): number;
@@ -34,22 +36,32 @@ export abstract class BasePacketWriter {
 		}
 	}
 	measureObject(value: any) {
-		if (value == null)
+		if (value == null) {
 			return this.measureLength(-1);
-		else
+		} else {
 			return this.measureString(JSON.stringify(value));
+		}
+	}
+	measureArrayBuffer(value: ArrayBuffer | null) {
+		if (value == null) {
+			return this.measureLength(-1);
+		} else {
+			return this.measureLength(value.byteLength) + value.byteLength;
+		}
 	}
 	measureArray<T>(value: T[] | null, measureOne: (item: T) => number) {
-		if (value == null)
+		if (value == null) {
 			return this.measureLength(-1);
-		else
+		} else {
 			return this.measureLength(value.length) + value.reduce((sum, x) => sum + measureOne(x), 0);
+		}
 	}
 	measureSimpleArray<T>(value: T[] | null, itemSize: number) {
-		if (value == null)
+		if (value == null) {
 			return this.measureLength(-1);
-		else
+		} else {
 			return this.measureLength(value.length) + value.length * itemSize;
+		}
 	}
 	measureLength(value: number) {
 		return value === -1 ? 2 : (value < 0x7f ? 1 : (value < 0x3fff ? 2 : (value < 0x1fffff ? 3 : 4)));
@@ -66,10 +78,19 @@ export abstract class BasePacketWriter {
 		}
 	}
 	writeObject(value: any) {
-		if (value == null)
+		if (value == null) {
 			this.writeString('');
-		else
+		} else {
 			this.writeString(JSON.stringify(value));
+		}
+	}
+	writeArrayBuffer(value: ArrayBuffer | null) {
+		if (value == null) {
+			this.writeLength(-1);
+		} else {
+			this.writeLength(value.byteLength);
+			this.writeBytes(new Uint8Array(value));
+		}
 	}
 	writeArray<T>(value: T[] | null, writeOne: (item: T) => void) {
 		if (value == null) {

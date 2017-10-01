@@ -43,6 +43,7 @@ export const enum Bin {
 	Bool,
 	Str,
 	Obj,
+	Buffer,
 }
 
 export type BinaryDef = (Bin | (Bin | (Bin | any[]))[])[];
@@ -63,6 +64,8 @@ export interface MethodOptions {
 	ignore?: boolean;
 	/** rate limit in format of "1/s" or "10/30s" or "20/m" */
 	rateLimit?: string;
+	/** rate limit for the server */
+	serverRateLimit?: string;
 }
 
 export interface MethodMetadata {

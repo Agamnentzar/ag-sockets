@@ -15,6 +15,11 @@ const argv = require('yargs').argv;
 
 const seq = (...tasks) => done => runSequence(...tasks, done);
 
+function swallowError(e) {
+	console.log(e.message);
+	this.emit('end');
+}
+
 gulp.task('clean', () => {
 	return del([
 		'dist/*',
@@ -45,7 +50,8 @@ gulp.task('demo', () => {
 
 gulp.task('tests', () => {
 	return gulp.src('dist/test/**/*.js', { read: false })
-		.pipe(mocha({ reporter: 'dot' }));
+		.pipe(mocha({ reporter: 'dot' }))
+		.on('error', swallowError);
 });
 
 gulp.task('coverage', () => {

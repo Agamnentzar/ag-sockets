@@ -9,6 +9,12 @@ export default class ArrayBufferPacketWriter extends BasePacketWriter implements
 	getBuffer() {
 		return this.buffer;
 	}
+	getOffset() {
+		return this.offset;
+	}
+	reset() {
+		this.offset = 0;
+	}
 	init(size: number) {
 		this.offset = 0;
 		this.buffer = new ArrayBuffer(size);

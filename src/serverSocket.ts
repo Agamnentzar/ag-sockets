@@ -2,7 +2,7 @@ import { Server as HttpServer, IncomingMessage } from 'http';
 import * as ws from 'ws';
 import * as Promise from 'bluebird';
 import { parse as parseUrl } from 'url';
-import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger, Packet } from './interfaces';
+import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger, Packet, MethodOptions } from './interfaces';
 import { randomString, checkRateLimit, parseRateLimit, RateLimit, getLength, cloneDeep } from './utils';
 import { SocketServerClient, ErrorHandler, OriginalRequest } from './server';
 import { getSocketMetadata, getMethods } from './method';
@@ -104,6 +104,10 @@ function optionsWithDefaults(options: ServerOptions): ServerOptions {
 	}, options);
 }
 
+function clearMethodOptions([name, { serverRateLimit: _, ...options }]: [string, MethodOptions]) {
+	return [name, options] as [string, MethodOptions];
+}
+
 function toClientOptions(options: ServerOptions): ClientOptions {
 	return {
 		host: options.host,
@@ -115,7 +119,7 @@ function toClientOptions(options: ServerOptions): ClientOptions {
 		hash: options.hash,
 		requestParams: options.requestParams,
 		client: options.client!,
-		server: options.server!,
+		server: options.server!.map(x => typeof x === 'string' ? x : clearMethodOptions(x)),
 	};
 }
 
@@ -123,8 +127,10 @@ function createRateLimit(method: MethodDef): RateLimit | undefined {
 	return Array.isArray(method) && method[1].rateLimit ? {
 		calls: [],
 		promise: !!method[1].promise,
-		...parseRateLimit(method[1].rateLimit!, true),
-	} : void 0;
+		...(method[1].serverRateLimit ?
+			parseRateLimit(method[1].serverRateLimit!, false) :
+			parseRateLimit(method[1].rateLimit!, true)),
+	} : undefined;
 }
 
 export function createServer<TServer, TClient>(
@@ -204,7 +210,7 @@ export function create(
 			client.disconnect(true);
 			return token;
 		} else {
-			return void 0;
+			return undefined;
 		}
 	}
 
@@ -253,7 +259,7 @@ export function create(
 	function createPacket(action: (client: any) => any): Packet {
 		action(proxy);
 		const packet = proxyPacket!;
-		proxyPacket = void 0;
+		proxyPacket = undefined;
 		return packet;
 	}
 
@@ -286,7 +292,7 @@ export function create(
 	function onConnection(socket: ws, request: IncomingMessage | undefined) {
 		const originalRequest = createOriginalRequest(socket, request);
 		const query = parseUrl(originalRequest.url, true).query;
-		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : void 0;
+		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : undefined;
 
 		if (options.connectionTokens && !token) {
 			errorHandler.handleError({ originalRequest } as any, new Error(`Invalid token: ${query.t}`));
@@ -315,9 +321,9 @@ export function create(
 				},
 				id: currentClientId++,
 				isConnected: true,
-				tokenId: token ? token.id : void 0,
-				tokenData: token ? token.data : void 0,
-				originalRequest: options.keepOriginalRequest ? originalRequest : void 0,
+				tokenId: token ? token.id : undefined,
+				tokenData: token ? token.data : undefined,
+				originalRequest: options.keepOriginalRequest ? originalRequest : undefined,
 				disconnect(force = false, invalidateToken = false) {
 					if (invalidateToken) {
 						delete obj.token;

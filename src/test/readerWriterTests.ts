@@ -42,6 +42,8 @@ describe('PacketReader + PacketWriter', function () {
 			writer.writeObject(i[0]);
 			writer.writeArray(i[1], j => writer.writeUint8(j));
 		});
+		writer.writeArrayBuffer(null);
+		writer.writeArrayBuffer(new Uint8Array([1, 2, 3]).buffer);
 
 		reader.setBuffer(writer.getBuffer());
 		expect(reader.readInt8()).equal(-123, 'readInt8');
@@ -74,6 +76,8 @@ describe('PacketReader + PacketWriter', function () {
 			reader.readObject(),
 			reader.readArray(() => reader.readUint8()),
 		])).eql([[{ foo: 'bar' }, [1, 2, 3]], [{ foo: 'boo' }, [4, 5, 6]]], 'readArray Foo[]');
+		expect(reader.readArrayBuffer()).equal(null, 'readArrayBuffer null');
+		expect(new Uint8Array(reader.readArrayBuffer()!)).eql(new Uint8Array([1, 2, 3]), 'readArrayBuffer [1, 2, 3]');
 	}
 
 	function measureTest<T>(writer: PacketWriter<T>) {
@@ -84,13 +88,15 @@ describe('PacketReader + PacketWriter', function () {
 		expect(writer.measureLength(10000000)).equal(4, 'measureLength 5');
 		expect(writer.measureSimpleArray([1, 2, 3], 2)).equal(6 + 1, 'measureSimpleArray');
 		expect(writer.measureArray([1, 2, 5], i => i)).equal(8 + 1, 'measureArray');
+		expect(writer.measureObject(null)).equal(2, 'measureObject (null)');
 		expect(writer.measureObject({ 'foo': 'bar' })).equal(13 + 1, 'measureObject');
 		expect(writer.measureString('foobar')).equal(6 + 1, 'measureString');
 		expect(writer.measureString('część')).equal(8 + 1, 'measureString (część)');
 		expect(writer.measureString(null)).equal(2, 'measureString (null)');
 		expect(writer.measureArray<number>(null, x => x)).equal(2, 'measureArray (null)');
 		expect(writer.measureSimpleArray<number>(null, 1)).equal(2, 'measureSimpleArray (null)');
-		expect(writer.measureObject(null)).equal(2, 'measureObject (null)');
+		expect(writer.measureArrayBuffer(null)).equal(2, 'measureArrayBuffer (null)');
+		expect(writer.measureArrayBuffer(new Uint8Array([1, 2, 3]).buffer)).equal(3 + 1, 'measureArrayBuffer');
 	}
 
 	it('should read and write value correctly (BufferPacketWriter)', function () {

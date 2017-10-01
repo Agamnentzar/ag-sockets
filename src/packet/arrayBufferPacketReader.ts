@@ -45,4 +45,14 @@ export default class ArrayBufferPacketReader extends BasePacketReader implements
 		this.offset += length;
 		return new Uint8Array(this.view.buffer, this.offset - length, length);
 	}
+	readArrayBuffer() {
+		const length = this.readLength();
+
+		if (length === -1) {
+			return null;
+		} else {
+			this.offset += length;
+			return this.view.buffer.slice(this.offset - length, this.offset);
+		}
+	}
 }

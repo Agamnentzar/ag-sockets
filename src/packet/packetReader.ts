@@ -15,6 +15,7 @@ export interface PacketReader<TBuffer> {
 	readArray<T>(readOne: () => T): T[] | null;
 	readString(): string | null;
 	readObject(): any;
+	readArrayBuffer(): ArrayBuffer | null;
 	readLength(): number;
 }
 
@@ -44,6 +45,10 @@ export abstract class BasePacketReader {
 	readObject() {
 		const json = this.readString();
 		return json ? JSON.parse(json) : null;
+	}
+	readArrayBuffer() {
+		const length = this.readLength();
+		return length === -1 ? null : this.readBytes(length).buffer;
 	}
 	readLength() {
 		let length = 0;
