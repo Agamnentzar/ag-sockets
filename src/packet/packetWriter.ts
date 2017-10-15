@@ -1,53 +1,23 @@
 import { stringLengthInBytes } from '../utf8';
+import { PacketWriting, measureArrayBuffer, measureLength, measureString } from './packetCommon';
+import { MeasuringWriter } from './measuringWriter';
+import { writeAny } from './writeAny';
 
-export interface PacketWriter<TBuffer> {
-	getBuffer(): TBuffer;
-	init(size: number): void;
-	writeInt8(value: number): void;
-	writeUint8(value: number): void;
-	writeInt16(value: number): void;
-	writeUint16(value: number): void;
-	writeInt32(value: number): void;
-	writeUint32(value: number): void;
-	writeFloat32(value: number): void;
-	writeFloat64(value: number): void;
-	writeBoolean(value: boolean): void;
-	writeBytes(value: Uint8Array): void;
-	writeString(value: string | null): void;
-	writeObject(value: any): void;
-	writeArrayBuffer(value: ArrayBuffer | null): void;
-	writeArray<T>(value: T[] | null, writeOne: (item: T) => void): void;
-	writeLength(value: number): void;
-	measureString(value: string | null): number;
-	measureObject(value: any): number;
-	measureArrayBuffer(value: ArrayBuffer | null): number;
-	measureArray<T>(value: T[] | null, measureOne: (item: T) => number): number;
-	measureSimpleArray<T>(value: T[] | null, itemSize: number): number;
-	measureLength(value: number): number;
-}
-
-export abstract class BasePacketWriter {
+export abstract class BasePacketWriter implements PacketWriting {
+	private measuring = new MeasuringWriter();
+	private measureAny(value: any) {
+		this.measuring.reset();
+		writeAny(this.measuring, value);
+		return this.measuring.getSize();
+	}
 	measureString(value: string) {
-		if (value == null) {
-			return this.measureLength(-1);
-		} else {
-			const length = stringLengthInBytes(value);
-			return this.measureLength(length) + length;
-		}
+		return measureString(value);
 	}
 	measureObject(value: any) {
-		if (value == null) {
-			return this.measureLength(-1);
-		} else {
-			return this.measureString(JSON.stringify(value));
-		}
+		return this.measureAny(value);
 	}
 	measureArrayBuffer(value: ArrayBuffer | null) {
-		if (value == null) {
-			return this.measureLength(-1);
-		} else {
-			return this.measureLength(value.byteLength) + value.byteLength;
-		}
+		return measureArrayBuffer(value);
 	}
 	measureArray<T>(value: T[] | null, measureOne: (item: T) => number) {
 		if (value == null) {
@@ -64,7 +34,7 @@ export abstract class BasePacketWriter {
 		}
 	}
 	measureLength(value: number) {
-		return value === -1 ? 2 : (value < 0x7f ? 1 : (value < 0x3fff ? 2 : (value < 0x1fffff ? 3 : 4)));
+		return measureLength(value);
 	}
 	writeBoolean(value: boolean) {
 		this.writeUint8(value ? 1 : 0);
@@ -78,11 +48,7 @@ export abstract class BasePacketWriter {
 		}
 	}
 	writeObject(value: any) {
-		if (value == null) {
-			this.writeString('');
-		} else {
-			this.writeString(JSON.stringify(value));
-		}
+		writeAny(this, value);
 	}
 	writeArrayBuffer(value: ArrayBuffer | null) {
 		if (value == null) {
@@ -111,7 +77,14 @@ export abstract class BasePacketWriter {
 			} while (value);
 		}
 	}
+	abstract writeInt8(value: number): void;
 	abstract writeUint8(value: number): void;
+	abstract writeInt16(value: number): void;
+	abstract writeUint16(value: number): void;
+	abstract writeInt32(value: number): void;
+	abstract writeUint32(value: number): void;
+	abstract writeFloat32(value: number): void;
+	abstract writeFloat64(value: number): void;
 	abstract writeBytes(value: Uint8Array): void;
-	protected abstract writeStringValue(value: string): void;
+	abstract writeStringValue(value: string): void;
 }

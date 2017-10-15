@@ -1,15 +1,14 @@
 import './common';
 import { expect } from 'chai';
-import { PacketWriter } from '../packet/packetWriter';
-import { PacketReader } from '../packet/packetReader';
 import BufferPacketWriter from '../packet/bufferPacketWriter';
 import BufferPacketReader from '../packet/bufferPacketReader';
 import ArrayBufferPacketWriter from '../packet/arrayBufferPacketWriter';
 import ArrayBufferPacketReader from '../packet/arrayBufferPacketReader';
+import { PacketWriter, PacketReader } from '../packet/packetCommon';
 
 type Foo = [any, number[]];
 
-describe('PacketReader + PacketWriter', function () {
+describe('PacketReader + PacketWriter', () => {
 	function readWriteTest<T>(writer: PacketWriter<T>, reader: PacketReader<T>) {
 		writer.init(10000);
 		writer.writeInt8(-123);
@@ -88,8 +87,8 @@ describe('PacketReader + PacketWriter', function () {
 		expect(writer.measureLength(10000000)).equal(4, 'measureLength 5');
 		expect(writer.measureSimpleArray([1, 2, 3], 2)).equal(6 + 1, 'measureSimpleArray');
 		expect(writer.measureArray([1, 2, 5], i => i)).equal(8 + 1, 'measureArray');
-		expect(writer.measureObject(null)).equal(2, 'measureObject (null)');
-		expect(writer.measureObject({ 'foo': 'bar' })).equal(13 + 1, 'measureObject');
+		expect(writer.measureObject(null)).equal(1, 'measureObject (null)');
+		expect(writer.measureObject({ 'foo': 'bar' })).equal(1 + (1 + 3) + (1 + 3), 'measureObject');
 		expect(writer.measureString('foobar')).equal(6 + 1, 'measureString');
 		expect(writer.measureString('część')).equal(8 + 1, 'measureString (część)');
 		expect(writer.measureString(null)).equal(2, 'measureString (null)');
@@ -99,19 +98,159 @@ describe('PacketReader + PacketWriter', function () {
 		expect(writer.measureArrayBuffer(new Uint8Array([1, 2, 3]).buffer)).equal(3 + 1, 'measureArrayBuffer');
 	}
 
-	it('should read and write value correctly (BufferPacketWriter)', function () {
+	it('should read and write value correctly (BufferPacketWriter)', () => {
 		readWriteTest(new BufferPacketWriter(), new BufferPacketReader());
 	});
 
-	it('should read and write value correctly (ArrayBufferPacketWriter)', function () {
+	it('should read and write value correctly (ArrayBufferPacketWriter)', () => {
 		readWriteTest(new ArrayBufferPacketWriter(), new ArrayBufferPacketReader());
 	});
 
-	it('should measure lengths correctly (BufferPacketWriter)', function () {
+	it('should measure lengths correctly (BufferPacketWriter)', () => {
 		measureTest(new BufferPacketWriter());
 	});
 
-	it('should measure lengths correctly (ArrayBufferPacketWriter)', function () {
+	it('should measure lengths correctly (ArrayBufferPacketWriter)', () => {
 		measureTest(new ArrayBufferPacketWriter());
+	});
+
+	it('should return offset (ArrayBufferPacketWriter)', () => {
+		const writer = new ArrayBufferPacketWriter();
+		writer.init(16);
+		expect(writer.getOffset()).equal(0);
+		writer.writeUint8(1);
+		expect(writer.getOffset()).equal(1);
+	});
+
+	it('should be able to reset offset (ArrayBufferPacketWriter)', () => {
+		const writer = new ArrayBufferPacketWriter();
+		writer.init(16);
+		writer.writeUint8(1);
+		expect(writer.getOffset()).equal(1);
+		writer.reset();
+		expect(writer.getOffset()).equal(0);
+	});
+
+	it('should return offset (BufferPacketWriter)', () => {
+		const writer = new BufferPacketWriter();
+		writer.init(16);
+		expect(writer.getOffset()).equal(0);
+		writer.writeUint8(1);
+		expect(writer.getOffset()).equal(1);
+	});
+
+	it('should be able to reset offset (BufferPacketWriter)', () => {
+		const writer = new BufferPacketWriter();
+		writer.init(16);
+		writer.writeUint8(1);
+		expect(writer.getOffset()).equal(1);
+		writer.reset();
+		expect(writer.getOffset()).equal(0);
+	});
+
+	describe('binary object encoding', () => {
+		function readWriteObjectTest(obj: any, message?: string) {
+			const writer = new ArrayBufferPacketWriter();
+			const reader = new ArrayBufferPacketReader();
+			writer.init(10000);
+			writer.writeObject(obj);
+			//const jsonLength = JSON.stringify(obj) && JSON.stringify(obj).length || 0;
+			//console.log(`size: ${writer.getOffset()} / ${jsonLength + writer.measureLength(jsonLength)}`);
+			reader.setBuffer(writer.getBuffer());
+			expect(reader.readObject()).eql(obj, message);
+		}
+
+		function measureObjectTest(obj: any, expected: number, message?: string) {
+			const writer = new ArrayBufferPacketWriter();
+			writer.init(1);
+			expect(writer.measureObject(obj)).equal(expected, message);
+		}
+
+		it('should read and write undefined', () => readWriteObjectTest(undefined));
+		it('should read and write null', () => readWriteObjectTest(null));
+		it('should read and write true', () => readWriteObjectTest(true));
+		it('should read and write false', () => readWriteObjectTest(false));
+		it('should read and write numbers', () => readWriteObjectTest(123));
+		it('should read and write strings', () => readWriteObjectTest('abc'));
+		it('should read and write arrays', () => readWriteObjectTest([1, 2, 3]));
+
+		it('should read and write numbers', () => {
+			readWriteObjectTest(0);
+			readWriteObjectTest(1);
+			readWriteObjectTest(-1);
+			readWriteObjectTest(15);
+			readWriteObjectTest(16);
+			readWriteObjectTest(-15);
+			readWriteObjectTest(-16);
+			readWriteObjectTest(Number.MAX_VALUE);
+			readWriteObjectTest(Number.MAX_SAFE_INTEGER);
+			readWriteObjectTest(Number.MIN_VALUE);
+			readWriteObjectTest(Number.MIN_SAFE_INTEGER);
+			readWriteObjectTest(Number.NaN, 'NaN');
+			readWriteObjectTest(Number.POSITIVE_INFINITY, 'POSITIVE_INFINITY');
+			readWriteObjectTest(Number.NEGATIVE_INFINITY, 'NEGATIVE_INFINITY');
+			readWriteObjectTest(0xff, '0xff');
+			readWriteObjectTest(0xffff, '0xffff');
+			readWriteObjectTest(0xffffff, '0xffffff');
+			readWriteObjectTest(0xffffffff, '0xffffffff');
+			readWriteObjectTest(-0xff, '-0xff');
+			readWriteObjectTest(-0xffff, '-0xffff');
+			readWriteObjectTest(-0xffffff, '-0xffffff');
+			readWriteObjectTest(-0xffffffff, '-0xffffffff');
+		});
+
+		it('should read and write objects correctly', () => {
+			readWriteObjectTest({
+				foo: 'bar',
+				x: 123,
+				y: 12.5,
+				values: [1, 2, 3, 4, 5, -6, 7],
+				prop: {
+					a: 'b',
+					b: true,
+					c: null,
+					d: 8765242,
+					e: 'lorem ipsum',
+				},
+			});
+		});
+
+		it('should read and write arrays', () => {
+			readWriteObjectTest([0, 1, 0xff, 0xffff, 0xffffff, 1.5, Math.PI]);
+		});
+
+		it('should read and write long arrays', () => {
+			readWriteObjectTest([
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+			]);
+		});
+
+		it('should read and write arrays of negative numbers', () => {
+			readWriteObjectTest([0, -1, -0x3f, -0x1fff, -0x1fffff, -1.5, -Math.PI]);
+		});
+
+		it('should measure arrays', () => {
+			measureObjectTest(
+				[0, 1, 0xff, 0xffff, 0xffffff, 1.5, Math.PI],
+				1 + 1 + 1 + (1 + 1) + (1 + 2) + (1 + 4) + (1 + 4) + (1 + 8));
+		});
+
+		it('should measure arrays of negative numbers', () => {
+			measureObjectTest(
+				[0, -1, -0x3f, -0x1fff, -0x1fffff, -1.5, -Math.PI],
+				1 + 1 + 1 + (1 + 1) + (1 + 2) + (1 + 4) + (1 + 4) + (1 + 8));
+		});
+
+		it('should measure long arrays', () => {
+			measureObjectTest([
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+			], 42);
+		});
 	});
 });

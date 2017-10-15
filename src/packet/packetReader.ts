@@ -1,26 +1,17 @@
 import { decodeString } from '../utf8';
+import { readAny } from './readAny';
+import { PacketReading } from './packetCommon';
 
-export interface PacketReader<TBuffer> {
-	setBuffer(buffer: TBuffer): void;
-	readInt8(): number;
-	readUint8(): number;
-	readInt16(): number;
-	readUint16(): number;
-	readInt32(): number;
-	readUint32(): number;
-	readFloat32(): number;
-	readFloat64(): number;
-	readBoolean(): boolean;
-	readBytes(length: number): Uint8Array;
-	readArray<T>(readOne: () => T): T[] | null;
-	readString(): string | null;
-	readObject(): any;
-	readArrayBuffer(): ArrayBuffer | null;
-	readLength(): number;
-}
-
-export abstract class BasePacketReader {
+export abstract class BasePacketReader implements PacketReading {
+	abstract readInt8(): number;
 	abstract readUint8(): number;
+	abstract readInt16(): number;
+	abstract readUint16(): number;
+	abstract readInt32(): number;
+	abstract readUint32(): number;
+	abstract readFloat32(): number;
+	abstract readFloat64(): number;
+	abstract readFloat64(): number;
 	abstract readBytes(length: number): Uint8Array;
 	readBoolean() {
 		return this.readUint8() === 1;
@@ -43,8 +34,7 @@ export abstract class BasePacketReader {
 		return length === -1 ? null : decodeString(this.readBytes(length));
 	}
 	readObject() {
-		const json = this.readString();
-		return json ? JSON.parse(json) : null;
+		return readAny(this);
 	}
 	readArrayBuffer() {
 		const length = this.readLength();

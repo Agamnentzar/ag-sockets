@@ -50,7 +50,10 @@ gulp.task('demo', () => {
 
 gulp.task('tests', () => {
 	return gulp.src('dist/test/**/*.js', { read: false })
-		.pipe(mocha({ reporter: 'dot' }))
+		.pipe(mocha({
+			reporter: 'dot',
+			exit: true,
+		}))
 		.on('error', swallowError);
 });
 
@@ -58,6 +61,7 @@ gulp.task('coverage', () => {
 	return gulp.src('dist/test/**/*.js', { read: false })
 		.pipe(mocha({
 			reporter: 'dot',
+			exit: true,
 			istanbul: { print: 'none' },
 		}));
 });

@@ -15,7 +15,7 @@ export class MockEventEmitter {
 }
 
 export class MockWebSocketServer extends MockEventEmitter {
-	constructor(public options: ws.IServerOptions) {
+	constructor(public options: ws.ServerOptions) {
 		super();
 		lastServer = this;
 	}

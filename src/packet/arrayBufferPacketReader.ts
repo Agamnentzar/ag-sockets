@@ -1,4 +1,5 @@
-import { BasePacketReader, PacketReader } from './packetReader';
+import { BasePacketReader } from './packetReader';
+import { PacketReader } from './packetCommon';
 
 export default class ArrayBufferPacketReader extends BasePacketReader implements PacketReader<ArrayBuffer> {
 	private offset = 0;

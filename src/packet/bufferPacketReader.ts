@@ -1,4 +1,5 @@
-import { BasePacketReader, PacketReader } from './packetReader';
+import { BasePacketReader } from './packetReader';
+import { PacketReader } from './packetCommon';
 
 function toUint8Array(buffer: Buffer) {
 	const view = new Uint8Array(buffer.length);

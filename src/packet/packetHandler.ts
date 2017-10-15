@@ -1,7 +1,6 @@
 import { FuncList, Packet } from '../interfaces';
 import { getLength } from '../utils';
-import { PacketWriter } from './packetWriter';
-import { PacketReader } from './packetReader';
+import { PacketWriter, PacketReader } from './packetCommon';
 
 export interface Send {
 	(data: any): void;

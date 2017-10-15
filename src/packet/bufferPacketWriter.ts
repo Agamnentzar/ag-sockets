@@ -1,11 +1,18 @@
-import { BasePacketWriter, PacketWriter } from './packetWriter';
+import { BasePacketWriter } from './packetWriter';
 import { encodeStringTo } from '../utf8';
+import { PacketWriter } from './packetCommon';
 
 export default class BufferPacketWriter extends BasePacketWriter implements PacketWriter<Buffer> {
 	private offset = 0;
 	private buffer: Buffer;
 	getBuffer() {
 		return this.buffer;
+	}
+	getOffset() {
+		return this.offset;
+	}
+	reset() {
+		this.offset = 0;
 	}
 	init(size: number) {
 		this.buffer = new Buffer(size);
@@ -50,7 +57,7 @@ export default class BufferPacketWriter extends BasePacketWriter implements Pack
 		for (let i = 0; i < value.length; i++)
 			this.buffer[i + offset] = value[i];
 	}
-	protected writeStringValue(value: string) {
+	writeStringValue(value: string) {
 		this.offset = encodeStringTo(this.buffer, this.offset, value);
 	}
 }
