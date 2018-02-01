@@ -1,5 +1,4 @@
-import './common';
-import * as Promise from 'bluebird';
+import { delay } from './common';
 import * as http from 'http';
 import * as WebSocket from 'ws';
 import * as uWebSocket from 'uws';
@@ -20,7 +19,7 @@ class Server implements SocketServer {
 	hello(_message: string) { }
 	@Method({ promise: true })
 	login(login: string) {
-		return login === 'ok' ? Promise.resolve(true) : Promise.reject<boolean>(new Error('fail'));
+		return login === 'ok' ? Promise.resolve(true) : Promise.reject(new Error('fail'));
 	}
 	@Method({ promise: true })
 	nullReject() {
@@ -59,7 +58,7 @@ class Client implements SocketClient {
 	disconnected() { }
 }
 
-describe('ClientSocket + Server', function () {
+describe('ClientSocket + Server', () => {
 	let httpServer: http.Server;
 	let server: Server;
 	let serverSocket: ServerController;
@@ -71,7 +70,7 @@ describe('ClientSocket + Server', function () {
 
 	function setupClient(options: ClientOptions, token?: string) {
 		return new Promise(resolve => {
-			clientSocket = new ClientSocket<Client, Server>(options, token, void 0, apply, <any>log);
+			clientSocket = new ClientSocket<Client, Server>(options, token, undefined, apply, <any>log);
 			version = stub((<any>clientSocket).special, '*version');
 			clientSocket.client = new Client();
 			clientSocket.client.connected = resolve;
@@ -89,7 +88,7 @@ describe('ClientSocket + Server', function () {
 		}, options, errorHandler, <any>log);
 
 		const clientOptions = serverSocket.options();
-		const token = options.connectionTokens ? serverSocket.token() : void 0;
+		const token = options.connectionTokens ? serverSocket.token() : undefined;
 
 		onClient(clientOptions, token);
 
@@ -103,7 +102,7 @@ describe('ClientSocket + Server', function () {
 		httpServer.close(done);
 	}
 
-	beforeEach(function () {
+	beforeEach(() => {
 		(<any>global).window = { addEventListener() { }, removeEventListener() { } };
 		(<any>global).location = { protocol: 'http', host: 'localhost:12345' };
 		(<any>global).WebSocket = WebSocket;
@@ -121,7 +120,7 @@ describe('ClientSocket + Server', function () {
 		{ name: 'ws', ws: WebSocket, arrayBuffer: false },
 		{ name: 'µWS', ws: uWebSocket, arrayBuffer: true },
 	].forEach(({ name, ws, arrayBuffer }) => {
-		describe(`[${name}]`, function () {
+		describe(`[${name}]`, () => {
 			beforeEach(function (done) {
 				setupServerClient(done, { ws, arrayBuffer });
 			});
@@ -130,48 +129,48 @@ describe('ClientSocket + Server', function () {
 				closeServerClient(done);
 			});
 
-			it('should call connected when client connects', function () {
+			it('should call connected when client connects', () => {
 				assert.calledOnce(connected);
 			});
 
-			it('should send version info to client', function () {
-				return Promise.delay(50)
+			it('should send version info to client', () => {
+				return delay(50)
 					.then(() => assert.calledWith(version, serverSocket.options().hash));
 			});
 
-			it.skip('should ping clients', function () {
-				return Promise.delay(200);
+			it.skip('should ping clients', () => {
+				return delay(200);
 				// TODO: add asserts
 			});
 
-			it('should receive message from client', function () {
+			it('should receive message from client', () => {
 				const hello = stub(server, 'hello');
 
 				return Promise.resolve()
 					.then(() => clientSocket.server.hello('yay'))
-					.delay(50)
+					.then(() => delay(50))
 					.then(() => assert.calledWith(hello, 'yay'));
 			});
 
-			it('should handle resolved promise from server method', function () {
+			it('should handle resolved promise from server method', () => {
 				return expect(clientSocket.server.login('ok')).eventually.true;
 			});
 
-			it('should handle rejected promise from server method', function () {
+			it('should handle rejected promise from server method', () => {
 				return expect(clientSocket.server.login('fail')).rejectedWith('fail');
 			});
 
-			it('should send error from error handler instead of original error', function () {
+			it('should send error from error handler instead of original error', () => {
 				stub(errorHandler, 'handleRejection').returns(new Error('aaa'));
 
 				return expect(clientSocket.server.login('fail')).rejectedWith('aaa');
 			});
 
-			it('should handle rejected promise with null error from server method', function () {
+			it('should handle rejected promise with null error from server method', () => {
 				return expect(clientSocket.server.nullReject()).rejectedWith('error');
 			});
 
-			it('should report promise rejection to error handler', function () {
+			it('should report promise rejection to error handler', () => {
 				const handleRejection = stub(errorHandler, 'handleRejection');
 
 				return Promise.resolve()
@@ -181,30 +180,30 @@ describe('ClientSocket + Server', function () {
 			});
 
 			// TODO: fix unreliable test
-			it.skip('should be able to disconnect the client', function () {
+			it.skip('should be able to disconnect the client', () => {
 				const disconnected = stub(clientSocket.client, 'disconnected');
 
-				return Promise.delay(50)
+				return delay(50)
 					.then(() => serverSocket.clients[0].client.disconnect())
-					.delay(50)
+					.then(() => delay(50))
 					.then(() => assert.calledOnce(disconnected));
 			});
 
-			it('should call disconnected on client disconnect', function () {
+			it('should call disconnected on client disconnect', () => {
 				const disconnected = stub(server, 'disconnected');
 
 				clientSocket.disconnect();
 
-				return Promise.delay(50)
+				return delay(50)
 					.then(() => assert.calledOnce(disconnected));
 			});
 
-			it('should be able to call client methods with arrayBuffer from server', function () {
+			it('should be able to call client methods with arrayBuffer from server', () => {
 				const bin2 = stub(clientSocket.client, 'bin2');
 
 				server.client.bin2(new Uint8Array([1, 2, 3]).buffer, [4, 5, 6]);
 
-				return Promise.delay(50)
+				return delay(50)
 					.then(() => {
 						assert.calledOnce(bin2);
 						expect(new Uint8Array(bin2.args[0][0])).eql(new Uint8Array([1, 2, 3]));
@@ -212,44 +211,44 @@ describe('ClientSocket + Server', function () {
 					});
 			});
 
-			it('should be able to call client methods with array buffer from server ', function () {
+			it('should be able to call client methods with array buffer from server ', () => {
 				const hi = stub(clientSocket.client, 'hi');
 
 				server.client.hi('yay');
 
-				return Promise.delay(50)
+				return delay(50)
 					.then(() => assert.calledWith(hi, 'yay'));
 			});
 
-			it('should pass exception to error handler', function () {
+			it('should pass exception to error handler', () => {
 				const handleRecvError = stub(errorHandler, 'handleRecvError');
 
 				clientSocket.server.err();
 
-				return Promise.delay(50)
+				return delay(50)
 					.then(() => assert.calledOnce(handleRecvError));
 			});
 
-			it('should log client connected', function () {
+			it('should log client connected', () => {
 				log.calledWith('client connected');
 			});
 
-			it('should log client disconnected', function () {
+			it('should log client disconnected', () => {
 				clientSocket.disconnect();
 
-				return Promise.delay(50)
+				return delay(50)
 					.then(() => log.calledWith('client disconnected'));
 			});
 
-			describe('close()', function () {
-				it('should close the socket', function () {
+			describe('close()', () => {
+				it('should close the socket', () => {
 					serverSocket.close();
 				});
 			});
 		});
 	});
 
-	describe('(connection token)', function () {
+	describe('(connection token)', () => {
 		let clientOptions: ClientOptions;
 		let clientToken: string;
 
@@ -264,11 +263,11 @@ describe('ClientSocket + Server', function () {
 			closeServerClient(done);
 		});
 
-		it('should connect with token', function () {
+		it('should connect with token', () => {
 			assert.calledOnce(connected);
 		});
 
-		it('should replace user with the same token', function () {
+		it('should replace user with the same token', () => {
 			return setupClient(clientOptions, clientToken)
 				.then(() => assert.calledTwice(connected));
 		});

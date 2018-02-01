@@ -1,6 +1,5 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
 import * as ws from 'ws';
-import * as Promise from 'bluebird';
 import { parse as parseUrl } from 'url';
 import { ServerOptions, ClientOptions, MethodDef, getNames, getBinary, getIgnore, SocketServer, Logger, Packet, MethodOptions, BinaryDef, Bin } from './interfaces';
 import { randomString, checkRateLimit, parseRateLimit, RateLimit, getLength, cloneDeep } from './utils';
@@ -13,6 +12,7 @@ import BufferPacketWriter from './packet/bufferPacketWriter';
 import BufferPacketReader from './packet/bufferPacketReader';
 import ArrayBufferPacketWriter from './packet/arrayBufferPacketWriter';
 import ArrayBufferPacketReader from './packet/arrayBufferPacketReader';
+import { ParsedUrlQuery } from 'querystring';
 
 export interface Token {
 	id: string;
@@ -183,7 +183,7 @@ export function create(
 		return token;
 	}
 
-	function getToken(id: string): Token | null {
+	function getToken(id: any): Token | null {
 		for (let i = 0; i < tokens.length; i++) {
 			const token = tokens[i];
 
@@ -206,7 +206,7 @@ export function create(
 		return -1;
 	}
 
-	function getTokenFromClient(id: string): Token | undefined {
+	function getTokenFromClient(id: any): Token | undefined {
 		const index = findIndex(clients, c => !!c.token && c.token.id === id);
 
 		if (index !== -1) {
@@ -218,7 +218,7 @@ export function create(
 		}
 	}
 
-	function hasToken(id: string) {
+	function hasToken(id: any) {
 		return tokens.some(t => t.id === id) || clients.some(c => !!(c.token && c.token.id === id));
 	}
 
@@ -234,8 +234,10 @@ export function create(
 				if (options.clientLimit && options.clientLimit <= clients.length)
 					return false;
 
-				if (options.connectionTokens)
-					return hasToken(parseUrl(req.url || '', true).query.t);
+				if (options.connectionTokens) {
+					const query = parseUrl(req.url || '', true).query as ParsedUrlQuery | undefined;
+					return hasToken(query && query.t);
+				}
 
 				return true;
 			} catch (e) {
@@ -302,11 +304,12 @@ export function create(
 
 	function onConnection(socket: ws, request: IncomingMessage | undefined) {
 		const originalRequest = createOriginalRequest(socket, request);
-		const query = parseUrl(originalRequest.url, true).query;
-		const token = options.connectionTokens ? getToken(query.t) || getTokenFromClient(query.t) : undefined;
+		const query = parseUrl(originalRequest.url, true).query as ParsedUrlQuery | undefined;
+		const t = query && query.t || '';
+		const token = options.connectionTokens ? getToken(t) || getTokenFromClient(t) : undefined;
 
 		if (options.connectionTokens && !token) {
-			errorHandler.handleError({ originalRequest } as any, new Error(`Invalid token: ${query.t}`));
+			errorHandler.handleError({ originalRequest } as any, new Error(`Invalid token: ${t}`));
 			socket.terminate();
 			return;
 		}
@@ -320,7 +323,7 @@ export function create(
 		const obj: Client = {
 			lastMessageTime: Date.now(),
 			lastMessageId: 0,
-			supportsBinary: query.bin === 'true',
+			supportsBinary: !!(query && query.bin === 'true'),
 			token,
 			ping() {
 				socket.send('');
@@ -423,7 +426,7 @@ export function create(
 			}
 		});
 
-		socket.on('error', e => errorHandler.handleError(obj.client, e));
+		socket.on('error', e => errorHandler.handleError(obj.client, e as any));
 
 		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packetHandler.send(send, name, id, args, obj.supportsBinary));
 

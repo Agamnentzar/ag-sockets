@@ -1,5 +1,7 @@
-import * as Promise from 'bluebird';
-import { SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore, getBinary, Logger } from './interfaces';
+import {
+	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore,
+	getBinary, Logger
+} from './interfaces';
 import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary, Deferred, deferred, queryString } from './utils';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
@@ -25,12 +27,12 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	isConnected = false;
 	supportsBinary = false;
 	private special: FuncList = {};
-	private socket: WebSocket | null;
+	private socket: WebSocket | null = null;
 	private connecting = false;
 	private reconnectTimeout: any;
 	private pingInterval: any;
 	private lastPing = 0;
-	private packet: PacketHandler<ArrayBuffer>;
+	private packet?: PacketHandler<ArrayBuffer>;
 	private lastSentId = 0;
 	private versionValidated = false;
 	private beforeunload = () => {
@@ -111,7 +113,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		this.supportsBinary = !!this.socket.binaryType;
 		this.socket.binaryType = 'arraybuffer';
 		this.socket.onmessage = message => {
-			if (message.data) {
+			if (message.data && this.packet) {
 				try {
 					this.receivedSize += this.packet.recv(message.data, this.client, this.special);
 				} catch (e) {
@@ -228,7 +230,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	}
 	private createSimpleMethod(name: string, id: number) {
 		this.server[name] = (...args: any[]) => {
-			if (checkRateLimit(id, this.rateLimits)) {
+			if (checkRateLimit(id, this.rateLimits) && this.packet) {
 				this.sentSize += this.packet.send(this.send, name, id, args, this.supportsBinary);
 				this.lastSentId++;
 				return true;
@@ -247,11 +249,17 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		}
 
 		this.server[name] = (...args: any[]): Promise<any> => {
-			if (!this.isConnected)
-				return Promise.reject<any>(new Error('not connected'));
+			if (!this.isConnected) {
+				return Promise.reject(new Error('not connected'));
+			}
 
-			if (!checkRateLimit(id, this.rateLimits))
-				return Promise.reject<any>(new Error('rate limit exceeded'));
+			if (!checkRateLimit(id, this.rateLimits)) {
+				return Promise.reject(new Error('rate limit exceeded'));
+			}
+
+			if (!this.packet) {
+				return Promise.reject(new Error('not initialized'));
+			}
 
 			this.sentSize += this.packet.send(this.send, name, id, args, this.supportsBinary);
 			const messageId = ++this.lastSentId;

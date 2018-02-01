@@ -3,7 +3,6 @@ const path = require('path');
 const del = require('del');
 const ts = require('gulp-typescript');
 const mocha = require('gulp-spawn-mocha');
-const tslint = require('gulp-tslint');
 const plumber = require('gulp-plumber');
 const sourcemaps = require('gulp-sourcemaps');
 const runSequence = require('run-sequence');
@@ -78,12 +77,6 @@ gulp.task('server', () => {
 
 gulp.task('watch', () => {
 	gulp.watch(scripts, ['build-task']);
-});
-
-gulp.task('lint', () => {
-	return gulp.src(scripts)
-		.pipe(tslint({ formatter: 'verbose' }))
-		.pipe(tslint.report());
 });
 
 gulp.task('remap', () => {

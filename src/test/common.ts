@@ -8,3 +8,7 @@ import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 
 chai.use(chaiAsPromised);
+
+export function delay(duration: number) {
+	return new Promise(resolve => setTimeout(resolve, duration));
+}
