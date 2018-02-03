@@ -1,3 +1,4 @@
+import * as Promise from 'bluebird';
 import {
 	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore,
 	getBinary, Logger
