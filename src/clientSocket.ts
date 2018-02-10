@@ -7,8 +7,8 @@ import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary, Deferred, de
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
-import ArrayBufferPacketWriter from './packet/arrayBufferPacketWriter';
-import ArrayBufferPacketReader from './packet/arrayBufferPacketReader';
+import { ArrayBufferPacketWriter } from './packet/arrayBufferPacketWriter';
+import { ArrayBufferPacketReader } from './packet/arrayBufferPacketReader';
 
 export interface ClientErrorHandler {
 	handleRecvError(error: Error, data: any): void;

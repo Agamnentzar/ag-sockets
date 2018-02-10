@@ -10,7 +10,7 @@ function toUint8Array(buffer: Buffer) {
 	return view;
 }
 
-export default class BufferPacketReader extends BasePacketReader implements PacketReader<Buffer> {
+export class BufferPacketReader extends BasePacketReader implements PacketReader<Buffer> {
 	private offset = 0;
 	private buffer?: Buffer;
 	setBuffer(buffer: Buffer) {

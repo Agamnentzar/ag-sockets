@@ -2,7 +2,7 @@ import { BasePacketWriter } from './packetWriter';
 import { encodeStringTo } from '../utf8';
 import { PacketWriter } from './packetCommon';
 
-export default class ArrayBufferPacketWriter extends BasePacketWriter implements PacketWriter<ArrayBuffer> {
+export class ArrayBufferPacketWriter extends BasePacketWriter implements PacketWriter<ArrayBuffer> {
 	private offset = 0;
 	private view?: DataView;
 	private bytes?: Uint8Array;

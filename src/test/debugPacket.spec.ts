@@ -3,11 +3,11 @@ import { assert, spy, stub, SinonSpy } from 'sinon';
 import { Bin } from '../interfaces';
 import { MessageType } from '../packet/packetHandler';
 import { DebugPacketHandler } from '../packet/debugPacketHandler';
-import BufferPacketWriter from '../packet/bufferPacketWriter';
-import BufferPacketReader from '../packet/bufferPacketReader';
+import { BufferPacketWriter } from '../packet/bufferPacketWriter';
+import { BufferPacketReader } from '../packet/bufferPacketReader';
 import { createHandlers } from '../packet/binaryHandler';
 
-describe('DebugPacketHandler', function () {
+describe('DebugPacketHandler', () => {
 	let handler: DebugPacketHandler<Buffer>;
 	let funcs: any;
 	let special: any;
@@ -16,7 +16,7 @@ describe('DebugPacketHandler', function () {
 	let reader: BufferPacketReader;
 	let log: SinonSpy;
 
-	beforeEach(function () {
+	beforeEach(() => {
 		writer = new BufferPacketWriter();
 		reader = new BufferPacketReader();
 		binary = createHandlers({ foo: [Bin.U8] }, { foo: [Bin.U8] });
@@ -25,28 +25,28 @@ describe('DebugPacketHandler', function () {
 			['', 'foo', 'abc'], ['', 'bar', 'abc'], writer, reader, binary, {}, ['abc'], log);
 	});
 
-	describe('send()', function () {
-		it('should log sent message', function () {
+	describe('send()', () => {
+		it('should log sent message', () => {
 			handler.send(spy(), 'foo', 1, ['a', 'b', 5], false);
 
 			assert.calledWithMatch(log, 'SEND [13] (str)', 'foo', [1, 'a', 'b', 5]);
 		});
 
-		it('should log sent binary message', function () {
+		it('should log sent binary message', () => {
 			handler.send(spy(), 'foo', 1, [8], true);
 
 			assert.calledWithMatch(log, 'SEND [2] (bin)', 'foo', [1, 8]);
 		});
 
-		it('should not log ignored message', function () {
+		it('should not log ignored message', () => {
 			handler.send(spy(), 'abc', 2, ['a', 'b', 5], true);
 
 			assert.notCalled(log);
 		});
 	});
 
-	describe('recv()', function () {
-		beforeEach(function () {
+	describe('recv()', () => {
+		beforeEach(() => {
 			funcs = {
 				foo() { },
 				abc() { },
@@ -59,32 +59,32 @@ describe('DebugPacketHandler', function () {
 			};
 		});
 
-		it('should log received message', function () {
+		it('should log received message', () => {
 			handler.recv('[1,"a","b",5]', funcs, special);
 
 			assert.calledWithMatch(log, 'RECV [13] (str)', 'foo', ['a', 'b', 5]);
 		});
 
-		it('should log received binary message', function () {
+		it('should log received binary message', () => {
 			handler.recv(new Buffer([1, 8]), funcs, special);
 
 			assert.calledWithMatch(log, 'RECV [2] (bin)', 'foo', [8]);
 		});
 
-		it('should log invalid message & received message', function () {
+		it('should log invalid message & received message', () => {
 			handler.recv('[3,6]', funcs, special);
 
 			assert.calledWithMatch(log, 'RECV [5] (str)', undefined, [6]);
 			assert.calledWithMatch(log, 'invalid message: undefined', [6]);
 		});
 
-		it('should not log ignored message', function () {
+		it('should not log ignored message', () => {
 			handler.recv('[2,"a","b",5]', funcs, special);
 
 			assert.notCalled(log);
 		});
 
-		it('should read VERSION message from websocket', function () {
+		it('should read VERSION message from websocket', () => {
 			const version = stub(special, '*version');
 
 			handler.recv(JSON.stringify([MessageType.Version, 123]), funcs, special);

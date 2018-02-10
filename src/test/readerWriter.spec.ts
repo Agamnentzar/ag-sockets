@@ -1,9 +1,9 @@
 import './common';
 import { expect } from 'chai';
-import BufferPacketWriter from '../packet/bufferPacketWriter';
-import BufferPacketReader from '../packet/bufferPacketReader';
-import ArrayBufferPacketWriter from '../packet/arrayBufferPacketWriter';
-import ArrayBufferPacketReader from '../packet/arrayBufferPacketReader';
+import { BufferPacketWriter } from '../packet/bufferPacketWriter';
+import { BufferPacketReader } from '../packet/bufferPacketReader';
+import { ArrayBufferPacketWriter } from '../packet/arrayBufferPacketWriter';
+import { ArrayBufferPacketReader } from '../packet/arrayBufferPacketReader';
 import { PacketWriter, PacketReader } from '../packet/packetCommon';
 
 type Foo = [any, number[]];

@@ -8,10 +8,10 @@ import { getSocketMetadata, getMethods } from './method';
 import { PacketHandler, MessageType, Send } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
 import { createHandlers } from './packet/binaryHandler';
-import BufferPacketWriter from './packet/bufferPacketWriter';
-import BufferPacketReader from './packet/bufferPacketReader';
-import ArrayBufferPacketWriter from './packet/arrayBufferPacketWriter';
-import ArrayBufferPacketReader from './packet/arrayBufferPacketReader';
+import { BufferPacketWriter } from './packet/bufferPacketWriter';
+import { BufferPacketReader } from './packet/bufferPacketReader';
+import { ArrayBufferPacketWriter } from './packet/arrayBufferPacketWriter';
+import { ArrayBufferPacketReader } from './packet/arrayBufferPacketReader';
 import { ParsedUrlQuery } from 'querystring';
 
 export interface Token {

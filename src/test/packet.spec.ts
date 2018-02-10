@@ -3,10 +3,10 @@ import { expect } from 'chai';
 import { assert, spy, stub } from 'sinon';
 import { Bin } from '../interfaces';
 import { MessageType, PacketHandler } from '../packet/packetHandler';
-import BufferPacketWriter from '../packet/bufferPacketWriter';
-import BufferPacketReader from '../packet/bufferPacketReader';
-import ArrayBufferPacketWriter from '../packet/arrayBufferPacketWriter';
-import ArrayBufferPacketReader from '../packet/arrayBufferPacketReader';
+import { BufferPacketWriter } from '../packet/bufferPacketWriter';
+import { BufferPacketReader } from '../packet/bufferPacketReader';
+import { ArrayBufferPacketWriter } from '../packet/arrayBufferPacketWriter';
+import { ArrayBufferPacketReader } from '../packet/arrayBufferPacketReader';
 import { createHandlers } from '../packet/binaryHandler';
 
 describe('PacketHandler', function () {

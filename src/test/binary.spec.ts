@@ -3,10 +3,10 @@ import { expect } from 'chai';
 import { Packets, Bin } from '../interfaces';
 import { createHandlers } from '../packet/binaryHandler';
 import { IBinaryHandlers } from '../packet/packetHandler';
-import BufferPacketWriter from '../packet/bufferPacketWriter';
-import BufferPacketReader from '../packet/bufferPacketReader';
+import { BufferPacketWriter } from '../packet/bufferPacketWriter';
+import { BufferPacketReader } from '../packet/bufferPacketReader';
 
-describe('binaryHandler', function () {
+describe('binaryHandler', () => {
 	const client: Packets = {
 		foo: [Bin.U8, Bin.F64],
 		boo: [Bin.Obj, [Bin.I32], [Bin.I32, Bin.I32, [Bin.I32]], [Bin.Obj]],
@@ -21,20 +21,20 @@ describe('binaryHandler', function () {
 		bar: [Bin.U8, Bin.Str],
 	};
 
-	describe('createHandlers(server)', function () {
-		it('should create writers for client', function () {
+	describe('createHandlers(server)', () => {
+		it('should create writers for client', () => {
 			const handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
 
 			expect(handlers.write['foo']).exist;
 		});
 
-		it('should create readers for server', function () {
+		it('should create readers for server', () => {
 			const handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
 
 			expect(handlers.read['bar']).exist;
 		});
 
-		it('should create proper write method', function () {
+		it('should create proper write method', () => {
 			const handlers: IBinaryHandlers<Buffer> = createHandlers(client, server);
 			const writer = new BufferPacketWriter();
 
@@ -44,20 +44,20 @@ describe('binaryHandler', function () {
 		});
 	});
 
-	describe('createHandlers(client)', function () {
-		it('should create writers for server', function () {
+	describe('createHandlers(client)', () => {
+		it('should create writers for server', () => {
 			const handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
 
 			expect(handlers.write['bar']).exist;
 		});
 
-		it('should create readers for client', function () {
+		it('should create readers for client', () => {
 			const handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
 
 			expect(handlers.read['foo']).exist;
 		});
 
-		it('should create proper read method', function () {
+		it('should create proper read method', () => {
 			const handlers: IBinaryHandlers<Buffer> = createHandlers(server, client);
 			const reader = new BufferPacketReader();
 			reader.setBuffer(new Buffer([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]));
@@ -69,20 +69,20 @@ describe('binaryHandler', function () {
 		});
 	});
 
-	describe('readWriteTests', function () {
+	describe('readWriteTests', () => {
 		let serverSide: IBinaryHandlers<Buffer>;
 		let clientSide: IBinaryHandlers<Buffer>;
 		let reader: BufferPacketReader;
 		let writer: BufferPacketWriter;
 
-		beforeEach(function () {
+		beforeEach(() => {
 			serverSide = createHandlers(client, server);
 			clientSide = createHandlers(server, client);
 			reader = new BufferPacketReader();
 			writer = new BufferPacketWriter();
 		});
 
-		it('shoud read write simple method', function () {
+		it('shoud read write simple method', () => {
 			serverSide.write['foo'](writer, [1, 8, 1.5]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
@@ -91,7 +91,7 @@ describe('binaryHandler', function () {
 			expect(result).eql([1, 8, 1.5]);
 		});
 
-		it('shoud read write complex arrays method', function () {
+		it('shoud read write complex arrays method', () => {
 			serverSide.write['far'](writer, [3, [[10, [[1, 2]]]]]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
@@ -100,7 +100,7 @@ describe('binaryHandler', function () {
 			expect(result).eql([3, [[10, [[1, 2]]]]]);
 		});
 
-		it('shoud read write simple arrays method', function () {
+		it('shoud read write simple arrays method', () => {
 			serverSide.write['fab'](writer, [4, [[10, [3, 3, 4]]]]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
@@ -109,7 +109,7 @@ describe('binaryHandler', function () {
 			expect(result).eql([4, [[10, [3, 3, 4]]]]);
 		});
 
-		it('shoud read write arrays of objects method', function () {
+		it('shoud read write arrays of objects method', () => {
 			serverSide.write['obj'](writer, [4, [{ a: 1 }, { b: 2 }]]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
@@ -118,7 +118,7 @@ describe('binaryHandler', function () {
 			expect(result).eql([4, [{ a: 1 }, { b: 2 }]]);
 		});
 
-		it('shoud read write complex method', function () {
+		it('shoud read write complex method', () => {
 			serverSide.write['boo'](writer, [2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
@@ -127,7 +127,7 @@ describe('binaryHandler', function () {
 			expect(result).eql([2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
 		});
 
-		it('should read write all types', function () {
+		it('should read write all types', () => {
 			serverSide.write['all'](writer, [5, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];
@@ -136,7 +136,7 @@ describe('binaryHandler', function () {
 			expect(result).eql([5, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
 		});
 
-		it('shoud read write method with ArrayBuffer', function () {
+		it('shoud read write method with ArrayBuffer', () => {
 			serverSide.write['buf'](writer, [1, new Uint8Array([1, 2, 3]).buffer]);
 			reader.setBuffer(writer.getBuffer());
 			const result = [reader.readUint8()];

@@ -1,6 +1,6 @@
 {
   "name": "ag-sockets",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Library for communication via WebSockets",
   "main": "dist/index.js",
   "browser": "dist/browser.js",
@@ -46,8 +46,9 @@
     "gulp": "^3.9.1",
     "gulp-live-server": "0.0.31",
     "gulp-plumber": "^1.2.0",
+    "gulp-sourcemaps": "^2.6.4",
     "gulp-spawn-mocha": "^5.0.0",
-    "gulp-typescript": "^3.2.4",
+    "gulp-typescript": "^4.0.1",
     "istanbul": "^0.4.5",
     "merge2": "^1.2.1",
     "mocha": "^5.0.0",

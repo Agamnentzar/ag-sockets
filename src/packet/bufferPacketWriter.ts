@@ -2,7 +2,7 @@ import { BasePacketWriter } from './packetWriter';
 import { encodeStringTo } from '../utf8';
 import { PacketWriter } from './packetCommon';
 
-export default class BufferPacketWriter extends BasePacketWriter implements PacketWriter<Buffer> {
+export class BufferPacketWriter extends BasePacketWriter implements PacketWriter<Buffer> {
 	private offset = 0;
 	private buffer?: Buffer;
 	getBuffer() {
