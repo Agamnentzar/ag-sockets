@@ -34,7 +34,7 @@ export abstract class BasePacketReader implements PacketReading {
 		return length === -1 ? null : decodeString(this.readBytes(length));
 	}
 	readObject() {
-		return readAny(this);
+		return readAny(this, { strings: [] });
 	}
 	readArrayBuffer() {
 		const length = this.readLength();

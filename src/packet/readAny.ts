@@ -1,11 +1,12 @@
 import { NumberType, Consts, PacketReading, Type } from './packetCommon';
 import { decodeString } from '../utf8';
+import { ReadWriteAnyState } from '../interfaces';
 
 function readShortLength(reader: PacketReading, length: number) {
 	return length === 0x1f ? reader.readLength() : length;
 }
 
-export function readAny(reader: PacketReading): any {
+export function readAny(reader: PacketReading, state: ReadWriteAnyState): any {
 	const byte = reader.readUint8();
 	const type = byte & 0xe0;
 	const value = byte & 0x1f;
@@ -39,13 +40,22 @@ export function readAny(reader: PacketReading): any {
 			return -(value + 1);
 		case Type.String:
 			const length = readShortLength(reader, value);
-			return decodeString(reader.readBytes(length));
+			const result = decodeString(reader.readBytes(length));
+
+			if (result) {
+				state.strings.push(result);
+			}
+
+			return result;
+		case Type.StringRef:
+			const index = readShortLength(reader, value);
+			return state.strings[index];
 		case Type.Array: {
 			const length = readShortLength(reader, value);
 			const array = [];
 
 			for (let i = 0; i < length; i++) {
-				array.push(readAny(reader));
+				array.push(readAny(reader, state));
 			}
 
 			return array;
@@ -56,7 +66,7 @@ export function readAny(reader: PacketReading): any {
 
 			for (let i = 0; i < length; i++) {
 				const key = reader.readString()!;
-				obj[key] = readAny(reader);
+				obj[key] = readAny(reader, state);
 			}
 
 			return obj;

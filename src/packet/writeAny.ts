@@ -1,5 +1,6 @@
 import { PacketWriting, Type, Consts, NumberType } from './packetCommon';
 import { stringLengthInBytes } from '../utf8';
+import { ReadWriteAnyState } from '../interfaces';
 
 const floats = new Float32Array(1);
 
@@ -14,7 +15,7 @@ function writeShortLength(writer: PacketWriting, type: Type, length: number) {
 	}
 }
 
-export function writeAny(writer: PacketWriting, value: any) {
+export function writeAny(writer: PacketWriting, value: any, state: ReadWriteAnyState) {
 	if (value === undefined) {
 		writer.writeUint8(Type.Const | Consts.Undefined);
 	} else if (value === null) {
@@ -66,15 +67,25 @@ export function writeAny(writer: PacketWriting, value: any) {
 			}
 		}
 	} else if (typeof value === 'string') {
-		const length = stringLengthInBytes(value);
-		writeShortLength(writer, Type.String, length);
-		writer.writeStringValue(value);
+		const index = state.strings.indexOf(value);
+
+		if (index !== -1) {
+			writeShortLength(writer, Type.StringRef, index);
+		} else {
+			const length = stringLengthInBytes(value);
+			writeShortLength(writer, Type.String, length);
+			writer.writeStringValue(value);
+
+			if (value) {
+				state.strings.push(value);
+			}
+		}
 	} else if (Array.isArray(value)) {
 		const length = value.length;
 		writeShortLength(writer, Type.Array, length);
 
 		for (let i = 0; i < length; i++) {
-			writeAny(writer, value[i]);
+			writeAny(writer, value[i], state);
 		}
 	} else if (typeof value === 'object') {
 		const keys = Object.keys(value);
@@ -83,7 +94,7 @@ export function writeAny(writer: PacketWriting, value: any) {
 		for (let i = 0; i < keys.length; i++) {
 			const key = keys[i];
 			writer.writeString(key);
-			writeAny(writer, value[key]);
+			writeAny(writer, value[key], state);
 		}
 	} else {
 		throw new Error(`Invalid type: ${value}`);

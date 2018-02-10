@@ -154,8 +154,8 @@ describe('PacketReader + PacketWriter', () => {
 			const reader = new ArrayBufferPacketReader();
 			writer.init(10000);
 			writer.writeObject(obj);
-			//const jsonLength = JSON.stringify(obj) && JSON.stringify(obj).length || 0;
-			//console.log(`size: ${writer.getOffset()} / ${jsonLength + writer.measureLength(jsonLength)}`);
+			// const jsonLength = JSON.stringify(obj) && JSON.stringify(obj).length || 0;
+			// console.log(`size: ${writer.getOffset()} / ${jsonLength + writer.measureLength(jsonLength)}`);
 			reader.setBuffer(writer.getBuffer());
 			expect(reader.readObject()).eql(obj, message);
 		}
@@ -251,6 +251,15 @@ describe('PacketReader + PacketWriter', () => {
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 			], 42);
+		});
+
+		it('should read and write objects with repeated strings', () => {
+			readWriteObjectTest({
+				bar: 'bar',
+				x: 'foo',
+				y: 'bar',
+				values: [1, 'bar', 'bar'],
+			});
 		});
 	});
 });

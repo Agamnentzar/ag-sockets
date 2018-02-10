@@ -7,7 +7,7 @@ export abstract class BasePacketWriter implements PacketWriting {
 	private measuring = new MeasuringWriter();
 	private measureAny(value: any) {
 		this.measuring.reset();
-		writeAny(this.measuring, value);
+		writeAny(this.measuring, value, { strings: [] });
 		return this.measuring.getSize();
 	}
 	measureString(value: string) {
@@ -48,7 +48,7 @@ export abstract class BasePacketWriter implements PacketWriting {
 		}
 	}
 	writeObject(value: any) {
-		writeAny(this, value);
+		writeAny(this, value, { strings: [] });
 	}
 	writeArrayBuffer(value: ArrayBuffer | null) {
 		if (value == null) {

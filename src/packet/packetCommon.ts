@@ -8,6 +8,7 @@ export const enum Type {
 	Object = 4 << 5,
 	TinyPositiveNumber = 5 << 5,
 	TinyNegativeNumber = 6 << 5,
+	StringRef = 7 << 5,
 }
 
 export const enum Consts {

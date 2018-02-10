@@ -92,6 +92,10 @@ export interface CommonOptions {
 	requestParams?: any;
 }
 
+export interface ReadWriteAnyState {
+	strings: string[];
+}
+
 export interface Packet {
 	id: number;
 	name: string;
