@@ -93,7 +93,20 @@ export function writeAny(writer: PacketWriting, value: any, state: ReadWriteAnyS
 
 		for (let i = 0; i < keys.length; i++) {
 			const key = keys[i];
-			writer.writeString(key);
+			const index = state.strings.indexOf(key);
+
+			if (index === -1) {
+				writer.writeLength(stringLengthInBytes(key));
+				writer.writeStringValue(key);
+
+				if (key) {
+					state.strings.push(key);
+				}
+			} else {
+				writer.writeLength(0);
+				writer.writeLength(index);
+			}
+
 			writeAny(writer, value[key], state);
 		}
 	} else {

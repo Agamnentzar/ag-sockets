@@ -65,8 +65,17 @@ export function readAny(reader: PacketReading, state: ReadWriteAnyState): any {
 			const obj: any = {};
 
 			for (let i = 0; i < length; i++) {
-				const key = reader.readString()!;
-				obj[key] = readAny(reader, state);
+				const length = reader.readLength();
+
+				if (length) {
+					const key = decodeString(reader.readBytes(length))!;
+					state.strings.push(key);
+					obj[key] = readAny(reader, state);
+				} else {
+					const index = reader.readLength();
+					const key = state.strings[index];
+					obj[key] = readAny(reader, state);
+				}
 			}
 
 			return obj;

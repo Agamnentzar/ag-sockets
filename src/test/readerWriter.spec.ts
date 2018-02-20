@@ -261,5 +261,15 @@ describe('PacketReader + PacketWriter', () => {
 				values: [1, 'bar', 'bar'],
 			});
 		});
+
+		it('should read and write objects with repeated keys', () => {
+			readWriteObjectTest([
+				{ value: 'bar' },
+				{ value: 'boo' },
+				{ value: 'abc' },
+				{ value: 'def' },
+				{ value: 'omg' },
+			]);
+		});
 	});
 });
