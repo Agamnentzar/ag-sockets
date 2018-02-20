@@ -31,7 +31,7 @@ export interface SocketService<TClient extends SocketClient, TServer extends Soc
 	disconnect(): void;
 }
 
-export const enum Bin {
+export enum Bin {
 	I8,
 	U8,
 	I16,
