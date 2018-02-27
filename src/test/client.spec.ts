@@ -37,7 +37,7 @@ interface Server extends SocketServer {
 	foo3(): void;
 }
 
-describe('ClientSocket', function () {
+describe('ClientSocket', () => {
 	const location = { protocol: '', host: '' };
 	const window = { addEventListener() { }, removeEventListener() { } };
 	const clientOptions: ClientOptions = {
@@ -60,13 +60,13 @@ describe('ClientSocket', function () {
 	let service: SocketService<Client, Server>;
 	let errorHandler: ClientErrorHandler;
 
-	before(function () {
+	before(() => {
 		(<any>global).window = window;
 		(<any>global).location = location;
 		(<any>global).WebSocket = MockWebSocket;
 	});
 
-	beforeEach(function () {
+	beforeEach(() => {
 		location.protocol = 'http:';
 		location.host = 'example.com';
 		window.addEventListener = () => { };
@@ -77,8 +77,8 @@ describe('ClientSocket', function () {
 		service = new ClientSocket<Client, Server>(clientOptions, void 0, errorHandler);
 	});
 
-	describe('invalidVersion', function () {
-		it('should not be called if version is correct', function () {
+	describe('invalidVersion', () => {
+		it('should not be called if version is correct', () => {
 			service.client.invalidVersion = () => { };
 			const invalidVersion = stub(service.client, 'invalidVersion');
 			service.connect();
@@ -88,7 +88,7 @@ describe('ClientSocket', function () {
 			assert.notCalled(invalidVersion);
 		});
 
-		it('should be called if version is incorrect', function () {
+		it('should be called if version is incorrect', () => {
 			service.client.invalidVersion = () => { };
 			const invalidVersion = stub(service.client, 'invalidVersion');
 			service.connect();
@@ -98,7 +98,7 @@ describe('ClientSocket', function () {
 			assert.calledOnce(invalidVersion);
 		});
 
-		it('should do nothing if there is no callback', function () {
+		it('should do nothing if there is no callback', () => {
 			service.client.invalidVersion = void 0;
 			service.connect();
 
@@ -106,8 +106,8 @@ describe('ClientSocket', function () {
 		});
 	});
 
-	describe('ping', function () {
-		it('should respond to empty message with ping', function () {
+	describe('ping', () => {
+		it('should respond to empty message with ping', () => {
 			service.connect();
 			const send = stub(lastWebSocket, 'send');
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
@@ -117,7 +117,7 @@ describe('ClientSocket', function () {
 			assert.calledWith(send, '');
 		});
 
-		it('should not send ping if connection is not open', function () {
+		it('should not send ping if connection is not open', () => {
 			service.connect();
 			const send = stub(lastWebSocket, 'send');
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
@@ -128,7 +128,7 @@ describe('ClientSocket', function () {
 			assert.notCalled(send);
 		});
 
-		it('should not respond to empty message with ping if ping was already sent', function () {
+		it('should not respond to empty message with ping if ping was already sent', () => {
 			service.connect();
 			const send = stub(lastWebSocket, 'send');
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
@@ -139,7 +139,7 @@ describe('ClientSocket', function () {
 			assert.calledOnce(send);
 		});
 
-		it('should not respond to empty message with ping if version is not yet validated', function () {
+		it('should not respond to empty message with ping if version is not yet validated', () => {
 			service.connect();
 			const send = stub(lastWebSocket, 'send');
 
@@ -149,15 +149,15 @@ describe('ClientSocket', function () {
 		});
 	});
 
-	describe('connect()', function () {
-		it('should create websocket with proper url', function () {
+	describe('connect()', () => {
+		it('should create websocket with proper url', () => {
 			service.connect();
 
 			expect(lastWebSocket).not.undefined;
 			expect(lastWebSocket.url).equal('ws://example.com/test?foo=bar&x=5&bin=true');
 		});
 
-		it('should use "/ws" as default path', function () {
+		it('should use "/ws" as default path', () => {
 			const options = cloneDeep(clientOptions);
 			delete options.path;
 			service = new ClientSocket<Client, Server>(options);
@@ -166,7 +166,7 @@ describe('ClientSocket', function () {
 			expect(lastWebSocket.url).equal('ws://example.com/ws?foo=bar&x=5&bin=true');
 		});
 
-		it('should create websocket with SSL for HTTPS url', function () {
+		it('should create websocket with SSL for HTTPS url', () => {
 			location.protocol = 'https:';
 
 			service.connect();
@@ -174,7 +174,7 @@ describe('ClientSocket', function () {
 			expect(lastWebSocket.url).equal('wss://example.com/test?foo=bar&x=5&bin=true');
 		});
 
-		it('should add event listener for "beforeunload"', function () {
+		it('should add event listener for "beforeunload"', () => {
 			const addEventListener = stub(window, 'addEventListener');
 
 			service.connect();
@@ -182,7 +182,7 @@ describe('ClientSocket', function () {
 			assert.calledOnce(addEventListener);
 		});
 
-		it('should add event listener that closes the socket', function () {
+		it('should add event listener that closes the socket', () => {
 			let addEventListener = stub(window, 'addEventListener');
 			service.connect();
 			let close = stub(lastWebSocket, 'close');
@@ -193,7 +193,7 @@ describe('ClientSocket', function () {
 			assert.calledOnce(close);
 		});
 
-		it('should add event listener that does nothing if not connected', function () {
+		it('should add event listener that does nothing if not connected', () => {
 			const addEventListener = stub(window, 'addEventListener');
 			service.connect();
 			const close = stub(lastWebSocket, 'close');
@@ -204,18 +204,18 @@ describe('ClientSocket', function () {
 			assert.notCalled(close);
 		});
 
-		it('should do nothing on second call', function () {
+		it('should do nothing on second call', () => {
 			service.connect();
 			service.connect();
 		});
 	});
 
-	describe('disconnect()', function () {
-		it('should do nothing if not connected', function () {
+	describe('disconnect()', () => {
+		it('should do nothing if not connected', () => {
 			service.disconnect();
 		});
 
-		it('should close socket', function () {
+		it('should close socket', () => {
 			service.connect();
 			const close = stub(lastWebSocket, 'close');
 
@@ -224,7 +224,7 @@ describe('ClientSocket', function () {
 			assert.calledOnce(close);
 		});
 
-		it('should remove event listener for "beforeunload"', function () {
+		it('should remove event listener for "beforeunload"', () => {
 			service.connect();
 			const removeEventListener = stub(window, 'removeEventListener');
 
@@ -234,23 +234,23 @@ describe('ClientSocket', function () {
 		});
 	});
 
-	describe('(not connected)', function () {
-		it('should reject if called promise methods when not connected', function () {
+	describe('(not connected)', () => {
+		it('should reject if called promise methods when not connected', () => {
 			return expect(service.server.foo()).rejectedWith('not connected');
 		});
 	});
 
-	describe('(connected)', function () {
-		beforeEach(function () {
+	describe('(connected)', () => {
+		beforeEach(() => {
 			service.connect();
 			lastWebSocket.onopen();
 		});
 
-		it('should have methods', function () {
+		it('should have methods', () => {
 			service.server.test2();
 		});
 
-		it('should send data to socket', function () {
+		it('should send data to socket', () => {
 			const send = stub(lastWebSocket, 'send');
 
 			service.server.test2();
@@ -258,17 +258,17 @@ describe('ClientSocket', function () {
 			assert.calledWith(send, '[0]');
 		});
 
-		it('should reject when rate limit is exceeded', function () {
+		it('should reject when rate limit is exceeded', () => {
 			service.server.foo2();
 			expect(service.server.foo2()).rejectedWith('rate limit exceeded');
 		});
 
-		it('should return false when rate limit is exceeded', function () {
+		it('should return false when rate limit is exceeded', () => {
 			service.server.foo3();
 			expect(service.server.foo3()).false;
 		});
 
-		it('should not send request when rate limit is exceeded', function () {
+		it('should not send request when rate limit is exceeded', () => {
 			service.server.foo3();
 			const send = stub((service as any).packet, 'send');
 
@@ -277,12 +277,12 @@ describe('ClientSocket', function () {
 			assert.notCalled(send);
 		});
 
-		it('should reject when rate limit is exceeded', function () {
+		it('should reject when rate limit is exceeded', () => {
 			service.server.foo2();
 			expect(service.server.foo2()).rejectedWith('rate limit exceeded');
 		});
 
-		it('should not send request when rate limit is exceeded (promise)', function () {
+		it('should not send request when rate limit is exceeded (promise)', () => {
 			service.server.foo2();
 			const send = stub((service as any).packet, 'send');
 
@@ -291,7 +291,7 @@ describe('ClientSocket', function () {
 			assert.notCalled(send);
 		});
 
-		it('should not send data when socket readyState is not OPEN', function () {
+		it('should not send data when socket readyState is not OPEN', () => {
 			const send = stub(lastWebSocket, 'send');
 			lastWebSocket.readyState = WebSocket.CLOSED;
 
@@ -301,19 +301,19 @@ describe('ClientSocket', function () {
 		});
 	});
 
-	describe('(websocket events)', function () {
-		beforeEach(function () {
+	describe('(websocket events)', () => {
+		beforeEach(() => {
 			service.connect();
 		});
 
-		describe('websocket.onopen()', function () {
-			it('should set isConnected to true', function () {
+		describe('websocket.onopen()', () => {
+			it('should set isConnected to true', () => {
 				lastWebSocket.onopen();
 
 				expect(service.isConnected).true;
 			});
 
-			it('should call client.connected', function () {
+			it('should call client.connected', () => {
 				const connected = spy();
 				service.client.connected = connected;
 
@@ -323,8 +323,8 @@ describe('ClientSocket', function () {
 			});
 		});
 
-		describe('websocket.onclose()', function () {
-			it('should set isConnected to false', function () {
+		describe('websocket.onclose()', () => {
+			it('should set isConnected to false', () => {
 				lastWebSocket.onopen();
 
 				lastWebSocket.onclose();
@@ -332,7 +332,7 @@ describe('ClientSocket', function () {
 				expect(service.isConnected).false;
 			});
 
-			it('should call client.disconnected', function () {
+			it('should call client.disconnected', () => {
 				const disconnected = spy();
 				service.client.disconnected = disconnected;
 				lastWebSocket.onopen();
@@ -342,7 +342,7 @@ describe('ClientSocket', function () {
 				assert.calledOnce(disconnected);
 			});
 
-			it('should not call client.disconnected if not connected', function () {
+			it('should not call client.disconnected if not connected', () => {
 				const disconnected = spy();
 				service.client.disconnected = disconnected;
 
@@ -351,7 +351,7 @@ describe('ClientSocket', function () {
 				assert.notCalled(disconnected);
 			});
 
-			it('should reject all pending promises', function () {
+			it('should reject all pending promises', () => {
 				lastWebSocket.onopen();
 
 				const promise = service.server.foo();
@@ -362,17 +362,17 @@ describe('ClientSocket', function () {
 			});
 		});
 
-		describe('websocket.onerror()', function () {
-			it('should do nothing', function () {
+		describe('websocket.onerror()', () => {
+			it('should do nothing', () => {
 				lastWebSocket.onopen();
 
 				lastWebSocket.onerror();
 			});
 		});
 
-		describe('websocket.onmessage()', function () {
-			it('should call received mesasge', function () {
-				service.client.foo = function () { };
+		describe('websocket.onmessage()', () => {
+			it('should call received mesasge', () => {
+				service.client.foo = () => { };
 				const foo = stub(service.client, 'foo');
 				lastWebSocket.onopen();
 
@@ -381,7 +381,7 @@ describe('ClientSocket', function () {
 				assert.calledWith(foo, 2);
 			});
 
-			it('should resolve pending promise', function () {
+			it('should resolve pending promise', () => {
 				lastWebSocket.onopen();
 
 				const promise = service.server.foo();
@@ -391,7 +391,7 @@ describe('ClientSocket', function () {
 				return promise.then(x => expect(x).equal('ok'));
 			});
 
-			it('shoudl change progress field', function () {
+			it('shoudl change progress field', () => {
 				lastWebSocket.onopen();
 
 				const promise = service.server.foo();
@@ -403,7 +403,7 @@ describe('ClientSocket', function () {
 				return promise.then(() => expect(service.server.fooInProgress).false);
 			});
 
-			it('should reject pending promise', function () {
+			it('should reject pending promise', () => {
 				lastWebSocket.onopen();
 
 				const promise = service.server.foo();
@@ -413,7 +413,7 @@ describe('ClientSocket', function () {
 				return expect(promise).rejectedWith('fail');
 			});
 
-			it('should pass error from packet recv method to error handler', function () {
+			it('should pass error from packet recv method to error handler', () => {
 				lastWebSocket.onopen();
 				const error = new Error('test error');
 				const handleRecvError = stub(errorHandler, 'handleRecvError');
@@ -424,7 +424,7 @@ describe('ClientSocket', function () {
 				assert.calledWith(handleRecvError, error, '[0]');
 			});
 
-			it('should do nothing for resolving non-existing promise', function () {
+			it('should do nothing for resolving non-existing promise', () => {
 				lastWebSocket.onopen();
 
 				service.server.foo();
@@ -432,7 +432,7 @@ describe('ClientSocket', function () {
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 5, 'ok']) });
 			});
 
-			it('should do nothing for rejecting non-existing promise', function () {
+			it('should do nothing for rejecting non-existing promise', () => {
 				lastWebSocket.onopen();
 
 				service.server.foo();
@@ -440,7 +440,7 @@ describe('ClientSocket', function () {
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Rejected, 1, 5, 'fail']) });
 			});
 
-			it('should resolve promises with correct id', function () {
+			it('should resolve promises with correct id', () => {
 				lastWebSocket.onopen();
 
 				const promise1 = service.server.foo();
@@ -456,7 +456,7 @@ describe('ClientSocket', function () {
 					});
 			});
 
-			it('should throw error if with default error handler', function () {
+			it('should throw error if with default error handler', () => {
 				service = new ClientSocket<Client, Server>(clientOptions);
 				service.connect();
 				stub((service as any).packet, 'recv').throws(new Error('test'));

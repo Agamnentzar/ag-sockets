@@ -5,8 +5,8 @@ import { isValid } from '../validate';
 
 type Case = [any, boolean];
 
-describe('validate', function () {
-	describe('isValid()', function () {
+describe('validate', () => {
+	describe('isValid()', () => {
 		const nans: Case[] = [
 			['5', false],
 			[true, false],
@@ -142,7 +142,7 @@ describe('validate', function () {
 
 		tests.forEach(([type, name, cases]) => {
 			cases.forEach(([value, result]) => {
-				it(`should return '${result}' for value '${JSON.stringify(value)}' and type '${name}'`, function () {
+				it(`should return '${result}' for value '${JSON.stringify(value)}' and type '${name}'`, () => {
 					expect(isValid(value, type)).equal(result);
 				});
 			});

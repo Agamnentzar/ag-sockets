@@ -16,9 +16,9 @@ class EmptyServer {
 	bar() { }
 }
 
-describe('metadata', function () {
-	describe('getSocketServerMetadata()', function () {
-		it('should return methods metadata for class with decorators', function () {
+describe('metadata', () => {
+	describe('getSocketServerMetadata()', () => {
+		it('should return methods metadata for class with decorators', () => {
 			expect(getMethodMetadata(ExampleServer)).eql([
 				<MethodMetadata>{
 					name: 'foo',
@@ -34,13 +34,13 @@ describe('metadata', function () {
 			]);
 		});
 
-		it('should return undefined for class without decorators', function () {
+		it('should return undefined for class without decorators', () => {
 			expect(getMethodMetadata(EmptyServer)).undefined;
 		});
 	});
 
-	describe('getMethodMetadata()', function () {
-		it('should return metadata for class with decorator', function () {
+	describe('getMethodMetadata()', () => {
+		it('should return metadata for class with decorator', () => {
 			expect(getSocketMetadata(ExampleServer)).eql(<ServerOptions>{
 				path: '/api',
 				ssl: true,
@@ -48,7 +48,7 @@ describe('metadata', function () {
 			});
 		});
 
-		it('should return undefined metadata for class without decorator', function () {
+		it('should return undefined metadata for class without decorator', () => {
 			expect(getSocketMetadata(EmptyServer)).undefined;
 		});
 	});

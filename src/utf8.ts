@@ -1,19 +1,21 @@
 function forEachCharacter(value: string, callback: (code: number) => void) {
 	for (let i = 0; i < value.length; i++) {
-		let code = value.charCodeAt(i);
+		const code = value.charCodeAt(i);
 
 		// high surrogate
-		if (code >= 0xd800 && code <= 0xdbff && (i + 1) < value.length) {
-			const extra = value.charCodeAt(i + 1);
+		if (code >= 0xd800 && code <= 0xdbff) {
+			if ((i + 1) < value.length) {
+				const extra = value.charCodeAt(i + 1);
 
-			// low surrogate
-			if ((extra & 0xfc00) === 0xdc00) {
-				code = ((code & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000;
-				i++;
+				// low surrogate
+				if ((extra & 0xfc00) === 0xdc00) {
+					i++;
+					callback(((code & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000);
+				}
 			}
+		} else {
+			callback(code);
 		}
-
-		callback(code);
 	}
 }
 

@@ -98,23 +98,23 @@ describe('PacketReader + PacketWriter', () => {
 		expect(writer.measureArrayBuffer(new Uint8Array([1, 2, 3]).buffer)).equal(3 + 1, 'measureArrayBuffer');
 	}
 
-	it('should read and write value correctly (BufferPacketWriter)', () => {
+	it('reads and writes value correctly (BufferPacketWriter)', () => {
 		readWriteTest(new BufferPacketWriter(), new BufferPacketReader());
 	});
 
-	it('should read and write value correctly (ArrayBufferPacketWriter)', () => {
+	it('reads and writes value correctly (ArrayBufferPacketWriter)', () => {
 		readWriteTest(new ArrayBufferPacketWriter(), new ArrayBufferPacketReader());
 	});
 
-	it('should measure lengths correctly (BufferPacketWriter)', () => {
+	it('measures lengths correctly (BufferPacketWriter)', () => {
 		measureTest(new BufferPacketWriter());
 	});
 
-	it('should measure lengths correctly (ArrayBufferPacketWriter)', () => {
+	it('measures lengths correctly (ArrayBufferPacketWriter)', () => {
 		measureTest(new ArrayBufferPacketWriter());
 	});
 
-	it('should return offset (ArrayBufferPacketWriter)', () => {
+	it('returns offset (ArrayBufferPacketWriter)', () => {
 		const writer = new ArrayBufferPacketWriter();
 		writer.init(16);
 		expect(writer.getOffset()).equal(0);
@@ -122,7 +122,7 @@ describe('PacketReader + PacketWriter', () => {
 		expect(writer.getOffset()).equal(1);
 	});
 
-	it('should be able to reset offset (ArrayBufferPacketWriter)', () => {
+	it('can reset offset (ArrayBufferPacketWriter)', () => {
 		const writer = new ArrayBufferPacketWriter();
 		writer.init(16);
 		writer.writeUint8(1);
@@ -131,7 +131,7 @@ describe('PacketReader + PacketWriter', () => {
 		expect(writer.getOffset()).equal(0);
 	});
 
-	it('should return offset (BufferPacketWriter)', () => {
+	it('returns offset (BufferPacketWriter)', () => {
 		const writer = new BufferPacketWriter();
 		writer.init(16);
 		expect(writer.getOffset()).equal(0);
@@ -139,7 +139,7 @@ describe('PacketReader + PacketWriter', () => {
 		expect(writer.getOffset()).equal(1);
 	});
 
-	it('should be able to reset offset (BufferPacketWriter)', () => {
+	it('car reset offset (BufferPacketWriter)', () => {
 		const writer = new BufferPacketWriter();
 		writer.init(16);
 		writer.writeUint8(1);
@@ -166,15 +166,15 @@ describe('PacketReader + PacketWriter', () => {
 			expect(writer.measureObject(obj)).equal(expected, message);
 		}
 
-		it('should read and write undefined', () => readWriteObjectTest(undefined));
-		it('should read and write null', () => readWriteObjectTest(null));
-		it('should read and write true', () => readWriteObjectTest(true));
-		it('should read and write false', () => readWriteObjectTest(false));
-		it('should read and write numbers', () => readWriteObjectTest(123));
-		it('should read and write strings', () => readWriteObjectTest('abc'));
-		it('should read and write arrays', () => readWriteObjectTest([1, 2, 3]));
+		it('reads and writes undefined', () => readWriteObjectTest(undefined));
+		it('reads and writes null', () => readWriteObjectTest(null));
+		it('reads and writes true', () => readWriteObjectTest(true));
+		it('reads and writes false', () => readWriteObjectTest(false));
+		it('reads and writes numbers', () => readWriteObjectTest(123));
+		it('reads and writes strings', () => readWriteObjectTest('abc'));
+		it('reads and writes arrays', () => readWriteObjectTest([1, 2, 3]));
 
-		it('should read and write numbers', () => {
+		it('reads and writes numbers', () => {
 			readWriteObjectTest(0);
 			readWriteObjectTest(1);
 			readWriteObjectTest(-1);
@@ -199,7 +199,7 @@ describe('PacketReader + PacketWriter', () => {
 			readWriteObjectTest(-0xffffffff, '-0xffffffff');
 		});
 
-		it('should read and write objects correctly', () => {
+		it('reads and writes objects correctly', () => {
 			readWriteObjectTest({
 				foo: 'bar',
 				x: 123,
@@ -215,11 +215,11 @@ describe('PacketReader + PacketWriter', () => {
 			});
 		});
 
-		it('should read and write arrays', () => {
+		it('reads and writes arrays', () => {
 			readWriteObjectTest([0, 1, 0xff, 0xffff, 0xffffff, 1.5, Math.PI]);
 		});
 
-		it('should read and write long arrays', () => {
+		it('reads and writes long arrays', () => {
 			readWriteObjectTest([
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -228,23 +228,23 @@ describe('PacketReader + PacketWriter', () => {
 			]);
 		});
 
-		it('should read and write arrays of negative numbers', () => {
+		it('reads and writes arrays of negative numbers', () => {
 			readWriteObjectTest([0, -1, -0x3f, -0x1fff, -0x1fffff, -1.5, -Math.PI]);
 		});
 
-		it('should measure arrays', () => {
+		it('measures arrays', () => {
 			measureObjectTest(
 				[0, 1, 0xff, 0xffff, 0xffffff, 1.5, Math.PI],
 				1 + 1 + 1 + (1 + 1) + (1 + 2) + (1 + 4) + (1 + 4) + (1 + 8));
 		});
 
-		it('should measure arrays of negative numbers', () => {
+		it('measures arrays of negative numbers', () => {
 			measureObjectTest(
 				[0, -1, -0x3f, -0x1fff, -0x1fffff, -1.5, -Math.PI],
 				1 + 1 + 1 + (1 + 1) + (1 + 2) + (1 + 4) + (1 + 4) + (1 + 8));
 		});
 
-		it('should measure long arrays', () => {
+		it('measures long arrays', () => {
 			measureObjectTest([
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -253,7 +253,7 @@ describe('PacketReader + PacketWriter', () => {
 			], 42);
 		});
 
-		it('should read and write objects with repeated strings', () => {
+		it('reads and writes objects with repeated strings', () => {
 			readWriteObjectTest({
 				bar: 'bar',
 				x: 'foo',
@@ -262,7 +262,13 @@ describe('PacketReader + PacketWriter', () => {
 			});
 		});
 
-		it('should read and write objects with repeated keys', () => {
+		it('reads and writes objects with empty strings', () => {
+			readWriteObjectTest({
+				x: '',
+			});
+		});
+
+		it('reads and writes objects with repeated keys', () => {
 			readWriteObjectTest([
 				{ value: 'bar' },
 				{ value: 'boo' },
@@ -270,6 +276,18 @@ describe('PacketReader + PacketWriter', () => {
 				{ value: 'def' },
 				{ value: 'omg' },
 			]);
+		});
+
+		it.skip('reads and writes objects with empty string keys', () => {
+			readWriteObjectTest([
+				{ '': 'bar' },
+			]);
+		});
+
+		it('throws for invalid type (function)', () => {
+			expect(() => readWriteObjectTest({
+				foo() { },
+			})).throw('Invalid type: ');
 		});
 	});
 });
