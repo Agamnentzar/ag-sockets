@@ -123,6 +123,8 @@ export interface ServerOptions extends CommonOptions {
 	ws?: any;
 	/** use ArrayBuffer instead of Buffer on server side */
 	arrayBuffer?: boolean;
+	/** only allow binary packets and binary connections */
+	forceBinary?: boolean;
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
 	/** send/recv handlers */

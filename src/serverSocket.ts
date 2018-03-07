@@ -91,17 +91,18 @@ export function createClientOptions<TServer, TClient>(
 function createServerOptions(serverType: Function, clientType: Function, options?: ServerOptions) {
 	const client = getMethodsFromType(clientType);
 	const server = getMethodsFromType(serverType);
-	return Object.assign({ client, server }, getSocketMetadata(serverType), options);
+	return { client, server, ...getSocketMetadata(serverType), ...options };
 }
 
 function optionsWithDefaults(options: ServerOptions): ServerOptions {
-	return Object.assign({
+	return {
 		hash: Date.now(),
 		path: '/ws',
 		tokenLifetime: 3600 * 1000, // 1 hour
 		reconnectTimeout: 500, // 0.5 sec
 		connectionTimeout: 10000, // 10 sec
-	}, options);
+		...options,
+	};
 }
 
 function clearMethodOptions([name, { serverRateLimit: _, ...options }]: [string, MethodOptions]) {
@@ -323,7 +324,7 @@ export function create(
 		const obj: Client = {
 			lastMessageTime: Date.now(),
 			lastMessageId: 0,
-			supportsBinary: !!(query && query.bin === 'true'),
+			supportsBinary: !!options.forceBinary || !!(query && query.bin === 'true'),
 			token,
 			ping() {
 				socket.send('');
@@ -376,6 +377,12 @@ export function create(
 				transferLimitExceeded = true;
 				obj.client.disconnect(true, true);
 				errorHandler.handleRecvError(obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${options.transferLimit} (${diff}ms)`), message);
+				return;
+			}
+
+			if (options.forceBinary && typeof message === 'string') {
+				obj.client.disconnect(true, true);
+				errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`), message);
 				return;
 			}
 
