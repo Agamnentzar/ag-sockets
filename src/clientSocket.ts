@@ -215,10 +215,13 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			const now = Date.now();
 			const interval = this.options.pingInterval;
 
-			if (this.versionValidated && interval && (now - this.lastPing) > interval && this.send('')) {
+			if (this.versionValidated && interval && (now - this.lastPing) > interval && this.sendPingPacket()) {
 				this.lastPing = now;
 			}
 		} catch (e) { }
+	}
+	private sendPingPacket() {
+		return this.send(this.supportsBinary ? new ArrayBuffer(0) : '');
 	}
 	private createMethod(name: string, id: number, options: MethodOptions) {
 		if (name) {
