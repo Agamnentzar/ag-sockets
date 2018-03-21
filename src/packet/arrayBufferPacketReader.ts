@@ -4,9 +4,9 @@ import { PacketReader } from './packetCommon';
 export class ArrayBufferPacketReader extends BasePacketReader implements PacketReader<ArrayBuffer> {
 	private offset = 0;
 	private view?: DataView;
-	setBuffer(buffer: ArrayBuffer, offset?: number, length?: number) {
-		this.offset = 0;
-		this.view = new DataView(buffer, offset, length);
+	setBuffer(buffer: ArrayBuffer, offset?: number, _length?: number) {
+		this.offset = offset || 0;
+		this.view = new DataView(buffer);
 	}
 	done() {
 		this.view = undefined;
