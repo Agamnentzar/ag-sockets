@@ -4,11 +4,12 @@ import { PacketReader } from './packetCommon';
 export class ArrayBufferPacketReader extends BasePacketReader implements PacketReader<ArrayBuffer> {
 	private offset = 0;
 	private view?: DataView;
-	private buffer?: ArrayBuffer;
-	setBuffer(buffer: ArrayBuffer) {
+	setBuffer(buffer: ArrayBuffer, offset?: number, length?: number) {
 		this.offset = 0;
-		this.buffer = buffer;
-		this.view = new DataView(this.buffer);
+		this.view = new DataView(buffer, offset, length);
+	}
+	done() {
+		this.view = undefined;
 	}
 	readInt8() {
 		this.offset += 1;

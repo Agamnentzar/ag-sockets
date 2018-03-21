@@ -6,9 +6,8 @@ export class ArrayBufferPacketWriter extends BasePacketWriter implements PacketW
 	private offset = 0;
 	private view?: DataView;
 	private bytes?: Uint8Array;
-	private buffer?: ArrayBuffer;
 	getBuffer() {
-		return this.buffer!;
+		return this.view!.buffer;
 	}
 	getOffset() {
 		return this.offset;
@@ -18,9 +17,8 @@ export class ArrayBufferPacketWriter extends BasePacketWriter implements PacketW
 	}
 	init(size: number) {
 		this.offset = 0;
-		this.buffer = new ArrayBuffer(size);
-		this.view = new DataView(this.buffer);
-		this.bytes = new Uint8Array(this.buffer);
+		this.view = new DataView(new ArrayBuffer(size));
+		this.bytes = new Uint8Array(this.view.buffer);
 	}
 	writeInt8(value: number) {
 		this.view!.setInt8(this.offset, value);

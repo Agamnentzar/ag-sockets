@@ -43,6 +43,8 @@ describe('PacketReader + PacketWriter', () => {
 		});
 		writer.writeArrayBuffer(null);
 		writer.writeArrayBuffer(new Uint8Array([1, 2, 3]).buffer);
+		writer.writeUint8Array(null);
+		writer.writeUint8Array(new Uint8Array([1, 2, 3]));
 
 		reader.setBuffer(writer.getBuffer());
 		expect(reader.readInt8()).equal(-123, 'readInt8');
@@ -77,6 +79,11 @@ describe('PacketReader + PacketWriter', () => {
 		])).eql([[{ foo: 'bar' }, [1, 2, 3]], [{ foo: 'boo' }, [4, 5, 6]]], 'readArray Foo[]');
 		expect(reader.readArrayBuffer()).equal(null, 'readArrayBuffer null');
 		expect(new Uint8Array(reader.readArrayBuffer()!)).eql(new Uint8Array([1, 2, 3]), 'readArrayBuffer [1, 2, 3]');
+		expect(reader.readUint8Array()).equal(null, 'readUint8Array null');
+		expect(reader.readUint8Array()).eql(new Uint8Array([1, 2, 3]), 'readUint8Array [1, 2, 3]');
+		
+		reader.done();
+		expect(() => reader.readUint8()).throw();
 	}
 
 	function measureTest<T>(writer: PacketWriter<T>) {
@@ -96,6 +103,8 @@ describe('PacketReader + PacketWriter', () => {
 		expect(writer.measureSimpleArray<number>(null, 1)).equal(2, 'measureSimpleArray (null)');
 		expect(writer.measureArrayBuffer(null)).equal(2, 'measureArrayBuffer (null)');
 		expect(writer.measureArrayBuffer(new Uint8Array([1, 2, 3]).buffer)).equal(3 + 1, 'measureArrayBuffer');
+		expect(writer.measureUint8Array(null)).equal(2, 'measureUint8Array (null)');
+		expect(writer.measureUint8Array(new Uint8Array([1, 2, 3]))).equal(3 + 1, 'measureUint8Array');
 	}
 
 	it('reads and writes value correctly (BufferPacketWriter)', () => {

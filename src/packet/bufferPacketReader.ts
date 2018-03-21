@@ -4,8 +4,9 @@ import { PacketReader } from './packetCommon';
 function toUint8Array(buffer: Buffer) {
 	const view = new Uint8Array(buffer.length);
 
-	for (let i = 0; i < buffer.length; ++i)
+	for (let i = 0; i < buffer.length; ++i) {
 		view[i] = buffer[i];
+	}
 
 	return view;
 }
@@ -13,9 +14,12 @@ function toUint8Array(buffer: Buffer) {
 export class BufferPacketReader extends BasePacketReader implements PacketReader<Buffer> {
 	private offset = 0;
 	private buffer?: Buffer;
-	setBuffer(buffer: Buffer) {
-		this.offset = 0;
+	setBuffer(buffer: Buffer, offset?: number, _length?: number) {
+		this.offset = offset || 0;
 		this.buffer = buffer;
+	}
+	done() {
+		this.buffer = undefined;
 	}
 	readInt8() {
 		this.offset += 1;
@@ -61,5 +65,9 @@ export class BufferPacketReader extends BasePacketReader implements PacketReader
 	readBytes(length: number) {
 		this.offset += length;
 		return toUint8Array(this.buffer!.slice(this.offset - length, this.offset));
+	}
+	readArrayBuffer() {
+		const length = this.readLength();
+		return length === -1 ? null : this.readBytes(length).buffer;
 	}
 }

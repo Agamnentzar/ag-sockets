@@ -36,10 +36,6 @@ export abstract class BasePacketReader implements PacketReading {
 	readObject() {
 		return readAny(this, { strings: [] });
 	}
-	readArrayBuffer() {
-		const length = this.readLength();
-		return length === -1 ? null : this.readBytes(length).buffer;
-	}
 	readLength() {
 		let length = 0;
 		let shift = 0;
@@ -53,5 +49,14 @@ export abstract class BasePacketReader implements PacketReading {
 		} while (a & 0x80);
 
 		return bytes === 2 && length === 0 ? -1 : length;
+	}
+	readUint8Array() {
+		const length = this.readLength();
+
+		if (length === -1) {
+			return null;
+		} else {
+			return this.readBytes(length);
+		}
 	}
 }

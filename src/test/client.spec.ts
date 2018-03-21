@@ -74,7 +74,7 @@ describe('ClientSocket', () => {
 		lastWebSocket = null as any;
 		errorHandler = { handleRecvError() { } };
 
-		service = new ClientSocket<Client, Server>(clientOptions, void 0, errorHandler);
+		service = new ClientSocket<Client, Server>(clientOptions, undefined, errorHandler);
 	});
 
 	describe('invalidVersion', () => {
@@ -99,7 +99,7 @@ describe('ClientSocket', () => {
 		});
 
 		it('should do nothing if there is no callback', () => {
-			service.client.invalidVersion = void 0;
+			service.client.invalidVersion = undefined;
 			service.connect();
 
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 321]) });

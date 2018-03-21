@@ -1,5 +1,5 @@
 import { stringLengthInBytes } from '../utf8';
-import { PacketWriting, measureArrayBuffer, measureLength, measureString } from './packetCommon';
+import { PacketWriting, measureArrayBuffer, measureLength, measureString, measureUint8Array } from './packetCommon';
 import { MeasuringWriter } from './measuringWriter';
 import { writeAny } from './writeAny';
 
@@ -15,6 +15,9 @@ export abstract class BasePacketWriter implements PacketWriting {
 	}
 	measureObject(value: any) {
 		return this.measureAny(value);
+	}
+	measureUint8Array(value: Uint8Array | null) {
+		return measureUint8Array(value);
 	}
 	measureArrayBuffer(value: ArrayBuffer | null) {
 		return measureArrayBuffer(value);
@@ -49,6 +52,14 @@ export abstract class BasePacketWriter implements PacketWriting {
 	}
 	writeObject(value: any) {
 		writeAny(this, value, { strings: [] });
+	}
+	writeUint8Array(value: Uint8Array | null) {
+		if (value == null) {
+			this.writeLength(-1);
+		} else {
+			this.writeLength(value.byteLength);
+			this.writeBytes(value);
+		}
 	}
 	writeArrayBuffer(value: ArrayBuffer | null) {
 		if (value == null) {

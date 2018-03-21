@@ -44,6 +44,7 @@ export enum Bin {
 	Str,
 	Obj,
 	Buffer,
+	U8Array,
 }
 
 export type BinaryDef = (Bin | (Bin | (Bin | any[]))[])[];

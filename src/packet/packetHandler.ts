@@ -96,22 +96,25 @@ export class PacketHandler<T> {
 			const handler = this.readHandlers[name];
 			const result = [id];
 
-			if (!handler)
+			if (!handler) {
 				throw new Error(`Missing packet handler for: ${name} (${id})`);
+			}
 
 			handler(this.packetReader, result);
+			this.packetReader.done();
 			return result;
 		}
 	}
 	protected getFuncName(id: any, args: any[]) {
-		if (id === MessageType.Version)
+		if (id === MessageType.Version) {
 			return '*version';
-		else if (id === MessageType.Rejected)
+		} else if (id === MessageType.Rejected) {
 			return '*reject:' + this.remoteNames[args.shift()];
-		else if (id === MessageType.Resolved)
+		} else if (id === MessageType.Resolved) {
 			return '*resolve:' + this.remoteNames[args.shift()];
-		else
+		} else {
 			return this.readNames[id];
+		}
 	}
 	send(send: Send, name: string, id: number, args: any[], supportsBinary: boolean): number {
 		return this.sendPacket(send, { id, name, args: [id, ...args] }, supportsBinary);
@@ -147,8 +150,8 @@ export class PacketHandler<T> {
 				id: funcId,
 				name: funcName,
 				args, binary:
-				binary ? data : void 0,
-				json: binary ? void 0 : data as any,
+					binary ? data : undefined,
+				json: binary ? undefined : data as any,
 			});
 		}
 

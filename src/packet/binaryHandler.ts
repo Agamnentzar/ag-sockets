@@ -29,6 +29,7 @@ names[Bin.Bool] = 'Boolean';
 names[Bin.Str] = 'String';
 names[Bin.Obj] = 'Object';
 names[Bin.Buffer] = 'ArrayBuffer';
+names[Bin.U8Array] = 'Uint8Array';
 
 function isBinArray(array: (Bin | any[])[]): array is Bin[] {
 	return !array.some(x => x === Bin.Obj || x === Bin.Str || x === Bin.Buffer || Array.isArray(x));
@@ -58,7 +59,7 @@ function writeFieldSize(f: Bin | Bin[] | any[], n: string, indent: string): any 
 			return `writer.measureArray(${n}, function (item) { return ${size}${code}; })`;
 		}
 	} else {
-		if (f === Bin.Obj || f === Bin.Str || f === Bin.Buffer) {
+		if (f === Bin.Obj || f === Bin.Str || f === Bin.Buffer || f === Bin.U8Array) {
 			return `writer.measure${names[f]}(${n})`;
 		} else {
 			return sizes[f];

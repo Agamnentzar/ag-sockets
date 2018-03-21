@@ -14,7 +14,7 @@ describe('randomString()', () => {
 describe('getLength()', () => {
 	it('returns 0 for null or undefined', () => {
 		expect(getLength(null)).equal(0);
-		expect(getLength(void 0)).equal(0);
+		expect(getLength(undefined)).equal(0);
 	});
 
 	it('returns length of given string', () => {
@@ -45,7 +45,7 @@ describe('queryString()', () => {
 
 	it('returns empty string for null or undefined', () => {
 		expect(queryString(null)).equal('');
-		expect(queryString(void 0)).equal('');
+		expect(queryString(undefined)).equal('');
 	});
 
 	it('returns correct query string', () => {
@@ -69,7 +69,7 @@ describe('queryString()', () => {
 	});
 
 	it('ignores empty parameters', () => {
-		expect(queryString({ foo: 'a', boo: null, baa: void 0 })).equal('?foo=a');
+		expect(queryString({ foo: 'a', boo: null, baa: undefined })).equal('?foo=a');
 	});
 });
 

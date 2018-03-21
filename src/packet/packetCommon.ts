@@ -44,11 +44,13 @@ export interface PacketReading {
 }
 
 export interface PacketReader<TBuffer> extends PacketReading {
-	setBuffer(buffer: TBuffer): void;
+	setBuffer(buffer: TBuffer, offset?: number, length?: number): void;
+	done(): void;
 	readBoolean(): boolean;
 	readArray<T>(readOne: () => T): T[] | null;
 	readObject(): any;
 	readArrayBuffer(): ArrayBuffer | null;
+	readUint8Array(): Uint8Array | null;
 }
 
 export interface PacketWriting {
@@ -75,9 +77,11 @@ export interface PacketWriter<TBuffer> extends PacketWriting {
 	writeObject(value: any): void;
 	writeArray<T>(value: T[] | null, writeOne: (item: T) => void): void;
 	writeArrayBuffer(value: ArrayBuffer | null): void;
+	writeUint8Array(value: Uint8Array | null): void;
 	measureString(value: string | null): number;
 	measureObject(value: any): number;
 	measureArrayBuffer(value: ArrayBuffer | null): number;
+	measureUint8Array(value: Uint8Array | null): number;
 	measureArray<T>(value: T[] | null, measureOne: (item: T) => number): number;
 	measureSimpleArray<T>(value: T[] | null, itemSize: number): number;
 	measureLength(value: number): number;
@@ -89,6 +93,14 @@ export function measureString(value: string | null) {
 	} else {
 		const length = stringLengthInBytes(value);
 		return measureLength(length) + length;
+	}
+}
+
+export function measureUint8Array(value: Uint8Array | null) {
+	if (value == null) {
+		return measureLength(-1);
+	} else {
+		return measureLength(value.byteLength) + value.byteLength;
 	}
 }
 
