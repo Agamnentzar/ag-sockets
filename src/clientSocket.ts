@@ -53,7 +53,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		private token?: string | null,
 		private errorHandler: ClientErrorHandler = defaultErrorHandler,
 		private apply: (f: () => any) => void = f => f(),
-		private log: Logger = console.log.bind(console)
+		private log: Logger = console.log.bind(console),
 	) {
 		this.options.server.forEach((item, id) => {
 			if (typeof item === 'string') {
@@ -199,7 +199,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	}
 	private notifyServerOfBinarySupport() {
 		if (this.supportsBinary) {
-			this.send(typeof Buffer !== 'undefined' ? new Buffer(0) : new ArrayBuffer(0));
+			this.send(new ArrayBuffer(0));
 		}
 	}
 	private send = (data: any) => {
