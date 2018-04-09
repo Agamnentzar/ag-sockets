@@ -94,7 +94,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			return;
 
 		const options = this.options;
-		this.socket = new WebSocket(this.getWebsocketUrl());
+		const socket = this.socket = new WebSocket(this.getWebsocketUrl());
 
 		window.addEventListener('beforeunload', this.beforeunload);
 
@@ -103,7 +103,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		const handlers = createHandlers(getBinary(options.server), getBinary(options.client));
 		const serverMethods = getNames(options.server);
 		const clientmethods = getNames(options.client);
-		const ignore = getIgnore(options.server).concat(getIgnore(options.client));
+		const ignore = [...getIgnore(options.server), ...getIgnore(options.client)];
 
 		if (options.debug) {
 			this.packet = new DebugPacketHandler(clientmethods, serverMethods, writer, reader, handlers, {}, ignore, this.log);
@@ -111,9 +111,10 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			this.packet = new PacketHandler(clientmethods, serverMethods, writer, reader, handlers, {});
 		}
 
-		this.supportsBinary = !!this.socket.binaryType;
-		this.socket.binaryType = 'arraybuffer';
-		this.socket.onmessage = message => {
+		this.supportsBinary = !!socket.binaryType;
+
+		socket.binaryType = 'arraybuffer';
+		socket.onmessage = message => {
 			if (message.data && this.packet) {
 				try {
 					this.receivedSize += this.packet.recv(message.data, this.client, this.special);
@@ -125,29 +126,43 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			}
 		};
 
-		this.socket.onopen = () => {
-			if (options.debug)
+		socket.onopen = () => {
+			if (this.socket !== socket) {
+				socket.close();
+				return;
+			}
+
+			if (options.debug) {
 				this.log('socket opened');
+			}
 
 			this.lastSentId = 0;
 			this.isConnected = true;
 			this.notifyServerOfBinarySupport();
 
-			if (this.client.connected)
+			if (this.client.connected) {
 				this.client.connected();
+			}
 
-			if (options.pingInterval)
+			if (options.pingInterval) {
 				this.pingInterval = setInterval(() => this.sendPing(), options.pingInterval);
+			}
 		};
 
-		this.socket.onerror = e => {
-			if (options.debug)
+		socket.onerror = e => {
+			if (options.debug) {
 				this.log('socket error', e);
+			}
 		};
 
-		this.socket.onclose = e => {
-			if (options.debug)
+		socket.onclose = e => {
+			if (options.debug) {
 				this.log('socket closed', e);
+			}
+
+			if (this.socket && this.socket !== socket) {
+				return;
+			}
 
 			this.socket = null;
 			this.versionValidated = false;
@@ -191,7 +206,10 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		}
 
 		if (this.socket) {
-			this.socket.close();
+			if (this.isConnected) {
+				this.socket.close();
+			}
+
 			this.socket = null;
 		}
 

@@ -152,22 +152,22 @@ describe('ClientSocket + Server', () => {
 					.then(() => assert.calledWith(hello, 'yay'));
 			});
 
-			it('should handle resolved promise from server method', () => {
-				return expect(clientSocket.server.login('ok')).eventually.true;
+			it('should handle resolved promise from server method', async () => {
+				await expect(clientSocket.server.login('ok')).eventually.true;
 			});
 
-			it('should handle rejected promise from server method', () => {
-				return expect(clientSocket.server.login('fail')).rejectedWith('fail');
+			it('should handle rejected promise from server method', async () => {
+				await expect(clientSocket.server.login('fail')).rejectedWith('fail');
 			});
 
-			it('should send error from error handler instead of original error', () => {
+			it('should send error from error handler instead of original error', async () => {
 				stub(errorHandler, 'handleRejection').returns(new Error('aaa'));
 
-				return expect(clientSocket.server.login('fail')).rejectedWith('aaa');
+				await expect(clientSocket.server.login('fail')).rejectedWith('aaa');
 			});
 
-			it('should handle rejected promise with null error from server method', () => {
-				return expect(clientSocket.server.nullReject()).rejectedWith('error');
+			it('should handle rejected promise with null error from server method', async () => {
+				await expect(clientSocket.server.nullReject()).rejectedWith('error');
 			});
 
 			it('should report promise rejection to error handler', () => {

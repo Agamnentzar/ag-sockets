@@ -211,20 +211,43 @@ describe('ClientSocket', () => {
 	});
 
 	describe('disconnect()', () => {
-		it('should do nothing if not connected', () => {
+		it('does nothing if not connected', () => {
 			service.disconnect();
 		});
 
-		it('should close socket', () => {
+		it('closes socket', () => {
 			service.connect();
 			const close = stub(lastWebSocket, 'close');
+			lastWebSocket.onopen();
 
 			service.disconnect();
 
 			assert.calledOnce(close);
 		});
 
-		it('should remove event listener for "beforeunload"', () => {
+		it('does not close socket if not connected yet', () => {
+			service.connect();
+			const close = stub(lastWebSocket, 'close');
+
+			service.disconnect();
+
+			assert.notCalled(close);
+		});
+
+		it('closes socket as soon as it connects', () => {
+			service.connect();
+			const close = stub(lastWebSocket, 'close');
+
+			service.disconnect();
+
+			assert.notCalled(close);
+
+			lastWebSocket.onopen();
+
+			assert.calledOnce(close);
+		});
+
+		it('removes event listener for "beforeunload"', () => {
 			service.connect();
 			const removeEventListener = stub(window, 'removeEventListener');
 
@@ -235,8 +258,8 @@ describe('ClientSocket', () => {
 	});
 
 	describe('(not connected)', () => {
-		it('should reject if called promise methods when not connected', () => {
-			return expect(service.server.foo()).rejectedWith('not connected');
+		it('should reject if called promise methods when not connected', async () => {
+			await expect(service.server.foo()).rejectedWith('not connected');
 		});
 	});
 
@@ -351,14 +374,14 @@ describe('ClientSocket', () => {
 				assert.notCalled(disconnected);
 			});
 
-			it('should reject all pending promises', () => {
+			it('should reject all pending promises', async () => {
 				lastWebSocket.onopen();
 
 				const promise = service.server.foo();
 
 				lastWebSocket.onclose();
 
-				return expect(promise).rejectedWith('disconnected');
+				await expect(promise).rejectedWith('disconnected');
 			});
 		});
 
@@ -403,14 +426,14 @@ describe('ClientSocket', () => {
 				return promise.then(() => expect(service.server.fooInProgress).false);
 			});
 
-			it('should reject pending promise', () => {
+			it('should reject pending promise', async () => {
 				lastWebSocket.onopen();
 
 				const promise = service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Rejected, 1, 1, 'fail']) });
 
-				return expect(promise).rejectedWith('fail');
+				await expect(promise).rejectedWith('fail');
 			});
 
 			it('should pass error from packet recv method to error handler', () => {
