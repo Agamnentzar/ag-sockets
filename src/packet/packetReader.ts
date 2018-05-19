@@ -22,10 +22,11 @@ export abstract class BasePacketReader implements PacketReading {
 		if (length === -1)
 			return null;
 
-		const result = new Array<T>(length);
+		const result: T[] = [];
 
-		for (let i = 0; i < length; i++)
-			result[i] = readOne();
+		for (let i = 0; i < length; i++) {
+			result.push(readOne());
+		}
 
 		return result;
 	}

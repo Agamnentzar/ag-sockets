@@ -1,5 +1,3 @@
-import * as Promise from 'bluebird';
-
 const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
 
 export function randomString(length: number) {
@@ -87,8 +85,9 @@ let supportsBinaryValue: boolean | undefined;
 
 /* istanbul ignore next */
 export function supportsBinary() {
-	if (supportsBinaryValue != null)
+	if (supportsBinaryValue != null) {
 		return supportsBinaryValue;
+	}
 
 	const protocol = 'https:' === location.protocol ? 'wss' : 'ws';
 
@@ -97,12 +96,13 @@ export function supportsBinary() {
 	}
 
 	if ('WebSocket' in window) {
-		if ('binaryType' in WebSocket.prototype)
+		if ('binaryType' in WebSocket.prototype) {
 			return true;
+		}
 
 		try {
 			return !!(new WebSocket(protocol + '://.').binaryType);
-		} catch (e) { }
+		} catch { }
 	}
 
 	return false;
@@ -114,10 +114,10 @@ export interface Deferred<T> {
 	reject(error?: Error): void;
 }
 
-export function deferred<T>(): Deferred<T> {
-	const obj: Deferred<T> = <any>{};
+export function deferred<T>(promise: typeof Promise): Deferred<T> {
+	const obj: Deferred<T> = {} as any;
 
-	obj.promise = new Promise<T>(function (resolve, reject) {
+	obj.promise = new promise<T>(function (resolve, reject) {
 		obj.resolve = resolve;
 		obj.reject = reject;
 	});

@@ -4,12 +4,11 @@
 
 require('source-map-support').install();
 
-import * as Promise from 'bluebird';
 import * as chai from 'chai';
 import * as chaiAsPromised from 'chai-as-promised';
 
 chai.use(chaiAsPromised);
 
 export function delay(duration: number) {
-	return Promise.delay(duration);
+	return new Promise(resolve => setTimeout(resolve, duration));
 }

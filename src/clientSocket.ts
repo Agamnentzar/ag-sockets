@@ -1,4 +1,3 @@
-import * as Promise from 'bluebird';
 import {
 	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore,
 	getBinary, Logger
@@ -48,6 +47,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 	private defers = new Map<number, Deferred<any>>();
 	private inProgressFields: { [key: string]: number } = {};
 	private rateLimits: RateLimit[] = [];
+	private promiseCtor: typeof Promise;
 	constructor(
 		private options: ClientOptions,
 		private token?: string | null,
@@ -55,6 +55,8 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		private apply: (f: () => any) => void = f => f(),
 		private log: Logger = console.log.bind(console),
 	) {
+		this.promiseCtor = options.promise || Promise;
+
 		this.options.server.forEach((item, id) => {
 			if (typeof item === 'string') {
 				this.createMethod(item, id, {});
@@ -272,20 +274,20 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 
 		this.server[name] = (...args: any[]): Promise<any> => {
 			if (!this.isConnected) {
-				return Promise.reject(new Error('not connected'));
+				return this.promiseCtor.reject(new Error('not connected'));
 			}
 
 			if (!checkRateLimit(id, this.rateLimits)) {
-				return Promise.reject(new Error('rate limit exceeded'));
+				return this.promiseCtor.reject(new Error('rate limit exceeded'));
 			}
 
 			if (!this.packet) {
-				return Promise.reject(new Error('not initialized'));
+				return this.promiseCtor.reject(new Error('not initialized'));
 			}
 
 			this.sentSize += this.packet.send(this.send, name, id, args, this.supportsBinary);
 			const messageId = ++this.lastSentId;
-			const defer = deferred<any>();
+			const defer = deferred<any>(this.promiseCtor);
 			this.defers.set(messageId, defer);
 
 			if (inProgressField)

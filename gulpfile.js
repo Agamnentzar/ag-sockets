@@ -3,7 +3,6 @@ const path = require('path');
 const del = require('del');
 const ts = require('gulp-typescript');
 const mocha = require('gulp-spawn-mocha');
-const plumber = require('gulp-plumber');
 const sourcemaps = require('gulp-sourcemaps');
 const runSequence = require('run-sequence');
 const remapIstanbul = require('remap-istanbul/lib/gulpRemapIstanbul');
