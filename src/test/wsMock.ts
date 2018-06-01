@@ -1,4 +1,5 @@
 import * as ws from 'ws';
+import { stub } from 'sinon';
 import { queryString } from '../utils';
 
 let lastServer: MockWebSocketServer;
@@ -48,6 +49,7 @@ export class MockWebSocket extends MockEventEmitter {
 		super();
 	}
 	terminate() { }
+	close = stub() as any;
 	send() { }
 }
 

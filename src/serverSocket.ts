@@ -445,7 +445,10 @@ export function create(
 		clients.push(obj);
 
 		if (serverActions.connected) {
-			callWithErrorHandling(() => serverActions.connected!(), e => errorHandler.handleError(obj.client, e));
+			callWithErrorHandling(() => serverActions.connected!(), e => {
+				errorHandler.handleError(obj.client, e);
+				obj.client.disconnect();
+			});
 		}
 	}
 

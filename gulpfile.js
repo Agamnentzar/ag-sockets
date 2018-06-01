@@ -64,6 +64,11 @@ gulp.task('coverage', () => {
 		}));
 });
 
+gulp.task('remap', () => {
+	return gulp.src('coverage/coverage.json')
+		.pipe(remapIstanbul({ reports: { html: 'coverage-remapped' } }));
+});
+
 gulp.task('server', () => {
 	const server = liveServer(['dist/demo/demoServer.js'], {});
 	server.start();
@@ -76,11 +81,6 @@ gulp.task('server', () => {
 
 gulp.task('watch', () => {
 	gulp.watch(scripts, ['build-task']);
-});
-
-gulp.task('remap', () => {
-	return gulp.src('coverage/coverage.json')
-		.pipe(remapIstanbul({ reports: { html: 'coverage-remapped' } }));
 });
 
 const buildTasks = [

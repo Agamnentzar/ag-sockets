@@ -26,6 +26,16 @@ class Server1 {
 	ratePromise() { return Promise.resolve(0); }
 }
 
+@Socket()
+class ServerThrowingOnConnected {
+	constructor(public client: Client1 & SocketClient & ClientExtensions) {
+	}
+	connected() {
+		throw new Error('failed to connect');
+	}
+	disconnected = stub() as any;
+}
+
 class Client1 {
 	@Method()
 	hi(_message: string) { }
@@ -146,6 +156,16 @@ describe('serverSocket', () => {
 
 			return delay(50)
 				.then(() => expect(server1.client.originalRequest).undefined);
+		});
+
+		it('closes connection if connected() handler threw an error', async () => {
+			let server1: ServerThrowingOnConnected;
+			createServer({} as any, Server1, Client1, c => server1 = new ServerThrowingOnConnected(c), { ws });
+
+			const socket = getLastServer().connectClient();
+
+			await delay(50);
+			assert.calledOnce(socket.close as any);
 		});
 
 		describe('if token does not exist', () => {
