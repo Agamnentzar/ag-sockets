@@ -197,18 +197,8 @@ export function create(
 		return null;
 	}
 
-	function findIndex<T>(array: T[], test: (item: T) => boolean): number {
-		for (let i = 0; i < array.length; i++) {
-			if (test(array[i])) {
-				return i;
-			}
-		}
-
-		return -1;
-	}
-
 	function getTokenFromClient(id: any): Token | undefined {
-		const index = findIndex(clients, c => !!c.token && c.token.id === id);
+		const index = clients.findIndex(c => !!c.token && c.token.id === id);
 
 		if (index !== -1) {
 			const { client, token } = clients[index];
@@ -341,7 +331,7 @@ export function create(
 				originalRequest: options.keepOriginalRequest ? originalRequest : undefined,
 				disconnect(force = false, invalidateToken = false) {
 					if (invalidateToken) {
-						delete obj.token;
+						obj.token = undefined;
 					}
 
 					if (force) {

@@ -31,13 +31,13 @@ names[Bin.Obj] = 'Object';
 names[Bin.Buffer] = 'ArrayBuffer';
 names[Bin.U8Array] = 'Uint8Array';
 
-function isBinArray(array: (Bin | any[])[]): array is Bin[] {
-	return !array.some(x => x === Bin.Obj || x === Bin.Str || x === Bin.Buffer || Array.isArray(x));
+function isComplexArray(array: (Bin | any[])[]): array is Bin[] {
+	return !array.some(x => x === Bin.Obj || x === Bin.Str || x === Bin.Buffer || x === Bin.U8Array || Array.isArray(x));
 }
 
 function writeFieldSize(f: Bin | Bin[] | any[], n: string, indent: string): any {
 	if (f instanceof Array) {
-		if (isBinArray(f)) {
+		if (isComplexArray(f)) {
 			return `writer.measureSimpleArray(${n}, ${f.reduce((sum, x) => sum + sizes[x], 0)})`;
 		} else {
 			let code = '';

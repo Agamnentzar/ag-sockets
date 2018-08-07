@@ -31,8 +31,9 @@ export class DebugPacketHandler<T> extends PacketHandler<T> {
 		const funcId = args.shift();
 		const funcName = this.getFuncName(funcId, args);
 
-		if (!funcName)
+		if (!funcName) {
 			this.log(`invalid message id: ${funcId}`);
+		}
 
 		const funcSpecial = funcName && funcName[0] === '*';
 		const funcObj = funcSpecial ? specialFuncList : funcList;
@@ -45,10 +46,11 @@ export class DebugPacketHandler<T> extends PacketHandler<T> {
 			this.log(`RECV [${size}] (${mode})`, funcName, args);
 		}
 
-		if (func)
+		if (func) {
 			handleFunction(funcId, funcName, func, funcObj, args);
-		else
+		} else {
 			this.log(`invalid message: ${funcName}`, args);
+		}
 
 		return size;
 	}
