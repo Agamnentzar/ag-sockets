@@ -60,6 +60,11 @@ describe('ClientSocket', () => {
 	let service: SocketService<Client, Server>;
 	let errorHandler: ClientErrorHandler;
 
+	function connectLastWebSocket() {
+		lastWebSocket.onopen();
+		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
+	}
+
 	before(() => {
 		(<any>global).window = window;
 		(<any>global).location = location;
@@ -219,6 +224,7 @@ describe('ClientSocket', () => {
 			service.connect();
 			const close = stub(lastWebSocket, 'close');
 			lastWebSocket.onopen();
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 123]) });
 
 			service.disconnect();
 
@@ -258,7 +264,7 @@ describe('ClientSocket', () => {
 	});
 
 	describe('(not connected)', () => {
-		it('should reject if called promise methods when not connected', async () => {
+		it('rejects if called promise methods when not connected', async () => {
 			await expect(service.server.foo()).rejectedWith('not connected');
 		});
 	});
@@ -266,14 +272,14 @@ describe('ClientSocket', () => {
 	describe('(connected)', () => {
 		beforeEach(() => {
 			service.connect();
-			lastWebSocket.onopen();
+			connectLastWebSocket();
 		});
 
-		it('should have methods', () => {
+		it('has methods', () => {
 			service.server.test2();
 		});
 
-		it('should send data to socket', () => {
+		it('sends data to socket', () => {
 			const send = stub(lastWebSocket, 'send');
 
 			service.server.test2();
@@ -281,17 +287,17 @@ describe('ClientSocket', () => {
 			assert.calledWith(send, '[0]');
 		});
 
-		it('should reject when rate limit is exceeded', () => {
+		it('rejects when rate limit is exceeded', async () => {
 			service.server.foo2();
-			expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+			await expect(service.server.foo2()).rejectedWith('rate limit exceeded');
 		});
 
-		it('should return false when rate limit is exceeded', () => {
+		it('returns false when rate limit is exceeded', () => {
 			service.server.foo3();
 			expect(service.server.foo3()).false;
 		});
 
-		it('should not send request when rate limit is exceeded', () => {
+		it('does not send request when rate limit is exceeded', () => {
 			service.server.foo3();
 			const send = stub((service as any).packet, 'send');
 
@@ -300,21 +306,21 @@ describe('ClientSocket', () => {
 			assert.notCalled(send);
 		});
 
-		it('should reject when rate limit is exceeded', () => {
+		it('rejects when rate limit is exceeded', async () => {
 			service.server.foo2();
-			expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+			await expect(service.server.foo2()).rejectedWith('rate limit exceeded');
 		});
 
-		it('should not send request when rate limit is exceeded (promise)', () => {
+		it('does not send request when rate limit is exceeded (promise)', async () => {
 			service.server.foo2();
 			const send = stub((service as any).packet, 'send');
 
-			expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+			await expect(service.server.foo2()).rejectedWith('rate limit exceeded');
 
 			assert.notCalled(send);
 		});
 
-		it('should not send data when socket readyState is not OPEN', () => {
+		it('does not send data when socket readyState is not OPEN', () => {
 			const send = stub(lastWebSocket, 'send');
 			lastWebSocket.readyState = WebSocket.CLOSED;
 
@@ -329,43 +335,43 @@ describe('ClientSocket', () => {
 			service.connect();
 		});
 
-		describe('websocket.onopen()', () => {
-			it('should set isConnected to true', () => {
-				lastWebSocket.onopen();
+		describe('websocket.onopen() + *version packet', () => {
+			it('sets isConnected to true', () => {
+				connectLastWebSocket();
 
 				expect(service.isConnected).true;
 			});
 
-			it('should call client.connected', () => {
+			it('calls client.connected', () => {
 				const connected = spy();
 				service.client.connected = connected;
 
-				lastWebSocket.onopen();
+				connectLastWebSocket();
 
 				assert.calledOnce(connected);
 			});
 		});
 
 		describe('websocket.onclose()', () => {
-			it('should set isConnected to false', () => {
-				lastWebSocket.onopen();
+			it('sets isConnected to false', () => {
+				connectLastWebSocket();
 
 				lastWebSocket.onclose();
 
 				expect(service.isConnected).false;
 			});
 
-			it('should call client.disconnected', () => {
+			it('calls client.disconnected', () => {
 				const disconnected = spy();
 				service.client.disconnected = disconnected;
-				lastWebSocket.onopen();
+				connectLastWebSocket();
 
 				lastWebSocket.onclose();
 
 				assert.calledOnce(disconnected);
 			});
 
-			it('should not call client.disconnected if not connected', () => {
+			it('does not call client.disconnected if not connected', () => {
 				const disconnected = spy();
 				service.client.disconnected = disconnected;
 
@@ -374,8 +380,8 @@ describe('ClientSocket', () => {
 				assert.notCalled(disconnected);
 			});
 
-			it('should reject all pending promises', async () => {
-				lastWebSocket.onopen();
+			it('rejects all pending promises', async () => {
+				connectLastWebSocket();
 
 				const promise = service.server.foo();
 
@@ -386,7 +392,7 @@ describe('ClientSocket', () => {
 		});
 
 		describe('websocket.onerror()', () => {
-			it('should do nothing', () => {
+			it('does nothing', () => {
 				lastWebSocket.onopen();
 
 				lastWebSocket.onerror();
@@ -394,28 +400,30 @@ describe('ClientSocket', () => {
 		});
 
 		describe('websocket.onmessage()', () => {
-			it('should call received mesasge', () => {
+			it('calls received mesasge', () => {
 				service.client.foo = () => { };
 				const foo = stub(service.client, 'foo');
-				lastWebSocket.onopen();
+				connectLastWebSocket();
 
 				lastWebSocket.onmessage({ data: '[1, 2]' });
 
 				assert.calledWith(foo, 2);
 			});
 
-			it('should resolve pending promise', () => {
-				lastWebSocket.onopen();
+			it('resolves pending promise', async () => {
+				connectLastWebSocket();
 
 				const promise = service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 1, 'ok']) });
 
-				return promise.then(x => expect(x).equal('ok'));
+				const x = await promise;
+
+				expect(x).equal('ok');
 			});
 
-			it('shoudl change progress field', () => {
-				lastWebSocket.onopen();
+			it('changes progress field', async () => {
+				connectLastWebSocket();
 
 				const promise = service.server.foo();
 
@@ -423,11 +431,13 @@ describe('ClientSocket', () => {
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 1, 'ok']) });
 
-				return promise.then(() => expect(service.server.fooInProgress).false);
+				await promise;
+
+				expect(service.server.fooInProgress).false;
 			});
 
-			it('should reject pending promise', async () => {
-				lastWebSocket.onopen();
+			it('rejects pending promise', async () => {
+				connectLastWebSocket();
 
 				const promise = service.server.foo();
 
@@ -436,8 +446,8 @@ describe('ClientSocket', () => {
 				await expect(promise).rejectedWith('fail');
 			});
 
-			it('should pass error from packet recv method to error handler', () => {
-				lastWebSocket.onopen();
+			it('passes error from packet recv method to error handler', () => {
+				connectLastWebSocket();
 				const error = new Error('test error');
 				const handleRecvError = stub(errorHandler, 'handleRecvError');
 				stub((service as any).packet, 'recv').throws(error);
@@ -447,24 +457,24 @@ describe('ClientSocket', () => {
 				assert.calledWith(handleRecvError, error, '[0]');
 			});
 
-			it('should do nothing for resolving non-existing promise', () => {
-				lastWebSocket.onopen();
+			it('does nothing for resolving non-existing promise', () => {
+				connectLastWebSocket();
 
 				service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 5, 'ok']) });
 			});
 
-			it('should do nothing for rejecting non-existing promise', () => {
-				lastWebSocket.onopen();
+			it('does nothing for rejecting non-existing promise', () => {
+				connectLastWebSocket();
 
 				service.server.foo();
 
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Rejected, 1, 5, 'fail']) });
 			});
 
-			it('should resolve promises with correct id', () => {
-				lastWebSocket.onopen();
+			it('resolves promises with correct id', async () => {
+				connectLastWebSocket();
 
 				const promise1 = service.server.foo();
 				const promise2 = service.server.foo();
@@ -472,14 +482,13 @@ describe('ClientSocket', () => {
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 2, 'a']) });
 				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 1, 'b']) });
 
-				return Promise.all([promise1, promise2])
-					.then(([result1, result2]) => {
-						expect(result1).equal('b');
-						expect(result2).equal('a');
-					});
+				const [result1, result2] = await Promise.all([promise1, promise2]);
+
+				expect(result1).equal('b');
+				expect(result2).equal('a');
 			});
 
-			it('should throw error if with default error handler', () => {
+			it('throws error if with default error handler', () => {
 				service = new ClientSocket<Client, Server>(clientOptions);
 				service.connect();
 				stub((service as any).packet, 'recv').throws(new Error('test'));

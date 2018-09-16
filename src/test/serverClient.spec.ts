@@ -3,7 +3,7 @@ import * as http from 'http';
 import * as WebSocket from 'ws';
 import * as uWebSocket from 'uws';
 import { expect } from 'chai';
-import { assert, stub, spy, SinonSpy, SinonStub } from 'sinon';
+import { assert, stub, spy, SinonSpy } from 'sinon';
 import { Bin, ServerOptions, ClientOptions } from '../interfaces';
 import {
 	Socket, Method, ClientSocket, createServer, ClientExtensions, Server as ServerController,
@@ -66,12 +66,12 @@ describe('ClientSocket + Server', () => {
 	let errorHandler: ErrorHandler;
 	let connected: SinonSpy;
 	let log: SinonSpy;
-	let version: SinonStub;
+	// let version: SinonStub;
 
 	function setupClient(options: ClientOptions, token?: string) {
 		return new Promise(resolve => {
 			clientSocket = new ClientSocket<Client, Server>(options, token, undefined, apply, <any>log);
-			version = stub((<any>clientSocket).special, '*version');
+			// version = stub((<any>clientSocket).special, '*version');
 			clientSocket.client = new Client();
 			clientSocket.client.connected = resolve;
 			clientSocket.connect();
@@ -133,10 +133,10 @@ describe('ClientSocket + Server', () => {
 				assert.calledOnce(connected);
 			});
 
-			it('should send version info to client', () => {
-				return delay(50)
-					.then(() => assert.calledWith(version, serverSocket.options().hash));
-			});
+			// it('should send version info to client', () => {
+			// 	return delay(50)
+			// 		.then(() => assert.calledWith(version, serverSocket.options().hash));
+			// });
 
 			it.skip('should ping clients', () => {
 				return delay(200);

@@ -56,15 +56,17 @@ function getMethodsFromType(ctor: Function) {
 	return getMethods(ctor).map<MethodDef>(m => Object.keys(m.options).length ? [m.name, m.options] : m.name);
 }
 
-function callWithErrorHandling(action: () => any, handle: (e: Error) => void) {
+function callWithErrorHandling(action: () => any, onSuccess: () => void, onError: (e: Error) => void) {
 	try {
 		const result = action();
 
-		if (result && result.catch) {
-			result.catch(handle);
+		if (result && result.then) {
+			result.then(onSuccess, onError);
+		} else {
+			onSuccess();
 		}
 	} catch (e) {
-		handle(e);
+		onError(e);
 	}
 }
 
@@ -410,11 +412,12 @@ export function create(
 			obj.client.isConnected = false;
 			clients.splice(clients.indexOf(obj), 1);
 
-			if (options.debug)
+			if (options.debug) {
 				log('client disconnected');
+			}
 
 			if (serverActions.disconnected) {
-				callWithErrorHandling(() => serverActions.disconnected!(), e => errorHandler.handleError(obj.client, e));
+				callWithErrorHandling(() => serverActions.disconnected!(), () => { }, e => errorHandler.handleError(obj.client, e));
 			}
 
 			if (obj.token) {
@@ -427,18 +430,22 @@ export function create(
 
 		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packetHandler.send(send, name, id, args, obj.supportsBinary));
 
-		if (options.debug)
+		if (options.debug) {
 			log('client connected');
+		}
 
-		packetHandler.send(send, '*version', MessageType.Version, [options.hash], obj.supportsBinary);
-
-		clients.push(obj);
+		function onConnected() {
+			packetHandler.send(send, '*version', MessageType.Version, [options.hash], obj.supportsBinary);
+			clients.push(obj);
+		}
 
 		if (serverActions.connected) {
-			callWithErrorHandling(() => serverActions.connected!(), e => {
+			callWithErrorHandling(() => serverActions.connected!(), onConnected, e => {
 				errorHandler.handleError(obj.client, e);
 				obj.client.disconnect();
 			});
+		} else {
+			onConnected();
 		}
 	}
 
@@ -467,7 +474,7 @@ export function create(
 					} else {
 						c.ping();
 					}
-				} catch (e) { }
+				} catch { }
 			});
 		}, options.pingInterval);
 	}
@@ -498,13 +505,16 @@ export function create(
 			return cloneDeep(clientOptions);
 		},
 		token(data?: any) {
-			if (!options.connectionTokens)
+			if (!options.connectionTokens) {
 				throw new Error('Option connectionTokens not set');
-			return createToken(data).id;
+			} else {
+				return createToken(data).id;
+			}
 		},
 		clearTokens(test: (id: string, data?: any) => boolean) {
-			if (!options.connectionTokens)
+			if (!options.connectionTokens) {
 				throw new Error('Option connectionTokens not set');
+			}
 
 			tokens = tokens
 				.filter(t => !test(t.id, t.data));

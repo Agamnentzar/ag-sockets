@@ -41,7 +41,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 				this.socket.onclose = () => { };
 				this.socket.close();
 				this.socket = null;
-			} catch (e) { }
+			} catch { }
 		}
 	}
 	private defers = new Map<number, Deferred<any>>();
@@ -74,8 +74,19 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		this.special['*version'] = (version: number) => {
 			if (version === this.options.hash) {
 				this.versionValidated = true;
-			} else if (this.client.invalidVersion) {
-				this.client.invalidVersion(version, this.options.hash!);
+				this.lastSentId = 0;
+				this.isConnected = true;
+				this.notifyServerOfBinarySupport();
+
+				if (this.client.connected) {
+					this.client.connected();
+				}
+			} else {
+				this.disconnect();
+
+				if (this.client.invalidVersion) {
+					this.client.invalidVersion(version, this.options.hash!);
+				}
 			}
 		};
 
@@ -136,14 +147,6 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 
 			if (options.debug) {
 				this.log('socket opened');
-			}
-
-			this.lastSentId = 0;
-			this.isConnected = true;
-			this.notifyServerOfBinarySupport();
-
-			if (this.client.connected) {
-				this.client.connected();
 			}
 
 			if (options.pingInterval) {
@@ -238,7 +241,7 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 			if (this.versionValidated && interval && (now - this.lastPing) > interval && this.sendPingPacket()) {
 				this.lastPing = now;
 			}
-		} catch (e) { }
+		} catch { }
 	}
 	private sendPingPacket() {
 		return this.send(this.supportsBinary ? new ArrayBuffer(0) : '');
