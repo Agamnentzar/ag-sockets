@@ -1,6 +1,7 @@
 import * as ws from 'ws';
 import { stub } from 'sinon';
 import { queryString } from '../utils';
+import { delay } from './common';
 
 let lastServer: MockWebSocketServer;
 
@@ -22,21 +23,23 @@ export class MockWebSocketServer extends MockEventEmitter {
 	}
 	close() { }
 	// mock helpers
-	connectClient(bin = false, t?: string) {
+	async connectClient(bin = false, t?: string) {
 		const client = new MockWebSocket();
 		client.upgradeReq.url = `ws://test/${queryString({ bin, t })}`;
 		this.invoke('connection', client);
+		await delay(1);
 		return client;
 	}
-	connectWebSocket(socket: MockWebSocket) {
+	async connectWebSocket(socket: MockWebSocket) {
 		this.invoke('connection', socket);
 		return socket;
 	}
-	connectClients(count: number) {
+	async connectClients(count: number) {
 		const result: MockWebSocket[] = [];
 
-		for (let i = 0; i < count; i++)
-			result.push(this.connectClient());
+		for (let i = 0; i < count; i++) {
+			result.push(await this.connectClient());
+		}
 
 		return result;
 	}

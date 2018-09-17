@@ -144,7 +144,7 @@ export function createServer<TServer, TClient>(
 	httpServer: HttpServer,
 	serverType: new (...args: any[]) => TServer,
 	clientType: new (...args: any[]) => TClient,
-	createServer: (client: TClient & SocketServerClient) => TServer,
+	createServer: (client: TClient & SocketServerClient) => (TServer | Promise<TServer>),
 	options?: ServerOptions,
 	errorHandler?: ErrorHandler,
 	log?: Logger
@@ -156,7 +156,7 @@ type AnyBuffer = Buffer | ArrayBuffer;
 
 export function create(
 	server: HttpServer,
-	createServer: (client: any) => SocketServer,
+	createServer: (client: any) => (SocketServer | Promise<SocketServer>),
 	options: ServerOptions,
 	errorHandler: ErrorHandler = defaultErrorHandler,
 	log: Logger = console.log.bind(console)
@@ -353,100 +353,103 @@ export function create(
 			packetHandler.sendPacket(send, packet, obj.supportsBinary);
 		}
 
-		const serverActions: SocketServer = createServer(obj.client);
+		function clientCreated(serverActions: SocketServer) {
+			socket.on('message', (message: string | Buffer | ArrayBuffer, flags?: { binary: boolean; }) => {
+				if (transferLimitExceeded)
+					return;
 
-		socket.on('message', (message: string | Buffer | ArrayBuffer, flags?: { binary: boolean; }) => {
-			if (transferLimitExceeded)
-				return;
+				bytesReceived += getLength(message);
 
-			bytesReceived += getLength(message);
+				const now = Date.now();
+				const diff = now - bytesReset;
+				const bytesPerSecond = bytesReceived * 1000 / Math.max(1000, diff);
 
-			const now = Date.now();
-			const diff = now - bytesReset;
-			const bytesPerSecond = bytesReceived * 1000 / Math.max(1000, diff);
-
-			if (options.transferLimit && options.transferLimit < bytesPerSecond) {
-				transferLimitExceeded = true;
-				obj.client.disconnect(true, true);
-				errorHandler.handleRecvError(obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${options.transferLimit} (${diff}ms)`), message);
-				return;
-			}
-
-			if (options.forceBinary && typeof message === 'string') {
-				obj.client.disconnect(true, true);
-				errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`), message);
-				return;
-			}
-
-			obj.lastMessageTime = Date.now();
-			obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
-
-			if (message && getLength(message)) {
-				obj.lastMessageId++;
-				const messageId = obj.lastMessageId;
-
-				try {
-					packetHandler.recv(message, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
-						const rate = rates[funcId];
-
-						if (checkRateLimit(funcId, rates)) {
-							handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
-						} else if (rate && rate.promise) {
-							handleResult(send, obj, funcId, funcName, Promise.reject(new Error('Rate limit exceeded')), messageId);
-						} else {
-							throw new Error(`Rate limit exceeded (${funcName})`);
-						}
-					});
-				} catch (e) {
-					errorHandler.handleRecvError(obj.client, e, message);
+				if (options.transferLimit && options.transferLimit < bytesPerSecond) {
+					transferLimitExceeded = true;
+					obj.client.disconnect(true, true);
+					errorHandler.handleRecvError(obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${options.transferLimit} (${diff}ms)`), message);
+					return;
 				}
-			}
 
-			if (diff > 1000) {
-				bytesReceived = 0;
-				bytesReset = now;
-			}
-		});
+				if (options.forceBinary && typeof message === 'string') {
+					obj.client.disconnect(true, true);
+					errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`), message);
+					return;
+				}
 
-		socket.on('close', () => {
-			obj.client.isConnected = false;
-			clients.splice(clients.indexOf(obj), 1);
+				obj.lastMessageTime = Date.now();
+				obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
+
+				if (message && getLength(message)) {
+					obj.lastMessageId++;
+					const messageId = obj.lastMessageId;
+
+					try {
+						packetHandler.recv(message, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
+							const rate = rates[funcId];
+
+							if (checkRateLimit(funcId, rates)) {
+								handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
+							} else if (rate && rate.promise) {
+								handleResult(send, obj, funcId, funcName, Promise.reject(new Error('Rate limit exceeded')), messageId);
+							} else {
+								throw new Error(`Rate limit exceeded (${funcName})`);
+							}
+						});
+					} catch (e) {
+						errorHandler.handleRecvError(obj.client, e, message);
+					}
+				}
+
+				if (diff > 1000) {
+					bytesReceived = 0;
+					bytesReset = now;
+				}
+			});
+
+			socket.on('close', () => {
+				obj.client.isConnected = false;
+				clients.splice(clients.indexOf(obj), 1);
+
+				if (options.debug) {
+					log('client disconnected');
+				}
+
+				if (serverActions.disconnected) {
+					callWithErrorHandling(() => serverActions.disconnected!(), () => { }, e => errorHandler.handleError(obj.client, e));
+				}
+
+				if (obj.token) {
+					obj.token.expire = Date.now() + options.tokenLifetime!;
+					tokens.push(obj.token);
+				}
+			});
+
+			socket.on('error', e => errorHandler.handleError(obj.client, e as any));
+
+			clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packetHandler.send(send, name, id, args, obj.supportsBinary));
 
 			if (options.debug) {
-				log('client disconnected');
+				log('client connected');
 			}
 
-			if (serverActions.disconnected) {
-				callWithErrorHandling(() => serverActions.disconnected!(), () => { }, e => errorHandler.handleError(obj.client, e));
-			}
-
-			if (obj.token) {
-				obj.token.expire = Date.now() + options.tokenLifetime!;
-				tokens.push(obj.token);
-			}
-		});
-
-		socket.on('error', e => errorHandler.handleError(obj.client, e as any));
-
-		clientMethods.forEach((name, id) => obj.client[name] = (...args: any[]) => packetHandler.send(send, name, id, args, obj.supportsBinary));
-
-		if (options.debug) {
-			log('client connected');
-		}
-
-		function onConnected() {
 			packetHandler.send(send, '*version', MessageType.Version, [options.hash], obj.supportsBinary);
 			clients.push(obj);
+
+			if (serverActions.connected) {
+				callWithErrorHandling(() => serverActions.connected!(), () => { }, e => {
+					errorHandler.handleError(obj.client, e);
+					obj.client.disconnect();
+				});
+			}
 		}
 
-		if (serverActions.connected) {
-			callWithErrorHandling(() => serverActions.connected!(), onConnected, e => {
-				errorHandler.handleError(obj.client, e);
-				obj.client.disconnect();
+		Promise.resolve(createServer(obj.client))
+			.then(clientCreated)
+			.catch(e => {
+				socket.terminate();
+				errorHandler.handleError(null, e);
 			});
-		} else {
-			onConnected();
-		}
 	}
 
 	wsServer.on('connection', (socket, request) => {
