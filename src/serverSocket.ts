@@ -448,7 +448,7 @@ export function create(
 			.then(clientCreated)
 			.catch(e => {
 				socket.terminate();
-				errorHandler.handleError(null, e);
+				errorHandler.handleError(obj.client, e);
 			});
 	}
 
