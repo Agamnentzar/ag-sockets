@@ -1,4 +1,4 @@
-import { Method, ClientSocket } from '../browser';
+import { Method, createClientSocket } from '../browser';
 
 interface DemoServer {
 	name(text: string): void;
@@ -15,7 +15,7 @@ export class DemoClient {
 if (typeof window !== 'undefined') {
 	let lastName: string | null = null;
 	const config = (window as any).config;
-	const service = new ClientSocket<DemoClient, DemoServer>(config);
+	const service = createClientSocket<DemoClient, DemoServer>(config);
 	service.client.message = function (name, text) {
 		document.getElementById('messages')!.innerHTML += `[${name}] ${text}\n`;
 	};
@@ -31,6 +31,6 @@ if (typeof window !== 'undefined') {
 			lastName = name.value;
 		}
 
-		status.innerHTML = service.server.message(msg.value) ? 'sent' : 'not sent';
+		status.innerHTML = (service.server.message(msg.value) as any) ? 'sent' : 'not sent';
 	});
 }

@@ -2,7 +2,10 @@ import {
 	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore,
 	getBinary, Logger
 } from './interfaces';
-import { checkRateLimit, parseRateLimit, RateLimit, supportsBinary, Deferred, deferred, queryString } from './utils';
+import {
+	checkRateLimit, parseRateLimit, RateLimit, supportsBinary as isSupportingBinary, Deferred, deferred,
+	queryString
+} from './utils';
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
@@ -19,97 +22,98 @@ const defaultErrorHandler: ClientErrorHandler = {
 	}
 };
 
-export class ClientSocket<TClient extends SocketClient, TServer extends SocketServer> implements SocketService<TClient, TServer> {
-	client: TClient = <any>{};
-	server: TServer = <any>{};
-	sentSize = 0;
-	receivedSize = 0;
-	isConnected = false;
-	supportsBinary = false;
-	private special: FuncList = {};
-	private socket: WebSocket | null = null;
-	private connecting = false;
-	private reconnectTimeout: any;
-	private pingInterval: any;
-	private lastPing = 0;
-	private packet?: PacketHandler<ArrayBuffer>;
-	private lastSentId = 0;
-	private versionValidated = false;
-	private beforeunload = () => {
-		if (this.socket) {
+export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
+	options: ClientOptions,
+	token?: string | null | undefined,
+	errorHandler: ClientErrorHandler = defaultErrorHandler,
+	apply: (f: () => any) => void = f => f(),
+	log: Logger = console.log.bind(console),
+): SocketService<TClient, TServer> {
+	const special: FuncList = {};
+	const defers = new Map<number, Deferred<any>>();
+	const inProgressFields: { [key: string]: number } = {};
+	const rateLimits: RateLimit[] = [];
+	let supportsBinary = isSupportingBinary();
+	let socket: WebSocket | null = null;
+	let connecting = false;
+	let reconnectTimeout: any;
+	let pingInterval: any;
+	let lastPing = 0;
+	let packet: PacketHandler<ArrayBuffer> | undefined = undefined;
+	let lastSentId = 0;
+	let versionValidated = false;
+
+	const clientSocket: SocketService<TClient, TServer> = {
+		client: {} as any as TClient,
+		server: {} as any as TServer,
+		sentSize: 0,
+		receivedSize: 0,
+		isConnected: false,
+		connect,
+		disconnect,
+	};
+
+	options.server.forEach((item, id) => {
+		if (typeof item === 'string') {
+			createMethod(item, id, {});
+		} else {
+			createMethod(item[0], id, item[1]);
+
+			const rateLimit = item[1].rateLimit;
+
+			if (rateLimit) {
+				rateLimits[id] = { calls: [], ...parseRateLimit(rateLimit, false) };
+			}
+		}
+	});
+
+	special['*version'] = (version: number) => {
+		if (version === options.hash) {
+			versionValidated = true;
+			lastSentId = 0;
+			clientSocket.isConnected = true;
+			notifyServerOfBinarySupport();
+
+			if (clientSocket.client.connected) {
+				clientSocket.client.connected();
+			}
+		} else {
+			disconnect();
+
+			if (clientSocket.client.invalidVersion) {
+				clientSocket.client.invalidVersion(version, options.hash!);
+			}
+		}
+	};
+
+	function beforeunload() {
+		if (socket) {
 			try {
-				this.socket.onclose = () => { };
-				this.socket.close();
-				this.socket = null;
+				socket.onclose = () => { };
+				socket.close();
+				socket = null;
 			} catch { }
 		}
 	}
-	private defers = new Map<number, Deferred<any>>();
-	private inProgressFields: { [key: string]: number } = {};
-	private rateLimits: RateLimit[] = [];
-	private promiseCtor: typeof Promise;
-	constructor(
-		private options: ClientOptions,
-		private token?: string | null,
-		private errorHandler: ClientErrorHandler = defaultErrorHandler,
-		private apply: (f: () => any) => void = f => f(),
-		private log: Logger = console.log.bind(console),
-	) {
-		this.promiseCtor = options.promise || Promise;
 
-		this.options.server.forEach((item, id) => {
-			if (typeof item === 'string') {
-				this.createMethod(item, id, {});
-			} else {
-				this.createMethod(item[0], id, item[1]);
-
-				const rateLimit = item[1].rateLimit;
-
-				if (rateLimit) {
-					this.rateLimits[id] = { calls: [], ...parseRateLimit(rateLimit, false) };
-				}
-			}
-		});
-
-		this.special['*version'] = (version: number) => {
-			if (version === this.options.hash) {
-				this.versionValidated = true;
-				this.lastSentId = 0;
-				this.isConnected = true;
-				this.notifyServerOfBinarySupport();
-
-				if (this.client.connected) {
-					this.client.connected();
-				}
-			} else {
-				this.disconnect();
-
-				if (this.client.invalidVersion) {
-					this.client.invalidVersion(version, this.options.hash!);
-				}
-			}
-		};
-
-		this.supportsBinary = supportsBinary();
-	}
-	private getWebsocketUrl() {
-		const options = this.options;
+	function getWebsocketUrl() {
 		const protocol = (options.ssl || location.protocol === 'https:') ? 'wss://' : 'ws://';
 		const host = options.host || location.host;
 		const path = options.path || '/ws';
-		const query = queryString({ ...options.requestParams, t: this.token, bin: this.supportsBinary });
+		const query = queryString({ ...options.requestParams, t: token, bin: supportsBinary });
 		return `${protocol}${host}${path}${query}`;
 	}
-	connect() {
-		this.connecting = true;
 
-		if (this.socket)
+	function connect() {
+		connecting = true;
+
+		if (socket) {
 			return;
+		}
 
-		const options = this.options;
-		const socket = this.socket = new WebSocket(this.getWebsocketUrl());
+		const theSocket = socket = new WebSocket(getWebsocketUrl());
 
-		window.addEventListener('beforeunload', this.beforeunload);
+		window.addEventListener('beforeunload', beforeunload);
 
 		const reader = new ArrayBufferPacketReader();
 		const writer = new ArrayBufferPacketWriter();
@@ -119,209 +123,222 @@ export class ClientSocket<TClient extends SocketClient, TServer extends SocketSe
 		const ignore = [...getIgnore(options.server), ...getIgnore(options.client)];
 
 		if (options.debug) {
-			this.packet = new DebugPacketHandler(clientmethods, serverMethods, writer, reader, handlers, {}, ignore, this.log);
+			packet = new DebugPacketHandler(clientmethods, serverMethods, writer, reader, handlers, {}, ignore, log);
 		} else {
-			this.packet = new PacketHandler(clientmethods, serverMethods, writer, reader, handlers, {});
+			packet = new PacketHandler(clientmethods, serverMethods, writer, reader, handlers, {});
 		}
 
-		this.supportsBinary = !!socket.binaryType;
+		supportsBinary = !!theSocket.binaryType;
 
-		socket.binaryType = 'arraybuffer';
-		socket.onmessage = message => {
-			if (message.data && this.packet) {
+		theSocket.binaryType = 'arraybuffer';
+		theSocket.onmessage = message => {
+			if (message.data && packet) {
 				try {
-					this.receivedSize += this.packet.recv(message.data, this.client, this.special);
+					clientSocket.receivedSize += packet.recv(message.data, clientSocket.client, special);
 				} catch (e) {
-					this.errorHandler.handleRecvError(e, message.data);
+					errorHandler.handleRecvError(e, message.data);
 				}
 			} else {
-				this.sendPing();
+				sendPing();
 			}
 		};
 
-		socket.onopen = () => {
-			if (this.socket !== socket) {
-				socket.close();
+		theSocket.onopen = () => {
+			if (socket !== theSocket) {
+				theSocket.close();
 				return;
 			}
 
 			if (options.debug) {
-				this.log('socket opened');
+				log('socket opened');
 			}
 
 			if (options.pingInterval) {
-				this.pingInterval = setInterval(() => this.sendPing(), options.pingInterval);
+				pingInterval = setInterval(() => sendPing(), options.pingInterval);
 			}
 		};
 
-		socket.onerror = e => {
+		theSocket.onerror = e => {
 			if (options.debug) {
-				this.log('socket error', e);
+				log('socket error', e);
 			}
 		};
 
-		socket.onclose = e => {
+		theSocket.onclose = e => {
 			if (options.debug) {
-				this.log('socket closed', e);
+				log('socket closed', e);
 			}
 
-			if (this.socket && this.socket !== socket) {
+			if (socket && socket !== theSocket) {
 				return;
 			}
 
-			this.socket = null;
-			this.versionValidated = false;
+			socket = null;
+			versionValidated = false;
 
-			if (this.isConnected) {
-				this.isConnected = false;
+			if (clientSocket.isConnected) {
+				clientSocket.isConnected = false;
 
-				if (this.client.disconnected)
-					this.client.disconnected();
+				if (clientSocket.client.disconnected) {
+					clientSocket.client.disconnected();
+				}
 			}
 
-			if (this.connecting) {
-				this.reconnectTimeout = setTimeout(() => {
-					this.connect();
-					this.reconnectTimeout = null;
+			if (connecting) {
+				reconnectTimeout = setTimeout(() => {
+					connect();
+					reconnectTimeout = null;
 				}, options.reconnectTimeout);
 			}
 
-			this.defers.forEach(d => d.reject(new Error('disconnected')));
-			this.defers.clear();
+			defers.forEach(d => d.reject(new Error('disconnected')));
+			defers.clear();
 
-			Object.keys(this.inProgressFields).forEach(key => this.inProgressFields[key] = 0);
+			Object.keys(inProgressFields).forEach(key => inProgressFields[key] = 0);
 
-			if (this.pingInterval) {
-				clearInterval(this.pingInterval);
-				this.pingInterval = null;
+			if (pingInterval) {
+				clearInterval(pingInterval);
+				pingInterval = null;
 			}
 		};
 	}
-	disconnect() {
-		this.connecting = false;
 
-		if (this.reconnectTimeout) {
-			clearTimeout(this.reconnectTimeout);
-			this.reconnectTimeout = null;
+	function disconnect() {
+		connecting = false;
+
+		if (reconnectTimeout) {
+			clearTimeout(reconnectTimeout);
+			reconnectTimeout = null;
 		}
 
-		if (this.pingInterval) {
-			clearInterval(this.pingInterval);
-			this.pingInterval = null;
+		if (pingInterval) {
+			clearInterval(pingInterval);
+			pingInterval = null;
 		}
 
-		if (this.socket) {
-			if (this.isConnected) {
-				this.socket.close();
+		if (socket) {
+			if (clientSocket.isConnected) {
+				socket.close();
 			}
 
-			this.socket = null;
+			socket = null;
 		}
 
-		window.removeEventListener('beforeunload', this.beforeunload);
+		window.removeEventListener('beforeunload', beforeunload);
 	}
-	private notifyServerOfBinarySupport() {
-		if (this.supportsBinary) {
-			this.send(new ArrayBuffer(0));
+
+	function notifyServerOfBinarySupport() {
+		if (supportsBinary) {
+			send(new ArrayBuffer(0));
 		}
 	}
-	private send = (data: any) => {
-		if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-			this.socket.send(data);
+
+	function send(data: any) {
+		if (socket && socket.readyState === WebSocket.OPEN) {
+			socket.send(data);
 			return true;
 		} else {
 			return false;
 		}
 	}
-	private sendPing() {
+
+	function sendPing() {
 		try {
 			const now = Date.now();
-			const interval = this.options.pingInterval;
+			const interval = options.pingInterval;
 
-			if (this.versionValidated && interval && (now - this.lastPing) > interval && this.sendPingPacket()) {
-				this.lastPing = now;
+			if (versionValidated && interval && (now - lastPing) > interval && sendPingPacket()) {
+				lastPing = now;
 			}
 		} catch { }
 	}
-	private sendPingPacket() {
-		return this.send(this.supportsBinary ? new ArrayBuffer(0) : '');
+
+	function sendPingPacket() {
+		return send(supportsBinary ? new ArrayBuffer(0) : '');
 	}
-	private createMethod(name: string, id: number, options: MethodOptions) {
+
+	function createMethod(name: string, id: number, options: MethodOptions) {
 		if (name) {
 			if (options.promise) {
-				this.createPromiseMethod(name, id, options.progress);
+				createPromiseMethod(name, id, options.progress);
 			} else {
-				this.createSimpleMethod(name, id);
+				createSimpleMethod(name, id);
 			}
 		}
 	}
-	private createSimpleMethod(name: string, id: number) {
-		this.server[name] = (...args: any[]) => {
-			if (checkRateLimit(id, this.rateLimits) && this.packet) {
-				this.sentSize += this.packet.send(this.send, name, id, args, this.supportsBinary);
-				this.lastSentId++;
+
+	function createSimpleMethod(name: string, id: number) {
+		clientSocket.server[name] = (...args: any[]) => {
+			if (checkRateLimit(id, rateLimits) && packet) {
+				clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary);
+				lastSentId++;
 				return true;
 			} else {
 				return false;
 			}
 		};
 	}
-	private createPromiseMethod(name: string, id: number, inProgressField?: string) {
-		if (inProgressField) {
-			this.inProgressFields[inProgressField] = 0;
 
-			Object.defineProperty(this.server, inProgressField, {
-				get: () => !!this.inProgressFields[inProgressField]
+	function createPromiseMethod(name: string, id: number, inProgressField?: string) {
+		if (inProgressField) {
+			inProgressFields[inProgressField] = 0;
+
+			Object.defineProperty(clientSocket.server, inProgressField, {
+				get: () => !!inProgressFields[inProgressField]
 			});
 		}
 
-		this.server[name] = (...args: any[]): Promise<any> => {
-			if (!this.isConnected) {
-				return this.promiseCtor.reject(new Error('not connected'));
+		clientSocket.server[name] = (...args: any[]): Promise<any> => {
+			if (!clientSocket.isConnected) {
+				return Promise.reject(new Error('not connected'));
 			}
 
-			if (!checkRateLimit(id, this.rateLimits)) {
-				return this.promiseCtor.reject(new Error('rate limit exceeded'));
+			if (!checkRateLimit(id, rateLimits)) {
+				return Promise.reject(new Error('rate limit exceeded'));
 			}
 
-			if (!this.packet) {
-				return this.promiseCtor.reject(new Error('not initialized'));
+			if (!packet) {
+				return Promise.reject(new Error('not initialized'));
 			}
 
-			this.sentSize += this.packet.send(this.send, name, id, args, this.supportsBinary);
-			const messageId = ++this.lastSentId;
-			const defer = deferred<any>(this.promiseCtor);
-			this.defers.set(messageId, defer);
+			clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary);
+			const messageId = ++lastSentId;
+			const defer = deferred<any>();
+			defers.set(messageId, defer);
 
-			if (inProgressField)
-				this.inProgressFields[inProgressField]++;
+			if (inProgressField) {
+				inProgressFields[inProgressField]++;
+			}
 
 			return defer.promise;
 		};
 
-		this.special['*resolve:' + name] = (messageId: number, result: any) => {
-			const defer = this.defers.get(messageId);
+		special['*resolve:' + name] = (messageId: number, result: any) => {
+			const defer = defers.get(messageId);
 			if (defer) {
-				this.defers.delete(messageId);
+				defers.delete(messageId);
 
-				if (inProgressField)
-					this.inProgressFields[inProgressField]--;
+				if (inProgressField) {
+					inProgressFields[inProgressField]--;
+				}
 
-				this.apply(() => defer.resolve(result));
+				apply(() => defer.resolve(result));
 			}
 		};
 
-		this.special['*reject:' + name] = (messageId: number, error: string) => {
-			const defer = this.defers.get(messageId);
+		special['*reject:' + name] = (messageId: number, error: string) => {
+			const defer = defers.get(messageId);
 
 			if (defer) {
-				this.defers.delete(messageId);
+				defers.delete(messageId);
 
 				if (inProgressField)
-					this.inProgressFields[inProgressField]--;
+					inProgressFields[inProgressField]--;
 
-				this.apply(() => defer.reject(new Error(error)));
+				apply(() => defer.reject(new Error(error)));
 			}
 		};
 	}
+
+	return clientSocket;
 }

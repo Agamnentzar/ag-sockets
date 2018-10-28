@@ -25,7 +25,9 @@ export class DebugPacketHandler<T> extends PacketHandler<T> {
 
 		return size;
 	}
-	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction): number {
+	recv(
+		data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction
+	): number {
 		const args = this.read(data);
 
 		const funcId = args.shift();

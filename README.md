@@ -122,12 +122,12 @@ server.listen(12345, () => console.log('server listening...'));
 #### Connect client
 
 ```typescript
-import { ClientSocket } from 'ag-sockets';
+import { createClientSocket } from 'ag-sockets';
 import { ExampleClient } from './client';
 import { IExampleClient, IExampleServer } from './interfaces';
 
 const options = // get 'wsServer.options()' from server side
-const service = new ClientSocket<IExampleClient, IExampleServer>(options);
+const service = createClientSocket<IExampleClient, IExampleServer>(options);
 service.client = new ExampleClient(service.server);
 service.connect();
 ```

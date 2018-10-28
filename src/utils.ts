@@ -14,6 +14,14 @@ export function getLength(message: any): number {
 	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
 }
 
+export function removeItem<T>(items: T[], item: T) {
+	const index = items.indexOf(item);
+
+	if (index !== -1) {
+		items.splice(index, 1);
+	}
+}
+
 export function queryString(params: any) {
 	const query = Object.keys(params || {})
 		.filter(key => params[key] != null)
@@ -114,13 +122,27 @@ export interface Deferred<T> {
 	reject(error?: Error): void;
 }
 
-export function deferred<T>(promise: typeof Promise): Deferred<T> {
+export function deferred<T>(): Deferred<T> {
 	const obj: Deferred<T> = {} as any;
 
-	obj.promise = new promise<T>(function (resolve, reject) {
+	obj.promise = new Promise<T>(function (resolve, reject) {
 		obj.resolve = resolve;
 		obj.reject = reject;
 	});
 
 	return obj;
+}
+
+export function callWithErrorHandling(action: () => any, onSuccess: () => void, onError: (e: Error) => void) {
+	try {
+		const result = action();
+
+		if (result && result.then) {
+			result.then(onSuccess, onError);
+		} else {
+			onSuccess();
+		}
+	} catch (e) {
+		onError(e);
+	}
 }

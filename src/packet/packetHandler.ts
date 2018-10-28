@@ -132,7 +132,9 @@ export class PacketHandler<T> {
 			return 0;
 		}
 	}
-	recv(data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction): number {
+	recv(
+		data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction
+	): number {
 		const args = this.read(data);
 		const funcId = args.shift();
 		const funcName = this.getFuncName(funcId, args);

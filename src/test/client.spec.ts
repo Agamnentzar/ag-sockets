@@ -1,8 +1,10 @@
 import './common';
 import { expect } from 'chai';
-import { stub, spy, assert } from 'sinon';
+import { stub, spy, assert, match } from 'sinon';
 import { MessageType } from '../packet/packetHandler';
-import { ClientOptions, ClientSocket, SocketClient, SocketServer, SocketService, ClientErrorHandler } from '../index';
+import {
+	ClientOptions, SocketClient, SocketServer, SocketService, ClientErrorHandler, createClientSocket
+} from '../index';
 import { cloneDeep } from '../utils';
 
 let lastWebSocket: MockWebSocket;
@@ -79,7 +81,7 @@ describe('ClientSocket', () => {
 		lastWebSocket = null as any;
 		errorHandler = { handleRecvError() { } };
 
-		service = new ClientSocket<Client, Server>(clientOptions, undefined, errorHandler);
+		service = createClientSocket<Client, Server>(clientOptions, undefined, errorHandler);
 	});
 
 	describe('invalidVersion', () => {
@@ -165,7 +167,7 @@ describe('ClientSocket', () => {
 		it('should use "/ws" as default path', () => {
 			const options = cloneDeep(clientOptions);
 			delete options.path;
-			service = new ClientSocket<Client, Server>(options);
+			service = createClientSocket<Client, Server>(options);
 			service.connect();
 
 			expect(lastWebSocket.url).equal('ws://example.com/ws?foo=bar&x=5&bin=true');
@@ -299,7 +301,7 @@ describe('ClientSocket', () => {
 
 		it('does not send request when rate limit is exceeded', () => {
 			service.server.foo3();
-			const send = stub((service as any).packet, 'send');
+			const send = stub(lastWebSocket, 'send');
 
 			expect(service.server.foo3()).false;
 
@@ -313,7 +315,7 @@ describe('ClientSocket', () => {
 
 		it('does not send request when rate limit is exceeded (promise)', async () => {
 			service.server.foo2();
-			const send = stub((service as any).packet, 'send');
+			const send = stub(lastWebSocket, 'send');
 
 			await expect(service.server.foo2()).rejectedWith('rate limit exceeded');
 
@@ -448,13 +450,11 @@ describe('ClientSocket', () => {
 
 			it('passes error from packet recv method to error handler', () => {
 				connectLastWebSocket();
-				const error = new Error('test error');
 				const handleRecvError = stub(errorHandler, 'handleRecvError');
-				stub((service as any).packet, 'recv').throws(error);
 
-				lastWebSocket.onmessage({ data: '[0]' });
+				lastWebSocket.onmessage({ data: 'null' });
 
-				assert.calledWith(handleRecvError, error, '[0]');
+				assert.calledWith(handleRecvError, match.any, 'null');
 			});
 
 			it('does nothing for resolving non-existing promise', () => {
@@ -488,13 +488,12 @@ describe('ClientSocket', () => {
 				expect(result2).equal('a');
 			});
 
-			it('throws error if with default error handler', () => {
-				service = new ClientSocket<Client, Server>(clientOptions);
+			it('throws error if using default error handler', () => {
+				service = createClientSocket<Client, Server>(clientOptions);
 				service.connect();
-				stub((service as any).packet, 'recv').throws(new Error('test'));
 				lastWebSocket.onopen();
 
-				expect(() => lastWebSocket.onmessage({ data: '[1, 2]' })).throw('test');
+				expect(() => lastWebSocket.onmessage({ data: 'null' })).throw();
 			});
 		});
 	});

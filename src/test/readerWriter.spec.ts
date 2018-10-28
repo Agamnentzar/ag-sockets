@@ -65,7 +65,8 @@ describe('PacketReader + PacketWriter', () => {
 		expect(reader.readString()).equal(null, 'readString null');
 		expect(reader.readString()).equal('', 'readString empty');
 		expect(reader.readString()).equal('foo', 'readString "foo"');
-		expect(reader.readString()).equal('foo lkfdas jldfih dglfkhj fdglh irj idljg ldkfgj ', 'readString "foo lkfdas jldfih dglfkhj fdglh irj idljg ldkfgj "');
+		expect(reader.readString())
+			.equal('foo lkfdas jldfih dglfkhj fdglh irj idljg ldkfgj ', 'readString "foo lkfdas jldfih dglfkhj fdglh irj idljg ldkfgj "');
 		expect(reader.readString()).equal('część', 'readString część');
 		expect(reader.readObject()).equal(null, 'readObject null');
 		expect(reader.readObject()).eql({ foo: 'bar' }, 'readObject empty');
@@ -274,6 +275,10 @@ describe('PacketReader + PacketWriter', () => {
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
 			], 42);
+		});
+
+		it('measures strings', () => {
+			measureObjectTest(['foobar'], 8);
 		});
 
 		it('reads and writes objects with repeated strings', () => {

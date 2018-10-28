@@ -1,18 +1,21 @@
-import { delay } from './common';
+import { delay, createKillMethod } from './common';
 import * as http from 'http';
 import * as WebSocket from 'ws';
 import * as uWebSocket from 'uws';
+import { WebSocketServer as ClusterWsServer } from 'clusterws-uws';
 import { expect } from 'chai';
 import { assert, stub, spy, SinonSpy } from 'sinon';
-import { Bin, ServerOptions, ClientOptions } from '../interfaces';
+import { Bin, ServerOptions, ClientOptions, SocketService } from '../interfaces';
 import {
-	Socket, Method, ClientSocket, createServer, ClientExtensions, Server as ServerController,
-	SocketClient, SocketServer, ErrorHandler
+	Socket, Method, ClientExtensions, Server as ServerController,
+	SocketClient, SocketServer, ErrorHandler, createClientSocket
 } from '../index';
+import { ServerHost } from '../serverInterfaces';
+import { createServerHost } from '../serverSocket';
 
 const apply = (f: () => void) => f();
 
-@Socket({ path: '/test', pingInterval: 100, debug: true, clientLimit: 2 })
+@Socket({ path: '/ws/test', pingInterval: 100, debug: true, clientLimit: 2 })
 class Server implements SocketServer {
 	constructor(public client: Client & ClientExtensions) { }
 	@Method({ binary: [Bin.Str], ignore: true })
@@ -44,6 +47,13 @@ class Server implements SocketServer {
 	disconnected() { }
 }
 
+@Socket({ path: '/ws/omg' })
+class Server2 implements SocketServer {
+	constructor(public client: Client & ClientExtensions) { }
+	@Method({ ignore: true })
+	hello(_message: string) { }
+}
+
 class Client implements SocketClient {
 	@Method({ binary: [Bin.Str], ignore: true })
 	bin(_message: string) { }
@@ -60,9 +70,11 @@ class Client implements SocketClient {
 
 describe('ClientSocket + Server', () => {
 	let httpServer: http.Server;
+	let killServer: (callback: () => void) => void;
 	let server: Server;
+	let serverHost: ServerHost;
 	let serverSocket: ServerController;
-	let clientSocket: ClientSocket<Client, Server>;
+	let clientSocket: SocketService<Client, Server>;
 	let errorHandler: ErrorHandler;
 	let connected: SinonSpy;
 	let log: SinonSpy;
@@ -70,7 +82,7 @@ describe('ClientSocket + Server', () => {
 
 	function setupClient(options: ClientOptions, token?: string) {
 		return new Promise(resolve => {
-			clientSocket = new ClientSocket<Client, Server>(options, token, undefined, apply, <any>log);
+			clientSocket = createClientSocket<Client, Server>(options, token, undefined, apply, log);
 			// version = stub((<any>clientSocket).special, '*version');
 			clientSocket.client = new Client();
 			clientSocket.client.connected = resolve;
@@ -78,34 +90,44 @@ describe('ClientSocket + Server', () => {
 		});
 	}
 
-	function setupServerClient(done: () => void, options: ServerOptions = {}, onClient: (options: ClientOptions, token?: string) => void = () => { }) {
+	function setupServerClient(
+		done: () => void, options: ServerOptions = {}, onClient: (options: ClientOptions, token?: string) => void = () => { }
+	) {
 		connected = spy();
 
-		serverSocket = createServer(httpServer, Server, Client, c => {
+		serverHost = createServerHost(httpServer, { ws: options.ws, arrayBuffer: options.arrayBuffer, errorHandler, log });
+		serverSocket = serverHost.socket(Server, Client, c => {
 			server = new Server(c);
 			server.connected = connected as any;
 			return server;
-		}, options, errorHandler, <any>log);
+		}, options);
 
 		const clientOptions = serverSocket.options();
 		const token = options.connectionTokens ? serverSocket.token() : undefined;
 
 		onClient(clientOptions, token);
 
-		httpServer.listen(12345, () => {
-			setupClient(clientOptions, token).then(done);
-		});
+		startListening()
+			.then(() => setupClient(clientOptions, token))
+			.then(done);
 	}
 
 	function closeServerClient(done: () => void) {
 		clientSocket.disconnect();
-		httpServer.close(done);
+		serverHost.close();
+		killServer(done);
+	}
+
+	function startListening() {
+		return new Promise(resolve => {
+			httpServer.listen(12345, resolve);
+		});
 	}
 
 	beforeEach(() => {
-		(<any>global).window = { addEventListener() { }, removeEventListener() { } };
-		(<any>global).location = { protocol: 'http', host: 'localhost:12345' };
-		(<any>global).WebSocket = WebSocket;
+		(global as any).window = { addEventListener() { }, removeEventListener() { } };
+		(global as any).location = { protocol: 'http', host: `localhost:12345` };
+		(global as any).WebSocket = WebSocket;
 
 		log = spy();
 		errorHandler = {
@@ -114,12 +136,42 @@ describe('ClientSocket + Server', () => {
 			handleRecvError() { },
 		};
 		httpServer = http.createServer();
+		killServer = createKillMethod(httpServer);
 	});
 
 	[
 		{ name: 'ws', ws: WebSocket, arrayBuffer: false },
 		{ name: 'µWS', ws: uWebSocket, arrayBuffer: true },
+		{ name: 'clusterWS-µWS', ws: { Server: ClusterWsServer }, arrayBuffer: true },
 	].forEach(({ name, ws, arrayBuffer }) => {
+		describe(`[${name}]`, () => {
+			afterEach(function (done) {
+				killServer(done);
+			});
+
+			it('should connect to correct end point', async () => {
+				let server1: Server;
+				let server2: Server2;
+				const host = createServerHost(httpServer, { ws, errorHandler, log, arrayBuffer });
+				const socket1 = host.socket(Server, Client, c => server1 = new Server(c), {});
+				host.socket(Server2, Client, c => server2 = new Server2(c), {});
+
+				await startListening();
+				await setupClient(socket1.options());
+
+				const hello1 = stub(server1!, 'hello');
+
+				await delay(50);
+
+				clientSocket.server.hello('yay');
+
+				await delay(50);
+
+				assert.calledWith(hello1, 'yay');
+				expect(server2!).undefined;
+			});
+		});
+
 		describe(`[${name}]`, () => {
 			beforeEach(function (done) {
 				setupServerClient(done, { ws, arrayBuffer });

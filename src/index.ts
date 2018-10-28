@@ -1,7 +1,9 @@
 export * from './interfaces';
 export * from './server';
-export { ClientSocket, ClientErrorHandler } from './clientSocket';
-export { create as createServerRaw, createServer, createClientOptions, broadcast, Server, Client } from './serverSocket';
+export { createClientSocket, ClientErrorHandler } from './clientSocket';
+export { createServerRaw, createServer, broadcast } from './serverSocket';
+export { createClientOptions } from './serverUtils';
+export { Server, ClientState, ServerHost } from './serverInterfaces';
 export * from './method';
 export { ArrayBufferPacketReader } from './packet/arrayBufferPacketReader';
 export { ArrayBufferPacketWriter } from './packet/arrayBufferPacketWriter';

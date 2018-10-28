@@ -138,7 +138,6 @@ export interface ServerOptions extends CommonOptions {
 export interface ClientOptions extends CommonOptions {
 	client: MethodDef[];
 	server: MethodDef[];
-	promise?: typeof Promise;
 }
 
 export function getNames(methods: MethodDef[]) {

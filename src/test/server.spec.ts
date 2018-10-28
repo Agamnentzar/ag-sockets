@@ -1,15 +1,16 @@
 import { delay } from './common';
-import { VerifyClientCallbackSync } from 'ws';
+import { VerifyClientCallbackAsync } from 'ws';
 import * as http from 'http';
 import { expect } from 'chai';
 import { assert, stub, spy, match, SinonStub, useFakeTimers, SinonFakeTimers } from 'sinon';
 import {
 	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions, broadcast,
-	SocketClient, ClientExtensions, Bin, createClientOptions,
+	SocketClient, ClientExtensions, Bin, createClientOptions, ServerHost,
 } from '../index';
 import { randomString } from '../utils';
 import { MessageType } from '../packet/packetHandler';
 import { MockWebSocket, MockWebSocketServer, getLastServer } from './wsMock';
+import { createServerHost } from '../serverSocket';
 
 @Socket()
 class Server1 {
@@ -131,8 +132,10 @@ describe('serverSocket', () => {
 
 	describe('createServer() (mock) (creation)', () => {
 		it('createServerRaw() should throw if passed empty client or server method definitions', () => {
-			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: [], server: null } as any)).throws('Missing server or client method definitions');
-			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: null, server: [] } as any)).throws('Missing server or client method definitions');
+			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: [], server: null } as any))
+				.throws('Missing server or client method definitions');
+			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: null, server: [] } as any))
+				.throws('Missing server or client method definitions');
 		});
 
 		it('handles server errors without error handler', () => {
@@ -159,8 +162,7 @@ describe('serverSocket', () => {
 		});
 
 		it('closes connection if connected() handler threw an error', async () => {
-			let server1: ServerThrowingOnConnected;
-			createServer({} as any, Server1, Client1, c => server1 = new ServerThrowingOnConnected(c) as any, { ws });
+			createServer({} as any, Server1, Client1, c => new ServerThrowingOnConnected(c) as any, { ws });
 
 			const socket = await getLastServer().connectClient();
 
@@ -173,7 +175,9 @@ describe('serverSocket', () => {
 			let errorHandler: ErrorHandler;
 
 			beforeEach(() => {
-				createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true }, errorHandler = emptyErrorHandler());
+				createServer(
+					{} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true },
+					errorHandler = emptyErrorHandler());
 				webSocket = new MockWebSocket();
 				webSocket.upgradeReq.url = '?t=foobar';
 			});
@@ -233,8 +237,10 @@ describe('serverSocket', () => {
 
 				socketServer.clearTokens((_, data) => data.remove);
 
-				const verifyClient = getLastServer().options.verifyClient! as VerifyClientCallbackSync;
-				expect(verifyClient({ req: { url: `?t=${token}` } } as any)).false;
+				const verifyClient = getLastServer().options.verifyClient! as VerifyClientCallbackAsync;
+				const next = spy();
+				verifyClient({ req: { url: `?t=${token}` } } as any, next);
+				assert.calledWith(next, false);
 			});
 
 			it('does not clear not marked token', () => {
@@ -243,8 +249,10 @@ describe('serverSocket', () => {
 
 				socketServer.clearTokens((_, data) => data.remove);
 
-				const verifyClient = getLastServer().options.verifyClient! as VerifyClientCallbackSync;
-				expect(verifyClient({ req: { url: `?t=${token}` } } as any)).true;
+				const verifyClient = getLastServer().options.verifyClient! as VerifyClientCallbackAsync;
+				const next = spy();
+				verifyClient({ req: { url: `?t=${token}` } } as any, next);
+				assert.calledWith(next, true);
 			});
 
 			it('disconnects client using marked token', async () => {
@@ -351,6 +359,7 @@ describe('serverSocket', () => {
 		const httpServer: http.Server = {} as any;
 
 		let server: MockWebSocketServer;
+		let serverHost: ServerHost;
 		let serverSocket: TheServer;
 		let errorHandler: ErrorHandler;
 		let servers: Server1[] = [];
@@ -364,11 +373,12 @@ describe('serverSocket', () => {
 			onServer = s => servers.push(s);
 			onSend = stub();
 			onRecv = stub();
-			serverSocket = createServer(httpServer, Server1, Client1, client => {
+			serverHost = createServerHost(httpServer, { ws, path: '/foo', perMessageDeflate: false, errorHandler });
+			serverSocket = serverHost.socket(Server1, Client1, client => {
 				const s = new Server1(client);
 				onServer(s);
 				return s;
-			}, { ws, path: '/foo', perMessageDeflate: false, onSend, onRecv }, errorHandler);
+			}, { ws, path: '/foo', perMessageDeflate: false, onSend, onRecv });
 			server = getLastServer();
 		});
 
@@ -419,7 +429,7 @@ describe('serverSocket', () => {
 			await delay(5);
 
 			assert.calledOnce(terminate);
-			assert.calledWith(handleError, null, error);
+			assert.calledWith(handleError, match.any, error);
 		});
 
 		it('reports exception from server.connected()', async () => {
@@ -582,7 +592,7 @@ describe('serverSocket', () => {
 			it('closes web socket server', () => {
 				const close = stub(getLastServer(), 'close');
 
-				serverSocket.close();
+				serverHost.close();
 
 				assert.calledOnce(close);
 			});
@@ -660,9 +670,11 @@ describe('serverSocket', () => {
 			return getLastServer();
 		}
 
-		function verify(server: MockWebSocketServer, info: any = {}) {
-			const verifyClient = server.options.verifyClient! as VerifyClientCallbackSync;
-			return verifyClient(info);
+		function verify(server: MockWebSocketServer, info: any = { req: {} }) {
+			const verifyClient = server.options.verifyClient! as VerifyClientCallbackAsync;
+			let result = false;
+			verifyClient(info, x => result = x);
+			return result;
 		}
 
 		it('returns true by default', () => {
