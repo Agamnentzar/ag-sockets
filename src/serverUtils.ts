@@ -93,8 +93,20 @@ export function optionsWithDefaults(options: ServerOptions): ServerOptions {
 		tokenLifetime: 3600 * 1000, // 1 hour
 		reconnectTimeout: 500, // 0.5 sec
 		connectionTimeout: 10000, // 10 sec
+		perMessageDeflate: true,
 		...options,
 	};
+}
+
+export function getBinaryOnlyPackets(client: MethodDef[]) {
+	const result: any = {};
+
+	client
+		.filter(x => typeof x !== 'string' && hasArrayBuffer(x[1].binary!))
+		.map(x => x[0] as string)
+		.forEach(key => result[key] = true);
+
+	return result;
 }
 
 function clearMethodOptions([name, { serverRateLimit: _, ...options }]: [string, MethodOptions]) {

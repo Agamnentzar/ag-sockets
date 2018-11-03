@@ -417,7 +417,7 @@ describe('serverSocket', () => {
 			assert.calledWith(handleError, serverSocket.clients[0].client, error);
 		});
 
-		it('terminates and reports connection error', async () => {
+		it('terminates and reports connection error if failed to attach events', async () => {
 			const client = new MockWebSocket();
 			const error = new Error('test');
 			stub(client, 'on').throws(error);

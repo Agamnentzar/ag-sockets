@@ -17,7 +17,7 @@ import {
 } from './serverInterfaces';
 import {
 	hasToken, createToken, getToken, getTokenFromClient, returnTrue, createOriginalRequest, defaultErrorHandler,
-	createServerOptions, hasArrayBuffer, optionsWithDefaults, toClientOptions, createRateLimit
+	createServerOptions, optionsWithDefaults, toClientOptions, createRateLimit, getBinaryOnlyPackets
 } from './serverUtils';
 
 type AnyBuffer = Buffer | ArrayBuffer;
@@ -168,13 +168,7 @@ function createPacketHandler(options: ServerOptions, arrayBuffer: boolean, log: 
 	if (options.client.length > 250 || options.server.length > 250)
 		throw new Error('Too many methods');
 
-	const onlyBinary: any = {};
-
-	options.client
-		.filter(x => typeof x !== 'string' && hasArrayBuffer(x[1].binary!))
-		.map(x => x[0] as string)
-		.forEach(key => onlyBinary[key] = true);
-
+	const onlyBinary = getBinaryOnlyPackets(options.client);
 	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
 	const reader = arrayBuffer ? new ArrayBufferPacketReader() : new BufferPacketReader();
 	const writer = arrayBuffer ? new ArrayBufferPacketWriter() : new BufferPacketWriter();
@@ -454,7 +448,7 @@ function connectClient(
 			}
 		});
 
-		socket.on('error', e => errorHandler.handleError(obj.client, e as any));
+		socket.on('error', e => errorHandler.handleError(obj.client, e));
 
 		server.clientMethods.forEach((name, id) => {
 			obj.client[name] = (...args: any[]) => server.packetHandler.send(send, name, id, args, obj.supportsBinary);
