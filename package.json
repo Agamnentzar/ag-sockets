@@ -1,6 +1,6 @@
 {
   "name": "ag-sockets",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Library for communication via WebSockets",
   "main": "dist/index.js",
   "browser": "dist/browser.js",
@@ -29,6 +29,9 @@
   "peerDependencies": {
     "ws": "*"
   },
+  "dependencies": {
+    "@types/ws": "^6.0.1"
+  },
   "devDependencies": {
     "@types/express": "^4.16.0",
     "@types/mocha": "^5.2.5",
@@ -36,7 +39,6 @@
     "@types/promises-a-plus": "0.0.27",
     "@types/sinon": "^5.0.5",
     "@types/uws": "^0.13.2",
-    "@types/ws": "^6.0.1",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "clusterws-uws": "^0.4.6",
