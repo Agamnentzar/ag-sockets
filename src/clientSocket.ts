@@ -51,6 +51,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		isConnected: false,
 		connect,
 		disconnect,
+		supportsBinary,
 	};
 
 	options.server.forEach((item, id) => {
