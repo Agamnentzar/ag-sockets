@@ -95,7 +95,7 @@ describe('ClientSocket + Server', () => {
 	) {
 		connected = spy();
 
-		serverHost = createServerHost(httpServer, { ws: options.ws, arrayBuffer: options.arrayBuffer, errorHandler, log });
+		serverHost = createServerHost(httpServer, { path: '/ws', ws: options.ws, arrayBuffer: options.arrayBuffer, errorHandler, log });
 		serverSocket = serverHost.socket(Server, Client, c => {
 			server = new Server(c);
 			server.connected = connected as any;
@@ -152,9 +152,9 @@ describe('ClientSocket + Server', () => {
 			it('should connect to correct end point', async () => {
 				let server1: Server;
 				let server2: Server2;
-				const host = createServerHost(httpServer, { ws, errorHandler, log, arrayBuffer });
-				const socket1 = host.socket(Server, Client, c => server1 = new Server(c), {});
-				host.socket(Server2, Client, c => server2 = new Server2(c), {});
+				const host = createServerHost(httpServer, { path: '/ws', ws, errorHandler, log, arrayBuffer });
+				const socket1 = host.socket(Server, Client, c => server1 = new Server(c), { id: 'socket1' });
+				host.socket(Server2, Client, c => server2 = new Server2(c), { id: 'socket2' });
 
 				await startListening();
 				await setupClient(socket1.options());

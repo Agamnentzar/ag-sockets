@@ -51,7 +51,7 @@ gulp.task('tests', () => {
 		.pipe(mocha({
 			reporter: 'dot',
 			exit: true,
-			timeout: 5000,
+			timeout: 2000,
 		}))
 		.on('error', swallowError);
 });

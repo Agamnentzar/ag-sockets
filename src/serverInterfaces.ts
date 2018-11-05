@@ -66,6 +66,7 @@ export interface InternalServer {
 	pingInterval: any;
 	tokenInterval: any;
 	// options
+	id: string;
 	path: string;
 	hash: number;
 	debug: boolean;

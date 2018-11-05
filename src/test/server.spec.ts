@@ -45,6 +45,7 @@ class Client1 {
 }
 
 const CLIENT_OPTIONS = {
+	id: 'socket',
 	client: [
 		'hi',
 		['bye', { binary: [1] }],
@@ -744,7 +745,7 @@ describe('serverSocket', () => {
 
 	describe('createClientOptions()', () => {
 		it('returns client options', () => {
-			const options = createClientOptions(Server1, Client1, { ws });
+			const options = createClientOptions(Server1, Client1, { ws, id: 'socket' });
 
 			expect(withoutUndefinedProperties(options)).eql({ hash: options.hash, ...CLIENT_OPTIONS });
 		});

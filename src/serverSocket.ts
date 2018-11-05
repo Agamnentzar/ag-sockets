@@ -1,7 +1,5 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
-import { ParsedUrlQuery } from 'querystring';
 import * as ws from 'ws';
-import { parse as parseUrl } from 'url';
 import { ServerOptions, ClientOptions, getNames, getBinary, getIgnore, SocketServer, Logger, Packet } from './interfaces';
 import { checkRateLimit, getLength, cloneDeep, callWithErrorHandling, removeItem } from './utils';
 import { ErrorHandler, OriginalRequest } from './server';
@@ -17,7 +15,7 @@ import {
 } from './serverInterfaces';
 import {
 	hasToken, createToken, getToken, getTokenFromClient, returnTrue, createOriginalRequest, defaultErrorHandler,
-	createServerOptions, optionsWithDefaults, toClientOptions, createRateLimit, getBinaryOnlyPackets
+	createServerOptions, optionsWithDefaults, toClientOptions, createRateLimit, getBinaryOnlyPackets, getQuery
 } from './serverUtils';
 
 type AnyBuffer = Buffer | ArrayBuffer;
@@ -57,7 +55,7 @@ export function createServerRaw(
 		perMessageDeflate: options.perMessageDeflate,
 		arrayBuffer: options.arrayBuffer,
 	});
-	const socket = host.socketRaw(createServer, options);
+	const socket = host.socketRaw(createServer, { id: 'socket', ...options });
 	socket.close = host.close;
 	return socket;
 }
@@ -65,7 +63,7 @@ export function createServerRaw(
 export function createServerHost(httpServer: HttpServer, globalConfig: GlobalConfig): ServerHost {
 	const wsLibrary = (globalConfig.ws || require('ws')) as any as typeof ws;
 	const {
-		path = '',
+		path = '/ws',
 		log = console.log.bind(console),
 		errorHandler = defaultErrorHandler,
 		perMessageDeflate = true,
@@ -83,8 +81,8 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 	wsServer.on('connection', (socket, request) => {
 		try {
 			const originalRequest = createOriginalRequest(socket, request);
-			const path = parseUrl(originalRequest.url || '').pathname;
-			const server = getServer(path || '');
+			const query = getQuery(originalRequest.url);
+			const server = getServer(query.id);
 			connectClient(socket, server, originalRequest, errorHandler, log);
 		} catch (e) {
 			socket.terminate();
@@ -96,32 +94,31 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 		errorHandler.handleError(null, e);
 	});
 
-	function getServer(path: string) {
+	function getServer(id: any) {
 		if (servers.length === 1) {
 			return servers[0];
 		}
 
 		for (const server of servers) {
-			if (server.path === path) {
+			if (server.id === id) {
 				return server;
 			}
 		}
 
-		throw new Error('No server for given path');
+		throw new Error(`No server for given id (${id})`);
 	}
 
 	function verifyClient({ req }: { req: IncomingMessage }, next: any) {
 		try {
-			const url = parseUrl(req.url || '', true);
-			const server = getServer(url.pathname || '');
+			const query = getQuery(req.url);
+			const server = getServer(query.id);
 
 			if (!server.verifyClient(req)) {
 				next(false);
 			} else if (server.clientLimit !== 0 && server.clientLimit <= server.clients.length) {
 				next(false);
 			} else if (server.connectionTokens) {
-				const query = url.query as ParsedUrlQuery | undefined;
-				next(hasToken(server, query && query.t));
+				next(hasToken(server, query.t));
 			} else {
 				next(true);
 			}
@@ -152,7 +149,12 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 	}
 
 	function socketRaw(createServer: CreateServerMethod, options: ServerOptions): Server {
-		const internalServer = createInternalServer(createServer, options, arrayBuffer, errorHandler, log);
+		const internalServer = createInternalServer(createServer, { ...options, path }, arrayBuffer, errorHandler, log);
+
+		if (servers.some(s => s.id === internalServer.id)) {
+			throw new Error('Cannot open two sokets with the same id');
+		}
+
 		servers.push(internalServer);
 		internalServer.server.close = () => closeAndRemoveServer(internalServer);
 		return internalServer.server;
@@ -192,6 +194,7 @@ function createInternalServer(
 	const clientMethods = getNames(options.client!);
 	const proxy: any = {};
 	const server: InternalServer = {
+		id: options.id || 'socket',
 		clients: [],
 		tokens: [],
 		currentClientId: 1,
@@ -317,8 +320,8 @@ function closeServer(server: InternalServer) {
 function connectClient(
 	socket: ws, server: InternalServer, originalRequest: OriginalRequest, errorHandler: ErrorHandler, log: Logger
 ) {
-	const query = parseUrl(originalRequest.url, true).query as ParsedUrlQuery | undefined;
-	const t = query && query.t || '';
+	const query = getQuery(originalRequest.url);
+	const t = query.t || '';
 	const token = server.connectionTokens ? getToken(server, t) || getTokenFromClient(server, t) : undefined;
 
 	if (server.connectionTokens && !token) {

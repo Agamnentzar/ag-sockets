@@ -75,6 +75,7 @@ export interface MethodMetadata {
 }
 
 export interface CommonOptions {
+	id?: string;
 	/** host of websocket endpoint, the same host as the site by default */
 	host?: string;
 	/** path to websocket endpoint, '/ws' by default */

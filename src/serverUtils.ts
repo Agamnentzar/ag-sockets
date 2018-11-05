@@ -1,4 +1,5 @@
 import { IncomingMessage } from 'http';
+import { parse as parseUrl } from 'url';
 import * as ws from 'ws';
 import { InternalServer, Token } from './serverInterfaces';
 import { randomString, parseRateLimit, RateLimit } from './utils';
@@ -115,6 +116,7 @@ function clearMethodOptions([name, { serverRateLimit: _, ...options }]: [string,
 
 export function toClientOptions(options: ServerOptions): ClientOptions {
 	return {
+		id: options.id,
 		host: options.host,
 		path: options.path,
 		ssl: options.ssl,
@@ -140,4 +142,8 @@ export function createRateLimit(method: MethodDef): RateLimit | undefined {
 
 export function hasArrayBuffer(def: BinaryDef | Bin): boolean {
 	return Array.isArray(def) ? def.some(hasArrayBuffer) : def === Bin.Buffer;
+}
+
+export function getQuery(url: string | undefined): { [key: string]: string | string[] | undefined; } {
+	return parseUrl(url || '', true).query || {};
 }

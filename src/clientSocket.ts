@@ -100,7 +100,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		const protocol = (options.ssl || location.protocol === 'https:') ? 'wss://' : 'ws://';
 		const host = options.host || location.host;
 		const path = options.path || '/ws';
-		const query = queryString({ ...options.requestParams, t: token, bin: supportsBinary });
+		const id = options.id || 'socket';
+		const query = queryString({ ...options.requestParams, id, t: token, bin: supportsBinary });
 		return `${protocol}${host}${path}${query}`;
 	}
 
