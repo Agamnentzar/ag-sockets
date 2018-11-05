@@ -333,6 +333,7 @@ function connectClient(
 	let bytesReset = Date.now();
 	let bytesReceived = 0;
 	let transferLimitExceeded = false;
+	let isConnected = true;
 
 	const obj: ClientState = {
 		lastMessageTime: Date.now(),
@@ -348,10 +349,12 @@ function connectClient(
 				sendPacket,
 			},
 			id: server.currentClientId++,
-			isConnected: true,
 			tokenId: token ? token.id : undefined,
 			tokenData: token ? token.data : undefined,
 			originalRequest: server.keepOriginalRequest ? originalRequest : undefined,
+			get isConnected() {
+				return isConnected;
+			},
 			disconnect(force = false, invalidateToken = false) {
 				if (invalidateToken) {
 					obj.token = undefined;
@@ -376,7 +379,7 @@ function connectClient(
 
 	function serverActionsCreated(serverActions: SocketServer) {
 		socket.on('message', (message: string | Buffer | ArrayBuffer, flags?: { binary: boolean; }) => {
-			if (transferLimitExceeded)
+			if (transferLimitExceeded || !isConnected)
 				return;
 
 			bytesReceived += getLength(message);
@@ -431,7 +434,7 @@ function connectClient(
 		});
 
 		socket.on('close', () => {
-			obj.client.isConnected = false;
+			isConnected = false;
 			server.clients.splice(server.clients.indexOf(obj), 1);
 
 			if (server.debug) {

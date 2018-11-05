@@ -477,6 +477,16 @@ describe('serverSocket', () => {
 			assert.calledWithMatch(handleError, match.any, error);
 		});
 
+		it('does not handle any messages after socket is closed', async () => {
+			const client = await server.connectClient();
+			const hello = stub(servers[0], 'hello');
+			client.invoke('close');
+
+			client.invoke('message', '[0,"test"]');
+
+			assert.notCalled(hello);
+		});
+
 		it('handles message from client', async () => {
 			const client = await server.connectClient();
 			const hello = stub(servers[0], 'hello');
