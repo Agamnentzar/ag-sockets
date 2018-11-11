@@ -108,23 +108,27 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 		throw new Error(`No server for given id (${id})`);
 	}
 
-	function verifyClient({ req }: { req: IncomingMessage }, next: any) {
+	function verifyClient({ req }: { req: IncomingMessage }, next: (result: any, code: number, name: string) => void) {
 		try {
 			const query = getQuery(req.url);
 			const server = getServer(query.id);
 
 			if (!server.verifyClient(req)) {
-				next(false);
+				next(false, 400, 'Bad Request');
 			} else if (server.clientLimit !== 0 && server.clientLimit <= server.clients.length) {
-				next(false);
+				next(false, 400, 'Bad Request');
 			} else if (server.connectionTokens) {
-				next(hasToken(server, query.t));
+				if (hasToken(server, query.t)) {
+					next(true, 200, 'OK');
+				} else {
+					next(false, 400, 'Bad Request');
+				}
 			} else {
-				next(true);
+				next(true, 200, 'OK');
 			}
 		} catch (e) {
 			errorHandler.handleError(null, e);
-			next(false);
+			next(false, 400, 'Bad Request');
 		}
 	}
 
