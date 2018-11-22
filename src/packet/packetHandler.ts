@@ -3,7 +3,7 @@ import { getLength } from '../utils';
 import { PacketWriter, PacketReader } from './packetCommon';
 
 export interface Send {
-	(data: any): void;
+	(data: string | ArrayBuffer): void;
 }
 
 export const enum MessageType {
@@ -12,21 +12,21 @@ export const enum MessageType {
 	Rejected = 253,
 }
 
-export interface IBinaryWriteHandler<T> {
-	(writer: PacketWriter<T>, args: any[]): void;
+export interface IBinaryWriteHandler {
+	(writer: PacketWriter, args: any[]): void;
 }
 
-export interface IBinaryWriteHandlers<T> {
-	[key: string]: IBinaryWriteHandler<T>;
+export interface IBinaryWriteHandlers {
+	[key: string]: IBinaryWriteHandler;
 }
 
-export interface IBinaryReadHandlers<T> {
-	[key: string]: (reader: PacketReader<T>, result: any[]) => void;
+export interface IBinaryReadHandlers {
+	[key: string]: (reader: PacketReader, result: any[]) => void;
 }
 
-export interface IBinaryHandlers<T> {
-	write: IBinaryWriteHandlers<T>;
-	read: IBinaryReadHandlers<T>;
+export interface IBinaryHandlers {
+	write: IBinaryWriteHandlers;
+	read: IBinaryReadHandlers;
 }
 
 export interface IFunctionHandler {
@@ -36,16 +36,16 @@ export interface IFunctionHandler {
 export const defaultHandleFunction: IFunctionHandler =
 	(_funcId, _funcName, func, funcObj, args) => func.apply(funcObj, args);
 
-export class PacketHandler<T> {
-	private writeHandlers: IBinaryWriteHandlers<T>;
-	private readHandlers: IBinaryReadHandlers<T>;
+export class PacketHandler {
+	private writeHandlers: IBinaryWriteHandlers;
+	private readHandlers: IBinaryReadHandlers;
 	protected lastWriteBinary = false;
 	constructor(
 		private readNames: string[],
 		private remoteNames: string[],
-		private packetWriter: PacketWriter<T>,
-		private packetReader: PacketReader<T>,
-		handlers: IBinaryHandlers<T>,
+		private packetWriter: PacketWriter,
+		private packetReader: PacketReader,
+		handlers: IBinaryHandlers,
 		private onlyBinary: any,
 		private onSend?: (packet: Packet) => void,
 		private onRecv?: (packet: Packet) => void,
@@ -53,7 +53,7 @@ export class PacketHandler<T> {
 		this.writeHandlers = handlers.write;
 		this.readHandlers = handlers.read;
 	}
-	private getBinary(packet: Packet, handler: IBinaryWriteHandler<T>) {
+	private getBinary(packet: Packet, handler: IBinaryWriteHandler) {
 		if (!packet.binary) {
 			handler(this.packetWriter, packet.args);
 			packet.binary = this.packetWriter.getBuffer();
@@ -86,7 +86,7 @@ export class PacketHandler<T> {
 			return data.length;
 		}
 	}
-	protected read(data: string | T): any[] {
+	protected read(data: string | Uint8Array): any[] {
 		if (typeof data === 'string') {
 			return JSON.parse(data);
 		} else {
@@ -133,7 +133,8 @@ export class PacketHandler<T> {
 		}
 	}
 	recv(
-		data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction
+		data: string | Uint8Array, funcList: FuncList, specialFuncList: FuncList,
+		handleFunction: IFunctionHandler = defaultHandleFunction
 	): number {
 		const args = this.read(data);
 		const funcId = args.shift();
@@ -151,8 +152,8 @@ export class PacketHandler<T> {
 			this.onRecv({
 				id: funcId,
 				name: funcName,
-				args, binary:
-					binary ? data : undefined,
+				args,
+				binary: binary ? data : undefined,
 				json: binary ? undefined : data as any,
 			});
 		}

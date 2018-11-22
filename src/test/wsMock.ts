@@ -53,7 +53,7 @@ export class MockWebSocket extends MockEventEmitter {
 	}
 	terminate() { }
 	close = stub() as any;
-	send() { }
+	send(_message: any) { }
 }
 
 export function getLastServer() {

@@ -7,10 +7,10 @@ import {
 	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions, broadcast,
 	SocketClient, ClientExtensions, Bin, createClientOptions, ServerHost,
 } from '../index';
-import { randomString } from '../utils';
 import { MessageType } from '../packet/packetHandler';
 import { MockWebSocket, MockWebSocketServer, getLastServer } from './wsMock';
 import { createServerHost } from '../serverSocket';
+import { randomString } from '../serverUtils';
 
 @Socket()
 class Server1 {
@@ -60,12 +60,14 @@ const CLIENT_OPTIONS = {
 	],
 };
 
-function bufferEqual(expectation: number[]) {
-	return match.instanceOf(Buffer)
-		.and(match((value: Buffer) => value.length === expectation.length))
-		.and(match((value: Buffer) => {
+function arrayBufferEqual(expectation: number[]) {
+	return match.instanceOf(ArrayBuffer)
+		.and(match((value: ArrayBuffer) => value.byteLength === expectation.length))
+		.and(match((value: ArrayBuffer) => {
+			const buffer = new Uint8Array(value);
+
 			for (let i = 0; i < expectation.length; i++) {
-				if (value[i] !== expectation[i])
+				if (buffer[i] !== expectation[i])
 					return false;
 			}
 
@@ -107,12 +109,12 @@ describe('serverSocket', () => {
 			server.close(() => done());
 		});
 
-		it('should be able to start server', function (done) {
+		it('is able to start server', function (done) {
 			createServer(server, Server1, Client1, c => new Server1(c), { path: '/test2' });
 			server.listen(12345, done);
 		});
 
-		it('should be able to close server', function (done) {
+		it('is able to close server', function (done) {
 			const socket = createServer(server, Server1, Client1, c => new Server1(c), { path: '/test2' });
 			server.listen(12345, () => {
 				socket.close();
@@ -120,7 +122,7 @@ describe('serverSocket', () => {
 			});
 		});
 
-		it('should throw if passed object with too many methods', () => {
+		it('throws if passed object with too many methods', () => {
 			const Ctor: any = () => { };
 
 			for (let i = 0; i < 251; i++) {
@@ -132,7 +134,7 @@ describe('serverSocket', () => {
 	});
 
 	describe('createServer() (mock) (creation)', () => {
-		it('createServerRaw() should throw if passed empty client or server method definitions', () => {
+		it('createServerRaw() throws if passed empty client or server method definitions', () => {
 			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: [], server: null } as any))
 				.throws('Missing server or client method definitions');
 			expect(() => createServerRaw({} as any, c => new Server1(c), { ws, client: null, server: [] } as any))
@@ -374,7 +376,8 @@ describe('serverSocket', () => {
 			onServer = s => servers.push(s);
 			onSend = stub();
 			onRecv = stub();
-			serverHost = createServerHost(httpServer, { ws, path: '/foo', perMessageDeflate: false, errorHandler });
+			serverHost = createServerHost(
+				httpServer, { ws, path: '/foo', perMessageDeflate: false, arrayBuffer: true, errorHandler });
 			serverSocket = serverHost.socket(Server1, Client1, client => {
 				const s = new Server1(client);
 				onServer(s);
@@ -531,7 +534,7 @@ describe('serverSocket', () => {
 
 			servers[0].client.bye(5);
 
-			assert.calledWith(send, bufferEqual([1, 5]));
+			assert.calledWith(send, arrayBufferEqual([1, 5]));
 		});
 
 		it('reports sent packet to onSend hook', async () => {
@@ -638,8 +641,8 @@ describe('serverSocket', () => {
 
 				broadcast(clients, c => c.bye(5));
 
-				assert.calledWith(send1, bufferEqual([1, 5]));
-				assert.calledWith(send2, bufferEqual([1, 5]));
+				assert.calledWith(send1, arrayBufferEqual([1, 5]));
+				assert.calledWith(send2, arrayBufferEqual([1, 5]));
 			});
 
 			it('sends message to all clients (mixed)', async () => {
@@ -649,7 +652,7 @@ describe('serverSocket', () => {
 
 				broadcast(clients, c => c.bye(5));
 
-				assert.calledWith(send1, bufferEqual([1, 5]));
+				assert.calledWith(send1, arrayBufferEqual([1, 5]));
 				assert.calledWith(send2, '[1,5]');
 			});
 

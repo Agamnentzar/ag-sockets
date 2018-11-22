@@ -2,10 +2,22 @@ import { IncomingMessage } from 'http';
 import { parse as parseUrl } from 'url';
 import * as ws from 'ws';
 import { InternalServer, Token } from './serverInterfaces';
-import { randomString, parseRateLimit, RateLimit } from './utils';
+import { parseRateLimit, RateLimit } from './utils';
 import { OriginalRequest, ErrorHandler } from './server';
 import { getMethods, getSocketMetadata } from './method';
 import { MethodDef, ServerOptions, MethodOptions, ClientOptions, BinaryDef, Bin } from './interfaces';
+
+const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
+
+export function randomString(length: number) {
+	let result = '';
+
+	for (let i = 0; i < length; i++) {
+		result += characters[Math.floor(Math.random() * characters.length)];
+	}
+
+	return result;
+}
 
 export const defaultErrorHandler: ErrorHandler = {
 	handleError() { },
@@ -146,4 +158,18 @@ export function hasArrayBuffer(def: BinaryDef | Bin): boolean {
 
 export function getQuery(url: string | undefined): { [key: string]: string | string[] | undefined; } {
 	return parseUrl(url || '', true).query || {};
+}
+
+export function callWithErrorHandling(action: () => any, onSuccess: () => void, onError: (e: Error) => void) {
+	try {
+		const result = action();
+
+		if (result && result.then) {
+			result.then(onSuccess, onError);
+		} else {
+			onSuccess();
+		}
+	} catch (e) {
+		onError(e);
+	}
 }

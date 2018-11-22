@@ -13,7 +13,7 @@ import { ArrayBufferPacketWriter } from './packet/arrayBufferPacketWriter';
 import { ArrayBufferPacketReader } from './packet/arrayBufferPacketReader';
 
 export interface ClientErrorHandler {
-	handleRecvError(error: Error, data: any): void;
+	handleRecvError(error: Error, data: string | Uint8Array): void;
 }
 
 const defaultErrorHandler: ClientErrorHandler = {
@@ -39,7 +39,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	let reconnectTimeout: any;
 	let pingInterval: any;
 	let lastPing = 0;
-	let packet: PacketHandler<ArrayBuffer> | undefined = undefined;
+	let packet: PacketHandler | undefined = undefined;
 	let lastSentId = 0;
 	let versionValidated = false;
 
@@ -135,10 +135,13 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		theSocket.binaryType = 'arraybuffer';
 		theSocket.onmessage = message => {
 			if (message.data && packet) {
+				const messageData: string | ArrayBuffer = message.data;
+				const data = typeof messageData === 'string' ? messageData : new Uint8Array(messageData);
+
 				try {
-					clientSocket.receivedSize += packet.recv(message.data, clientSocket.client, special);
+					clientSocket.receivedSize += packet.recv(data, clientSocket.client, special);
 				} catch (e) {
-					errorHandler.handleRecvError(e, message.data);
+					errorHandler.handleRecvError(e, data);
 				}
 			} else {
 				sendPing();

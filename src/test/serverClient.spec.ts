@@ -149,7 +149,7 @@ describe('ClientSocket + Server', () => {
 				killServer(done);
 			});
 
-			it('should connect to correct end point', async () => {
+			it('connects to correct end point', async () => {
 				let server1: Server;
 				let server2: Server2;
 				const host = createServerHost(httpServer, { path: '/ws', ws, errorHandler, log, arrayBuffer });
@@ -181,21 +181,21 @@ describe('ClientSocket + Server', () => {
 				closeServerClient(done);
 			});
 
-			it('should call connected when client connects', () => {
+			it('calls connected when client connects', () => {
 				assert.calledOnce(connected);
 			});
 
-			// it('should send version info to client', () => {
+			// it('sends version info to client', () => {
 			// 	return delay(50)
 			// 		.then(() => assert.calledWith(version, serverSocket.options().hash));
 			// });
 
-			it.skip('should ping clients', () => {
+			it.skip('pings clients', () => {
 				return delay(200);
 				// TODO: add asserts
 			});
 
-			it('should receive message from client', () => {
+			it('receives message from client', () => {
 				const hello = stub(server, 'hello');
 
 				return Promise.resolve()
@@ -204,25 +204,25 @@ describe('ClientSocket + Server', () => {
 					.then(() => assert.calledWith(hello, 'yay'));
 			});
 
-			it('should handle resolved promise from server method', async () => {
+			it('handles resolved promise from server method', async () => {
 				await expect(clientSocket.server.login('ok')).eventually.true;
 			});
 
-			it('should handle rejected promise from server method', async () => {
+			it('handles rejected promise from server method', async () => {
 				await expect(clientSocket.server.login('fail')).rejectedWith('fail');
 			});
 
-			it('should send error from error handler instead of original error', async () => {
+			it('sends error from error handler instead of original error', async () => {
 				stub(errorHandler, 'handleRejection').returns(new Error('aaa'));
 
 				await expect(clientSocket.server.login('fail')).rejectedWith('aaa');
 			});
 
-			it('should handle rejected promise with null error from server method', async () => {
+			it('handles rejected promise with null error from server method', async () => {
 				await expect(clientSocket.server.nullReject()).rejectedWith('error');
 			});
 
-			it('should report promise rejection to error handler', () => {
+			it('reports promise rejection to error handler', () => {
 				const handleRejection = stub(errorHandler, 'handleRejection');
 
 				return Promise.resolve()
@@ -232,7 +232,7 @@ describe('ClientSocket + Server', () => {
 			});
 
 			// TODO: fix unreliable test
-			it.skip('should be able to disconnect the client', () => {
+			it.skip('is able to disconnect the client', () => {
 				const disconnected = stub(clientSocket.client, 'disconnected');
 
 				return delay(50)
@@ -241,7 +241,7 @@ describe('ClientSocket + Server', () => {
 					.then(() => assert.calledOnce(disconnected));
 			});
 
-			it('should call disconnected on client disconnect', () => {
+			it('calls disconnected on client disconnect', () => {
 				const disconnected = stub(server, 'disconnected');
 
 				clientSocket.disconnect();
@@ -250,7 +250,7 @@ describe('ClientSocket + Server', () => {
 					.then(() => assert.calledOnce(disconnected));
 			});
 
-			it('should be able to call client methods with arrayBuffer from server', () => {
+			it('is able to call client methods with arrayBuffer from server', () => {
 				const bin2 = stub(clientSocket.client, 'bin2');
 
 				server.client.bin2(new Uint8Array([1, 2, 3]).buffer, [4, 5, 6]);
@@ -263,7 +263,7 @@ describe('ClientSocket + Server', () => {
 					});
 			});
 
-			it('should be able to call client methods with array buffer from server ', () => {
+			it('is able to call client methods with array buffer from server ', () => {
 				const hi = stub(clientSocket.client, 'hi');
 
 				server.client.hi('yay');
@@ -272,7 +272,7 @@ describe('ClientSocket + Server', () => {
 					.then(() => assert.calledWith(hi, 'yay'));
 			});
 
-			it('should pass exception to error handler', () => {
+			it('passes exception to error handler', () => {
 				const handleRecvError = stub(errorHandler, 'handleRecvError');
 
 				clientSocket.server.err();
@@ -281,11 +281,11 @@ describe('ClientSocket + Server', () => {
 					.then(() => assert.calledOnce(handleRecvError));
 			});
 
-			it('should log client connected', () => {
+			it('logs client connected', () => {
 				log.calledWith('client connected');
 			});
 
-			it('should log client disconnected', () => {
+			it('logs client disconnected', () => {
 				clientSocket.disconnect();
 
 				return delay(50)
@@ -293,7 +293,7 @@ describe('ClientSocket + Server', () => {
 			});
 
 			describe('close()', () => {
-				it('should close the socket', () => {
+				it('closes the socket', () => {
 					serverSocket.close();
 				});
 			});
@@ -315,11 +315,11 @@ describe('ClientSocket + Server', () => {
 			closeServerClient(done);
 		});
 
-		it('should connect with token', () => {
+		it('connects with token', () => {
 			assert.calledOnce(connected);
 		});
 
-		it('should replace user with the same token', () => {
+		it('replaces user with the same token', () => {
 			return setupClient(clientOptions, clientToken)
 				.then(() => assert.calledTwice(connected));
 		});

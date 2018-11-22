@@ -41,7 +41,10 @@ interface Server extends SocketServer {
 
 describe('ClientSocket', () => {
 	const location = { protocol: '', host: '' };
-	const window = { addEventListener() { }, removeEventListener() { } };
+	const window = {
+		addEventListener(_name: string, _callback: () => void) { },
+		removeEventListener(_name: string, _callback: () => void) { }
+	};
 	const clientOptions: ClientOptions = {
 		hash: 123,
 		path: '/test',

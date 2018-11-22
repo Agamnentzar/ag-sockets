@@ -38,7 +38,7 @@ export function readAny(reader: PacketReading, state: ReadWriteAnyState): any {
 			return value;
 		case Type.TinyNegativeNumber:
 			return -(value + 1);
-		case Type.String:
+		case Type.String: {
 			const length = readShortLength(reader, value);
 			const result = decodeString(reader.readBytes(length));
 
@@ -47,9 +47,11 @@ export function readAny(reader: PacketReading, state: ReadWriteAnyState): any {
 			}
 
 			return result;
-		case Type.StringRef:
+		}
+		case Type.StringRef: {
 			const index = readShortLength(reader, value);
 			return state.strings[index];
+		}
 		case Type.Array: {
 			const length = readShortLength(reader, value);
 			const array = [];

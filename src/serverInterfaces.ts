@@ -83,6 +83,6 @@ export interface InternalServer {
 	createServer: CreateServerMethod;
 	executeForClients: (clients: ClientInternal[], action: (client: any) => any) => void;
 	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) => void;
-	packetHandler: PacketHandler<any>;
+	packetHandler: PacketHandler;
 	server: Server;
 }

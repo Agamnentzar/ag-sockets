@@ -1,15 +1,6 @@
 import './common';
 import { expect } from 'chai';
-import { randomString, parseRateLimit, checkRateLimit, getLength, queryString } from '../utils';
-
-describe('randomString()', () => {
-	it('returns random string of given length', () => {
-		const result = randomString(10);
-
-		expect(result).a('string');
-		expect(result).length(10);
-	});
-});
+import { parseRateLimit, checkRateLimit, getLength, queryString } from '../utils';
 
 describe('getLength()', () => {
 	it('returns 0 for null or undefined', () => {

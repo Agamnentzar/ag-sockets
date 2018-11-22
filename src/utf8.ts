@@ -42,20 +42,25 @@ export function encodeStringTo(buffer: Uint8Array | Buffer, offset: number, valu
 		const length = charLengthInBytes(code);
 
 		if (length === 1) {
-			buffer[offset++] = code;
+			buffer[offset] = code;
+			offset++;
 		} else {
 			if (length === 2) {
-				buffer[offset++] = ((code >> 6) & 0x1f) | 0xc0;
+				buffer[offset] = ((code >> 6) & 0x1f) | 0xc0;
+				offset += 1;
 			} else if (length === 3) {
-				buffer[offset++] = ((code >> 12) & 0x0f) | 0xe0;
-				buffer[offset++] = ((code >> 6) & 0x3f) | 0x80;
+				buffer[offset] = ((code >> 12) & 0x0f) | 0xe0;
+				buffer[offset + 1] = ((code >> 6) & 0x3f) | 0x80;
+				offset += 2;
 			} else {
-				buffer[offset++] = ((code >> 18) & 0x07) | 0xf0;
-				buffer[offset++] = ((code >> 12) & 0x3f) | 0x80;
-				buffer[offset++] = ((code >> 6) & 0x3f) | 0x80;
+				buffer[offset] = ((code >> 18) & 0x07) | 0xf0;
+				buffer[offset + 1] = ((code >> 12) & 0x3f) | 0x80;
+				buffer[offset + 2] = ((code >> 6) & 0x3f) | 0x80;
+				offset += 3;
 			}
 
-			buffer[offset++] = (code & 0x3f) | 0x80;
+			buffer[offset] = (code & 0x3f) | 0x80;
+			offset++;
 		}
 	});
 

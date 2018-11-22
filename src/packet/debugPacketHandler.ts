@@ -2,13 +2,13 @@ import { FuncList, Logger, Packet } from '../interfaces';
 import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction, Send } from './packetHandler';
 import { PacketWriter, PacketReader } from './packetCommon';
 
-export class DebugPacketHandler<T> extends PacketHandler<T> {
+export class DebugPacketHandler extends PacketHandler {
 	constructor(
 		readNames: string[],
 		remoteNames: string[],
-		packetWriter: PacketWriter<T>,
-		packetReader: PacketReader<T>,
-		handlers: IBinaryHandlers<T>,
+		packetWriter: PacketWriter,
+		packetReader: PacketReader,
+		handlers: IBinaryHandlers,
 		onlyBinary: any,
 		private ignorePackets: string[],
 		private log: Logger
@@ -26,7 +26,8 @@ export class DebugPacketHandler<T> extends PacketHandler<T> {
 		return size;
 	}
 	recv(
-		data: string | T, funcList: FuncList, specialFuncList: FuncList, handleFunction: IFunctionHandler = defaultHandleFunction
+		data: string | Uint8Array, funcList: FuncList, specialFuncList: FuncList,
+		handleFunction: IFunctionHandler = defaultHandleFunction
 	): number {
 		const args = this.read(data);
 

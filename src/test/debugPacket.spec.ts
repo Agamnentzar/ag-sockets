@@ -3,25 +3,25 @@ import { assert, spy, stub, SinonSpy } from 'sinon';
 import { Bin } from '../interfaces';
 import { MessageType } from '../packet/packetHandler';
 import { DebugPacketHandler } from '../packet/debugPacketHandler';
-import { BufferPacketWriter } from '../packet/bufferPacketWriter';
-import { BufferPacketReader } from '../packet/bufferPacketReader';
 import { createHandlers } from '../packet/binaryHandler';
+import { ArrayBufferPacketWriter } from '../packet/arrayBufferPacketWriter';
+import { ArrayBufferPacketReader } from '../packet/arrayBufferPacketReader';
 
 describe('DebugPacketHandler', () => {
-	let handler: DebugPacketHandler<Buffer>;
+	let handler: DebugPacketHandler;
 	let funcs: any;
 	let special: any;
 	let binary: any;
-	let writer: BufferPacketWriter;
-	let reader: BufferPacketReader;
+	let writer: ArrayBufferPacketWriter;
+	let reader: ArrayBufferPacketReader;
 	let log: SinonSpy;
 
 	beforeEach(() => {
-		writer = new BufferPacketWriter();
-		reader = new BufferPacketReader();
+		writer = new ArrayBufferPacketWriter();
+		reader = new ArrayBufferPacketReader();
 		binary = createHandlers({ foo: [Bin.U8] }, { foo: [Bin.U8] });
 		log = spy();
-		handler = new DebugPacketHandler<Buffer>(
+		handler = new DebugPacketHandler(
 			['', 'foo', 'abc'], ['', 'bar', 'abc'], writer, reader, binary, {}, ['abc'], log);
 	});
 
@@ -66,7 +66,7 @@ describe('DebugPacketHandler', () => {
 		});
 
 		it('should log received binary message', () => {
-			handler.recv(new Buffer([1, 8]), funcs, special);
+			handler.recv(new Uint8Array([1, 8]), funcs, special);
 
 			assert.calledWithMatch(log, 'RECV [2] (bin)', 'foo', [8]);
 		});

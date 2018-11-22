@@ -1,15 +1,13 @@
 import './common';
 import { expect } from 'chai';
-import { BufferPacketWriter } from '../packet/bufferPacketWriter';
-import { BufferPacketReader } from '../packet/bufferPacketReader';
 import { ArrayBufferPacketWriter } from '../packet/arrayBufferPacketWriter';
 import { ArrayBufferPacketReader } from '../packet/arrayBufferPacketReader';
-import { PacketWriter, PacketReader } from '../packet/packetCommon';
 
 type Foo = [any, number[]];
 
 describe('PacketReader + PacketWriter', () => {
-	function readWriteTest<T>(writer: PacketWriter<T>, reader: PacketReader<T>) {
+	it('reads and writes value correctly (ArrayBufferPacketWriter)', () => {
+		const writer = new ArrayBufferPacketWriter();
 		writer.init(10000);
 		writer.writeInt8(-123);
 		writer.writeUint8(123);
@@ -46,7 +44,8 @@ describe('PacketReader + PacketWriter', () => {
 		writer.writeUint8Array(null);
 		writer.writeUint8Array(new Uint8Array([1, 2, 3]));
 
-		reader.setBuffer(writer.getBuffer());
+		const reader = new ArrayBufferPacketReader();
+		reader.setBuffer(new Uint8Array(writer.getBuffer()));
 		expect(reader.readInt8()).equal(-123, 'readInt8');
 		expect(reader.readUint8()).equal(123, 'readUint8');
 		expect(reader.readInt16()).equal(-234, 'readInt16');
@@ -85,9 +84,10 @@ describe('PacketReader + PacketWriter', () => {
 
 		reader.done();
 		expect(() => reader.readUint8()).throw();
-	}
+	});
 
-	function measureTest<T>(writer: PacketWriter<T>) {
+	it('measures lengths correctly (ArrayBufferPacketWriter)', () => {
+		const writer = new ArrayBufferPacketWriter();
 		expect(writer.measureLength(0)).equal(1, 'measureLength 1');
 		expect(writer.measureLength(123)).equal(1, 'measureLength 2');
 		expect(writer.measureLength(200)).equal(2, 'measureLength 3');
@@ -99,41 +99,19 @@ describe('PacketReader + PacketWriter', () => {
 		expect(writer.measureObject({ 'foo': 'bar' })).equal(1 + (1 + 3) + (1 + 3), 'measureObject');
 		expect(writer.measureString('foobar')).equal(6 + 1, 'measureString');
 		expect(writer.measureString('część')).equal(8 + 1, 'measureString (część)');
-		expect(writer.measureString(null)).equal(2, 'measureString (null)');
+		expect(writer.measureString(null as any)).equal(2, 'measureString (null)');
 		expect(writer.measureArray<number>(null, x => x)).equal(2, 'measureArray (null)');
 		expect(writer.measureSimpleArray<number>(null, 1)).equal(2, 'measureSimpleArray (null)');
 		expect(writer.measureArrayBuffer(null)).equal(2, 'measureArrayBuffer (null)');
 		expect(writer.measureArrayBuffer(new Uint8Array([1, 2, 3]).buffer)).equal(3 + 1, 'measureArrayBuffer');
 		expect(writer.measureUint8Array(null)).equal(2, 'measureUint8Array (null)');
 		expect(writer.measureUint8Array(new Uint8Array([1, 2, 3]))).equal(3 + 1, 'measureUint8Array');
-	}
-
-	it('reads and writes value correctly (BufferPacketWriter)', () => {
-		readWriteTest(new BufferPacketWriter(), new BufferPacketReader());
-	});
-
-	it('reads and writes value correctly (ArrayBufferPacketWriter)', () => {
-		readWriteTest(new ArrayBufferPacketWriter(), new ArrayBufferPacketReader());
-	});
-
-	it('measures lengths correctly (BufferPacketWriter)', () => {
-		measureTest(new BufferPacketWriter());
-	});
-
-	it('measures lengths correctly (ArrayBufferPacketWriter)', () => {
-		measureTest(new ArrayBufferPacketWriter());
 	});
 
 	it('handles offset properly (ArrayBufferPacketReader)', () => {
 		const reader = new ArrayBufferPacketReader();
-		reader.setBuffer(new Uint8Array([1, 2, 3, 4, 5, 6, 7]).buffer, 2, 3);
-		expect(reader.readUint8()).equal(3);
-		expect(reader.readBytes(2)).eql(new Uint8Array([4, 5]));
-	});
-
-	it('handles offset properly (BufferPacketReader)', () => {
-		const reader = new BufferPacketReader();
-		reader.setBuffer(new Buffer([1, 2, 3, 4, 5, 6, 7]), 2, 3);
+		const buffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7]).buffer;
+		reader.setBuffer(new Uint8Array(buffer, 2, 3));
 		expect(reader.readUint8()).equal(3);
 		expect(reader.readBytes(2)).eql(new Uint8Array([4, 5]));
 	});
@@ -155,23 +133,6 @@ describe('PacketReader + PacketWriter', () => {
 		expect(writer.getOffset()).equal(0);
 	});
 
-	it('returns offset (BufferPacketWriter)', () => {
-		const writer = new BufferPacketWriter();
-		writer.init(16);
-		expect(writer.getOffset()).equal(0);
-		writer.writeUint8(1);
-		expect(writer.getOffset()).equal(1);
-	});
-
-	it('car reset offset (BufferPacketWriter)', () => {
-		const writer = new BufferPacketWriter();
-		writer.init(16);
-		writer.writeUint8(1);
-		expect(writer.getOffset()).equal(1);
-		writer.reset();
-		expect(writer.getOffset()).equal(0);
-	});
-
 	describe('binary object encoding', () => {
 		function readWriteObjectTest(obj: any, message?: string) {
 			const writer = new ArrayBufferPacketWriter();
@@ -180,7 +141,7 @@ describe('PacketReader + PacketWriter', () => {
 			writer.writeObject(obj);
 			// const jsonLength = JSON.stringify(obj) && JSON.stringify(obj).length || 0;
 			// console.log(`size: ${writer.getOffset()} / ${jsonLength + writer.measureLength(jsonLength)}`);
-			reader.setBuffer(writer.getBuffer());
+			reader.setBuffer(new Uint8Array(writer.getBuffer()));
 			expect(reader.readObject()).eql(obj, message);
 		}
 

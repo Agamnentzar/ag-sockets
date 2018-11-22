@@ -43,8 +43,8 @@ export interface PacketReading {
 	readLength(): number;
 }
 
-export interface PacketReader<TBuffer> extends PacketReading {
-	setBuffer(buffer: TBuffer, offset?: number, length?: number): void;
+export interface PacketReader extends PacketReading {
+	setBuffer(buffer: Uint8Array): void;
 	done(): void;
 	readBoolean(): boolean;
 	readArray<T>(readOne: () => T): T[] | null;
@@ -67,8 +67,8 @@ export interface PacketWriting {
 	writeStringValue(value: string): void;
 }
 
-export interface PacketWriter<TBuffer> extends PacketWriting {
-	getBuffer(): TBuffer;
+export interface PacketWriter extends PacketWriting {
+	getBuffer(): ArrayBuffer;
 	getOffset(): number;
 	reset(): void;
 	init(size: number): void;

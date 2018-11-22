@@ -1,15 +1,3 @@
-const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
-
-export function randomString(length: number) {
-	let result = '';
-
-	for (let i = 0; i < length; i++) {
-		result += characters[Math.floor(Math.random() * characters.length)];
-	}
-
-	return result;
-}
-
 export function getLength(message: any): number {
 	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
 }
@@ -131,18 +119,4 @@ export function deferred<T>(): Deferred<T> {
 	});
 
 	return obj;
-}
-
-export function callWithErrorHandling(action: () => any, onSuccess: () => void, onError: (e: Error) => void) {
-	try {
-		const result = action();
-
-		if (result && result.then) {
-			result.then(onSuccess, onError);
-		} else {
-			onSuccess();
-		}
-	} catch (e) {
-		onError(e);
-	}
 }
