@@ -455,7 +455,7 @@ function connectClient(
 
 		socket.on('close', () => {
 			isConnected = false;
-			server.clients.splice(server.clients.indexOf(obj), 1);
+			removeItem(server.clients, obj);
 
 			if (server.debug) {
 				log('client disconnected');
@@ -471,7 +471,9 @@ function connectClient(
 			}
 		});
 
-		socket.on('error', e => errorHandler.handleError(obj.client, e));
+		socket.on('error', e => {
+			errorHandler.handleError(obj.client, e);
+		});
 
 		server.clientMethods.forEach((name, id) => {
 			obj.client[name] = (...args: any[]) => server.packetHandler.send(send, name, id, args, obj.supportsBinary);
