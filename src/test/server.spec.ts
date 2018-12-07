@@ -160,8 +160,19 @@ describe('serverSocket', () => {
 			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws });
 			await getLastServer().connectClient();
 
-			return delay(50)
-				.then(() => expect(server1.client.originalRequest).undefined);
+			await delay(50);
+
+			expect(server1!.client.originalRequest).undefined;
+		});
+
+		it('handles async creation of server actions', async () => {
+			let server1: Server1;
+			createServer({} as any, Server1, Client1, c => Promise.resolve().then(() => server1 = new Server1(c)), { ws });
+			await getLastServer().connectClient();
+
+			await delay(50);
+
+			expect(server1!).not.undefined;
 		});
 
 		it('closes connection if connected() handler threw an error', async () => {

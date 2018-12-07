@@ -339,6 +339,7 @@ function connectClient(
 	let bytesReceived = 0;
 	let transferLimitExceeded = false;
 	let isConnected = true;
+	let serverActions: SocketServer | undefined = undefined;
 
 	const obj: ClientState = {
 		lastMessageTime: Date.now(),
@@ -386,93 +387,90 @@ function connectClient(
 		server.packetHandler.sendPacket(send, packet, obj.supportsBinary);
 	}
 
+	function handleConnected(serverActions: SocketServer) {
+		if (serverActions.connected) {
+			callWithErrorHandling(() => serverActions.connected!(), () => { }, e => {
+				errorHandler.handleError(obj.client, e);
+				obj.client.disconnect();
+			});
+		}
+	}
+
+	function handleDisconnected(serverActions: SocketServer) {
+		if (serverActions.disconnected) {
+			callWithErrorHandling(() => serverActions.disconnected!(), () => { }, e => errorHandler.handleError(obj.client, e));
+		}
+	}
+
 	function serverActionsCreated(serverActions: SocketServer) {
 		socket.on('message', (message: string | Buffer | ArrayBuffer, flags?: { binary: boolean; }) => {
-			if (transferLimitExceeded || !isConnected)
-				return;
+			try {
+				if (transferLimitExceeded || !isConnected)
+					return;
 
-			const messageLength = getLength(message);
-			bytesReceived += messageLength;
+				const messageLength = getLength(message);
+				bytesReceived += messageLength;
 
-			let data: string | Uint8Array;
+				let data: string | Uint8Array;
 
-			if (message instanceof Buffer) {
-				data = new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
-			} else if (message instanceof ArrayBuffer) {
-				data = new Uint8Array(message);
-			} else {
-				data = message;
-			}
-
-			const now = Date.now();
-			const diff = now - bytesReset;
-			const bytesPerSecond = bytesReceived * 1000 / Math.max(1000, diff);
-			const transferLimit = server.transferLimit;
-
-			if (transferLimit && transferLimit < bytesPerSecond) {
-				transferLimitExceeded = true;
-				obj.client.disconnect(true, true);
-				errorHandler.handleRecvError(
-					obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${transferLimit} (${diff}ms)`), data);
-				return;
-			}
-
-			if (server.forceBinary && typeof data === 'string') {
-				obj.client.disconnect(true, true);
-				errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`), data);
-				return;
-			}
-
-			obj.lastMessageTime = Date.now();
-			obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
-
-			if (data && messageLength) {
-				obj.lastMessageId++;
-				const messageId = obj.lastMessageId;
-
-				try {
-					server.packetHandler.recv(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
-						const rate = rates[funcId];
-
-						if (checkRateLimit(funcId, rates)) {
-							handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
-						} else if (rate && rate.promise) {
-							handleResult(send, obj, funcId, funcName, Promise.reject(new Error('Rate limit exceeded')), messageId);
-						} else {
-							throw new Error(`Rate limit exceeded (${funcName})`);
-						}
-					});
-				} catch (e) {
-					errorHandler.handleRecvError(obj.client, e, data);
+				if (message instanceof Buffer) {
+					data = new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
+				} else if (message instanceof ArrayBuffer) {
+					data = new Uint8Array(message);
+				} else {
+					data = message;
 				}
+
+				const now = Date.now();
+				const diff = now - bytesReset;
+				const bytesPerSecond = bytesReceived * 1000 / Math.max(1000, diff);
+				const transferLimit = server.transferLimit;
+
+				if (transferLimit && transferLimit < bytesPerSecond) {
+					transferLimitExceeded = true;
+					obj.client.disconnect(true, true);
+					errorHandler.handleRecvError(
+						obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${transferLimit} (${diff}ms)`), data);
+					return;
+				}
+
+				if (server.forceBinary && typeof data === 'string') {
+					obj.client.disconnect(true, true);
+					errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`), data);
+					return;
+				}
+
+				obj.lastMessageTime = Date.now();
+				obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
+
+				if (data && messageLength) {
+					obj.lastMessageId++;
+					const messageId = obj.lastMessageId;
+
+					try {
+						server.packetHandler.recv(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
+							const rate = rates[funcId];
+
+							if (checkRateLimit(funcId, rates)) {
+								handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
+							} else if (rate && rate.promise) {
+								handleResult(send, obj, funcId, funcName, Promise.reject(new Error('Rate limit exceeded')), messageId);
+							} else {
+								throw new Error(`Rate limit exceeded (${funcName})`);
+							}
+						});
+					} catch (e) {
+						errorHandler.handleRecvError(obj.client, e, data);
+					}
+				}
+
+				if (diff > 1000) {
+					bytesReceived = 0;
+					bytesReset = now;
+				}
+			} catch (e) {
+				errorHandler.handleError(obj.client, e);
 			}
-
-			if (diff > 1000) {
-				bytesReceived = 0;
-				bytesReset = now;
-			}
-		});
-
-		socket.on('close', () => {
-			isConnected = false;
-			removeItem(server.clients, obj);
-
-			if (server.debug) {
-				log('client disconnected');
-			}
-
-			if (serverActions.disconnected) {
-				callWithErrorHandling(() => serverActions.disconnected!(), () => { }, e => errorHandler.handleError(obj.client, e));
-			}
-
-			if (obj.token) {
-				obj.token.expire = Date.now() + server.tokenLifetime;
-				server.tokens.push(obj.token);
-			}
-		});
-
-		socket.on('error', e => {
-			errorHandler.handleError(obj.client, e);
 		});
 
 		server.clientMethods.forEach((name, id) => {
@@ -486,16 +484,46 @@ function connectClient(
 		server.packetHandler.send(send, '*version', MessageType.Version, [server.hash], obj.supportsBinary);
 		server.clients.push(obj);
 
-		if (serverActions.connected) {
-			callWithErrorHandling(() => serverActions.connected!(), () => { }, e => {
-				errorHandler.handleError(obj.client, e);
-				obj.client.disconnect();
-			});
-		}
+		handleConnected(serverActions);
 	}
 
+	socket.on('error', e => {
+		errorHandler.handleError(obj.client, e);
+	});
+
+	socket.on('close', () => {
+		try {
+			isConnected = false;
+			removeItem(server.clients, obj);
+
+			if (server.debug) {
+				log('client disconnected');
+			}
+
+			if (serverActions) {
+				handleDisconnected(serverActions);
+			}
+
+			if (obj.token) {
+				obj.token.expire = Date.now() + server.tokenLifetime;
+				server.tokens.push(obj.token);
+			}
+		} catch (e) {
+			errorHandler.handleError(obj.client, e);
+		}
+	});
+
 	Promise.resolve(server.createServer(obj.client))
-		.then(serverActionsCreated)
+		.then(actions => {
+			serverActions = actions;
+
+			if (isConnected) {
+				serverActionsCreated(serverActions);
+			} else {
+				handleConnected(serverActions);
+				handleDisconnected(serverActions);
+			}
+		})
 		.catch(e => {
 			socket.terminate();
 			errorHandler.handleError(obj.client, e);
