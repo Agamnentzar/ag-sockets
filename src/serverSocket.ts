@@ -519,9 +519,6 @@ function connectClient(
 
 			if (isConnected) {
 				serverActionsCreated(serverActions);
-			} else {
-				handleConnected(serverActions);
-				handleDisconnected(serverActions);
 			}
 		})
 		.catch(e => {
