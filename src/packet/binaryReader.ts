@@ -8,8 +8,8 @@ export interface BinaryReader {
 }
 
 export function createBinaryReader(buffer: Uint8Array): BinaryReader {
-	const view = new DataView(buffer.buffer);
-	const offset = buffer.byteOffset;
+	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+	const offset = 0;
 	return { view, offset };
 }
 
@@ -62,22 +62,24 @@ export function readFloat64(reader: BinaryReader) {
 }
 
 export function readBytes(reader: BinaryReader, length: number) {
+	const offset = reader.offset;
 	reader.offset += length;
-	return new Uint8Array(reader.view.buffer, reader.offset - length, length);
+	return new Uint8Array(reader.view.buffer, reader.view.byteOffset + offset, length);
 }
 
-export function readArrayBuffer(reader: BinaryReader, ) {
+export function readArrayBuffer(reader: BinaryReader) {
 	const length = readLength(reader);
 
 	if (length === -1) {
 		return null;
 	} else {
+		const offset = reader.offset;
 		reader.offset += length;
-		return reader.view.buffer.slice(reader.offset - length, reader.offset);
+		return reader.view.buffer.slice(reader.view.byteOffset + offset, offset + length);
 	}
 }
 
-export function readBoolean(reader: BinaryReader, ) {
+export function readBoolean(reader: BinaryReader) {
 	return readUint8(reader) === 1;
 }
 
@@ -96,16 +98,16 @@ export function readArray<T>(reader: BinaryReader, readOne: () => T): T[] | null
 	return result;
 }
 
-export function readString(reader: BinaryReader, ) {
+export function readString(reader: BinaryReader) {
 	const length = readLength(reader);
 	return length === -1 ? null : decodeString(readBytes(reader, length));
 }
 
-export function readObject(reader: BinaryReader, ) {
+export function readObject(reader: BinaryReader) {
 	return readAny(reader, { strings: [] });
 }
 
-export function readLength(reader: BinaryReader, ) {
+export function readLength(reader: BinaryReader) {
 	let length = 0;
 	let shift = 0;
 	let bytes = 0;
@@ -120,7 +122,7 @@ export function readLength(reader: BinaryReader, ) {
 	return bytes === 2 && length === 0 ? -1 : length;
 }
 
-export function readUint8Array(reader: BinaryReader, ) {
+export function readUint8Array(reader: BinaryReader) {
 	const length = readLength(reader);
 
 	if (length === -1) {

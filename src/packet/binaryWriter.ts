@@ -71,8 +71,8 @@ export function writeLength(writer: BinaryWriter, value: number) {
 	}
 }
 
-export function getWriterBuffer(writer: BinaryWriter) {
-	return writer.bytes.slice(0, writer.offset);
+export function getWriterBuffer({ bytes, offset }: BinaryWriter) {
+	return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteOffset + offset);
 }
 
 export function resetWriter(writer: BinaryWriter) {

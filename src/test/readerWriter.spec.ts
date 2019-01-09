@@ -14,7 +14,7 @@ import {
 type Foo = [any, number[]];
 
 describe('PacketReader + PacketWriter', () => {
-	it('reads and writes value correctly (ArrayBufferPacketWriter)', () => {
+	it('reads and writes value correctly', () => {
 		const writer = createBinaryWriter(10000);
 		writeInt8(writer, -123);
 		writeUint8(writer, 123);
@@ -88,14 +88,14 @@ describe('PacketReader + PacketWriter', () => {
 		expect(readUint8Array(reader)).equal(null, 'readUint8Array null');
 		expect(readUint8Array(reader)).eql(new Uint8Array([1, 2, 3]), 'readUint8Array [1, 2, 3]');
 
-		expect(() => readUint8(reader)).throw();
+		expect(() => readUint8(reader), 'readUint8(reader)').throw();
 	});
 
 	it('handles offset properly (Reader)', () => {
 		const buffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7]).buffer;
 		const reader = createBinaryReader(new Uint8Array(buffer, 2, 3));
 		expect(readUint8(reader)).equal(3);
-		expect(readBytes(reader, 2)).eql(new Uint8Array([4, 5]));
+		expect(Array.from(readBytes(reader, 2))).eql([4, 5]);
 	});
 
 	it('handles offset properly (Writer)', () => {
