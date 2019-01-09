@@ -50,12 +50,21 @@ export function writeArrayBuffer(writer: BinaryWriter, value: ArrayBuffer | null
 	}
 }
 
-export function writeArray<T>(writer: BinaryWriter, value: T[] | null, writeOne: (item: T) => void) {
+export function writeArrayHeader<T>(writer: BinaryWriter, value: T[] | null): value is T[] {
 	if (value == null) {
 		writeLength(writer, -1);
+		return false;
 	} else {
 		writeLength(writer, value.length);
-		value.forEach(writeOne);
+		return true;
+	}
+}
+
+export function writeArray<T>(writer: BinaryWriter, value: T[] | null, writeOne: (writer: BinaryWriter, item: T) => void) {
+	if (writeArrayHeader(writer, value)) {
+		for (let i = 0; i < value.length; i++) {
+			writeOne(writer, value[i]);
+		}
 	}
 }
 
@@ -86,52 +95,52 @@ export function resizeWriter(writer: BinaryWriter) {
 }
 
 export function writeInt8(writer: BinaryWriter, value: number) {
-	writer.view!.setInt8(writer.offset, value);
+	writer.view.setInt8(writer.offset, value);
 	writer.offset += 1;
 }
 
 export function writeUint8(writer: BinaryWriter, value: number) {
-	writer.view!.setUint8(writer.offset, value);
+	writer.view.setUint8(writer.offset, value);
 	writer.offset += 1;
 }
 
 export function writeInt16(writer: BinaryWriter, value: number) {
-	writer.view!.setInt16(writer.offset, value);
+	writer.view.setInt16(writer.offset, value);
 	writer.offset += 2;
 }
 
 export function writeUint16(writer: BinaryWriter, value: number) {
-	writer.view!.setUint16(writer.offset, value);
+	writer.view.setUint16(writer.offset, value);
 	writer.offset += 2;
 }
 
 export function writeInt32(writer: BinaryWriter, value: number) {
-	writer.view!.setInt32(writer.offset, value);
+	writer.view.setInt32(writer.offset, value);
 	writer.offset += 4;
 }
 
 export function writeUint32(writer: BinaryWriter, value: number) {
-	writer.view!.setUint32(writer.offset, value);
+	writer.view.setUint32(writer.offset, value);
 	writer.offset += 4;
 }
 
 export function writeFloat32(writer: BinaryWriter, value: number) {
-	writer.view!.setFloat32(writer.offset, value);
+	writer.view.setFloat32(writer.offset, value);
 	writer.offset += 4;
 }
 
 export function writeFloat64(writer: BinaryWriter, value: number) {
-	writer.view!.setFloat64(writer.offset, value);
+	writer.view.setFloat64(writer.offset, value);
 	writer.offset += 8;
 }
 
 export function writeBytes(writer: BinaryWriter, value: Uint8Array) {
-	writer.bytes!.set(value, writer.offset);
+	writer.bytes.set(value, writer.offset);
 	writer.offset += value.length;
 }
 
 export function writeStringValue(writer: BinaryWriter, value: string) {
-	writer.offset = encodeStringTo(writer.bytes!, writer.offset, value);
+	writer.offset = encodeStringTo(writer.bytes, writer.offset, value);
 }
 
 const floats = new Float32Array(1);

@@ -1,7 +1,7 @@
 import { Packets, Bin } from '../interfaces';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
-	writeString, writeObject, writeArrayBuffer, writeUint8Array, writeInt8, writeArray
+	writeString, writeObject, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader
 } from './binaryWriter';
 import {
 	readInt8, readUint8, readUint16, readInt16, readUint32, readInt32, readFloat32, readFloat64, readBoolean,
@@ -41,6 +41,7 @@ const methods = {
 	writeObject,
 	writeArrayBuffer,
 	writeUint8Array,
+	writeArrayHeader,
 	writeArray,
 	readUint8,
 	readInt8,
@@ -58,20 +59,30 @@ const methods = {
 	readArray,
 };
 
+let id = 0;
+
 function writeField(obj: Result, f: Bin | any[], n: string, indent: string) {
 	if (f instanceof Array) {
+		const thisId = ++id;
+		const it = `i${thisId}`;
+		const array = `array${thisId}`;
+		const item = `item${thisId}`;
+
+		obj.code += `${indent}var ${array} = ${n}\n`;
+		obj.code += `${indent}if (writeArrayHeader(writer, ${array})) {\n`;
+		obj.code += `${indent}\tfor(var ${it} = 0; ${it} < ${array}.length; ${it}++) {\n`;
+		obj.code += `${indent}\t\tvar ${item} = ${array}[${it}];\n`;
+
 		if (f.length === 1) {
-			obj.code += `${indent}writeArray(writer, ${n}, function (item) {\n`;
-			writeField(obj, f[0], 'item', indent + '\t');
-			obj.code += `${indent}});\n`;
+			writeField(obj, f[0], item, indent + '\t\t');
 		} else {
-			obj.code += `${indent}writeArray(writer, ${n}, function (item) {\n`;
-
-			for (let i = 0; i < f.length; i++)
-				writeField(obj, f[i], `item[${i}]`, indent + '\t');
-
-			obj.code += `${indent}});\n`;
+			for (let i = 0; i < f.length; i++) {
+				writeField(obj, f[i], `${item}[${i}]`, indent + '\t\t');
+			}
 		}
+
+		obj.code += `${indent}\t}\n`;
+		obj.code += `${indent}}\n`;
 	} else {
 		obj.code += `${indent}write${names[f]}(writer, ${n});\n`;
 	}
@@ -82,8 +93,9 @@ function createWriteFunction(fields: any[]) {
 
 	obj.code += '\t\twriteUint8(writer, args[0]);\n';
 
-	for (let i = 0; i < fields.length; i++)
+	for (let i = 0; i < fields.length; i++) {
 		writeField(obj, fields[i], `args[${i + 1}]`, '\t\t');
+	}
 
 	return `function (writer, args) {\n${obj.code}\t}`;
 }
@@ -97,13 +109,14 @@ function readField(f: Bin | any[], indent: string) {
 		} else {
 			code += '[\n';
 
-			for (let i = 0; i < f.length; i++)
+			for (let i = 0; i < f.length; i++) {
 				code += `${indent}\t${readField(f[i], indent + '\t')},\n`;
+			}
 
 			code += `${indent}]`;
 		}
 
-		return `readArray(reader, function () { return ${code.trim()}; })`;
+		return `readArray(reader, function (reader) { return ${code.trim()}; })`;
 	} else {
 		return `read${names[f]}(reader)`;
 	}

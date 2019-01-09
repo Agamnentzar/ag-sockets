@@ -83,7 +83,7 @@ export function readBoolean(reader: BinaryReader) {
 	return readUint8(reader) === 1;
 }
 
-export function readArray<T>(reader: BinaryReader, readOne: () => T): T[] | null {
+export function readArray<T>(reader: BinaryReader, readOne: (reader: BinaryReader) => T): T[] | null {
 	const length = readLength(reader);
 
 	if (length === -1)
@@ -92,7 +92,7 @@ export function readArray<T>(reader: BinaryReader, readOne: () => T): T[] | null
 	const result: T[] = [];
 
 	for (let i = 0; i < length; i++) {
-		result.push(readOne());
+		result.push(readOne(reader));
 	}
 
 	return result;

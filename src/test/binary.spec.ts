@@ -21,6 +21,7 @@ describe('binaryHandler', () => {
 
 	const server: Packets = {
 		bar: [Bin.U8, Bin.Str],
+		boo: [Bin.Obj, [Bin.I32], [Bin.I32, Bin.I32, [Bin.I32]], [Bin.Obj]],
 	};
 
 	describe('createHandlers(server)', () => {

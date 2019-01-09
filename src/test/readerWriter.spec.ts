@@ -38,13 +38,13 @@ describe('PacketReader + PacketWriter', () => {
 		writeString(writer, 'część');
 		writeObject(writer, null);
 		writeObject(writer, { foo: 'bar' });
-		writeArray(writer, ['foo', 'bar', 'boo'], i => writeString(writer, i));
-		writeArray<string>(writer, [], i => writeString(writer, i));
-		writeArray<string>(writer, null, i => writeString(writer, i));
-		writeArray(writer, [{ foo: 'bar' }, { foo: 'boo' }], i => writeObject(writer, i));
-		writeArray<Foo>(writer, [[{ foo: 'bar' }, [1, 2, 3]], [{ foo: 'boo' }, [4, 5, 6]]], i => {
+		writeArray(writer, ['foo', 'bar', 'boo'], writeString);
+		writeArray<string>(writer, [], writeString);
+		writeArray<string>(writer, null, writeString);
+		writeArray(writer, [{ foo: 'bar' }, { foo: 'boo' }], writeObject);
+		writeArray<Foo>(writer, [[{ foo: 'bar' }, [1, 2, 3]], [{ foo: 'boo' }, [4, 5, 6]]], (writer, i) => {
 			writeObject(writer, i[0]);
-			writeArray(writer, i[1], j => writeUint8(writer, j));
+			writeArray(writer, i[1], writeUint8);
 		});
 		writeArrayBuffer(writer, null);
 		writeArrayBuffer(writer, new Uint8Array([1, 2, 3]).buffer);
@@ -75,13 +75,13 @@ describe('PacketReader + PacketWriter', () => {
 		expect(readString(reader)).equal('część', 'readString część');
 		expect(readObject(reader)).equal(null, 'readObject null');
 		expect(readObject(reader)).eql({ foo: 'bar' }, 'readObject empty');
-		expect(readArray(reader, () => readString(reader))).eql(['foo', 'bar', 'boo'], 'readArray ["foo", "bar", "boo"]');
-		expect(readArray(reader, () => readString(reader))).eql([], 'readArray empty');
-		expect(readArray(reader, () => readString(reader))).equal(null, 'readArray null');
-		expect(readArray(reader, () => readObject(reader))).eql([{ foo: 'bar' }, { foo: 'boo' }], 'readArray obj[]');
-		expect(readArray(reader, () => [
+		expect(readArray(reader, readString)).eql(['foo', 'bar', 'boo'], 'readArray ["foo", "bar", "boo"]');
+		expect(readArray(reader, readString)).eql([], 'readArray empty');
+		expect(readArray(reader, readString)).equal(null, 'readArray null');
+		expect(readArray(reader, readObject)).eql([{ foo: 'bar' }, { foo: 'boo' }], 'readArray obj[]');
+		expect(readArray(reader, reader => [
 			readObject(reader),
-			readArray(reader, () => readUint8(reader)),
+			readArray(reader, readUint8),
 		])).eql([[{ foo: 'bar' }, [1, 2, 3]], [{ foo: 'boo' }, [4, 5, 6]]], 'readArray Foo[]');
 		expect(readArrayBuffer(reader)).equal(null, 'readArrayBuffer null');
 		expect(new Uint8Array(readArrayBuffer(reader)!)).eql(new Uint8Array([1, 2, 3]), 'readArrayBuffer [1, 2, 3]');
