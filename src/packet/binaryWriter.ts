@@ -72,7 +72,7 @@ export function writeLength(writer: BinaryWriter, value: number) {
 }
 
 export function getWriterBuffer({ bytes, offset }: BinaryWriter) {
-	return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteOffset + offset);
+	return new Uint8Array(bytes.buffer, bytes.byteOffset, offset);
 }
 
 export function resetWriter(writer: BinaryWriter) {
@@ -83,6 +83,7 @@ export function resizeWriter(writer: BinaryWriter) {
 	writer.offset = 0;
 	writer.bytes = new Uint8Array(writer.bytes.byteLength * 2);
 	writer.view = new DataView(writer.bytes.buffer);
+	console.log('resize writer', writer.bytes.byteLength);
 }
 
 export function writeInt8(writer: BinaryWriter, value: number) {
