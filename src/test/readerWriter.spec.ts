@@ -91,21 +91,28 @@ describe('PacketReader + PacketWriter', () => {
 		expect(() => readUint8(reader)).throw();
 	});
 
-	it('handles offset properly (ArrayBufferPacketReader)', () => {
+	it('handles offset properly (Reader)', () => {
 		const buffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7]).buffer;
 		const reader = createBinaryReader(new Uint8Array(buffer, 2, 3));
 		expect(readUint8(reader)).equal(3);
 		expect(readBytes(reader, 2)).eql(new Uint8Array([4, 5]));
 	});
 
-	it('returns offset (ArrayBufferPacketWriter)', () => {
+	it('handles offset properly (Writer)', () => {
+		const buffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7]).buffer;
+		const writer = createBinaryWriter(new Uint8Array(buffer, 2, 4));
+		writeUint32(writer, 0x11223344);
+		expect(new Uint8Array(buffer)).eql(new Uint8Array([1, 2, 17, 34, 51, 68, 7]));
+	});
+
+	it('returns offset (Writer)', () => {
 		const writer = createBinaryWriter(16);
 		expect(writer.offset).equal(0);
 		writeUint8(writer, 1);
 		expect(writer.offset).equal(1);
 	});
 
-	it('can reset offset (ArrayBufferPacketWriter)', () => {
+	it('can reset offset (Writer)', () => {
 		const writer = createBinaryWriter(16);
 		writeUint8(writer, 1);
 		expect(writer.offset).equal(1);

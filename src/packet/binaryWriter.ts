@@ -10,7 +10,7 @@ export interface BinaryWriter {
 
 export function createBinaryWriter(bufferOrSize: Uint8Array | number = 32): BinaryWriter {
 	const bytes = typeof bufferOrSize === 'number' ? new Uint8Array(bufferOrSize) : bufferOrSize;
-	const view = new DataView(bytes.buffer);
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	const offset = 0;
 	return { bytes, view, offset };
 }
@@ -73,10 +73,6 @@ export function writeLength(writer: BinaryWriter, value: number) {
 
 export function getWriterBuffer(writer: BinaryWriter) {
 	return writer.bytes.slice(0, writer.offset);
-}
-
-export function getWriterOffset(writer: BinaryWriter) {
-	return writer.offset;
 }
 
 export function resetWriter(writer: BinaryWriter) {
