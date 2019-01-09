@@ -83,7 +83,6 @@ export function resizeWriter(writer: BinaryWriter) {
 	writer.offset = 0;
 	writer.bytes = new Uint8Array(writer.bytes.byteLength * 2);
 	writer.view = new DataView(writer.bytes.buffer);
-	console.log('resize writer', writer.bytes.byteLength);
 }
 
 export function writeInt8(writer: BinaryWriter, value: number) {
