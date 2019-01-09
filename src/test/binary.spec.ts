@@ -3,12 +3,8 @@ import { expect } from 'chai';
 import { Packets, Bin } from '../interfaces';
 import { createHandlers } from '../packet/binaryHandler';
 import { IBinaryHandlers } from '../packet/packetHandler';
-import { ArrayBufferPacketReader } from '../packet/arrayBufferPacketReader';
-import { ArrayBufferPacketWriter } from '../packet/arrayBufferPacketWriter';
-
-function toArray(buffer: ArrayBuffer) {
-	return Array.from(new Uint8Array(buffer));
-}
+import { createBinaryWriter, getWriterBuffer, BinaryWriter } from '../packet/binaryWriter';
+import { createBinaryReader, BinaryReader, readUint8 } from '../packet/binaryReader';
 
 describe('binaryHandler', () => {
 	const client: Packets = {
@@ -42,11 +38,11 @@ describe('binaryHandler', () => {
 
 		it('should create proper write method', () => {
 			const handlers: IBinaryHandlers = createHandlers(client, server);
-			const writer = new ArrayBufferPacketWriter();
+			const writer = createBinaryWriter();
 
 			handlers.write['foo'](writer, [1, 8, 1.5]);
 
-			expect(toArray(writer.getBuffer())).eql([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]);
+			expect(Array.from(getWriterBuffer(writer))).eql([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]);
 		});
 	});
 
@@ -65,9 +61,8 @@ describe('binaryHandler', () => {
 
 		it('should create proper read method', () => {
 			const handlers: IBinaryHandlers = createHandlers(server, client);
-			const reader = new ArrayBufferPacketReader();
-			reader.setBuffer(new Uint8Array([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]));
-			const result = [reader.readUint8()];
+			const reader = createBinaryReader(new Uint8Array([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]));
+			const result = [readUint8(reader)];
 
 			handlers.read['foo'](reader, result);
 
@@ -78,20 +73,19 @@ describe('binaryHandler', () => {
 	describe('readWriteTests', () => {
 		let serverSide: IBinaryHandlers;
 		let clientSide: IBinaryHandlers;
-		let reader: ArrayBufferPacketReader;
-		let writer: ArrayBufferPacketWriter;
+		let reader: BinaryReader;
+		let writer: BinaryWriter;
 
 		beforeEach(() => {
 			serverSide = createHandlers(client, server);
 			clientSide = createHandlers(server, client);
-			reader = new ArrayBufferPacketReader();
-			writer = new ArrayBufferPacketWriter();
+			writer = createBinaryWriter(10000);
 		});
 
 		it('shoud read write simple method', () => {
 			serverSide.write['foo'](writer, [1, 8, 1.5]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['foo'](reader, result);
 
 			expect(result).eql([1, 8, 1.5]);
@@ -99,8 +93,8 @@ describe('binaryHandler', () => {
 
 		it('shoud read write complex arrays method', () => {
 			serverSide.write['far'](writer, [3, [[10, [[1, 2]]]]]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['far'](reader, result);
 
 			expect(result).eql([3, [[10, [[1, 2]]]]]);
@@ -108,8 +102,8 @@ describe('binaryHandler', () => {
 
 		it('shoud read write simple arrays method', () => {
 			serverSide.write['fab'](writer, [4, [[10, [3, 3, 4]]]]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['fab'](reader, result);
 
 			expect(result).eql([4, [[10, [3, 3, 4]]]]);
@@ -117,8 +111,8 @@ describe('binaryHandler', () => {
 
 		it('shoud read write arrays of objects method', () => {
 			serverSide.write['obj'](writer, [4, [{ a: 1 }, { b: 2 }]]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['obj'](reader, result);
 
 			expect(result).eql([4, [{ a: 1 }, { b: 2 }]]);
@@ -126,8 +120,8 @@ describe('binaryHandler', () => {
 
 		it('shoud read write complex method', () => {
 			serverSide.write['boo'](writer, [2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['boo'](reader, result);
 
 			expect(result).eql([2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
@@ -135,8 +129,8 @@ describe('binaryHandler', () => {
 
 		it('should read write all types', () => {
 			serverSide.write['all'](writer, [5, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['all'](reader, result);
 
 			expect(result).eql([5, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
@@ -144,8 +138,8 @@ describe('binaryHandler', () => {
 
 		it('shoud read write method with ArrayBuffer', () => {
 			serverSide.write['buf'](writer, [1, new Uint8Array([1, 2, 3]).buffer]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['buf'](reader, result);
 
 			expect(new Uint8Array(result[1])).eql(new Uint8Array([1, 2, 3]));
@@ -153,8 +147,8 @@ describe('binaryHandler', () => {
 
 		it('shoud read write method with Uint8Array', () => {
 			serverSide.write['u8a'](writer, [1, new Uint8Array([1, 2, 3])]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['u8a'](reader, result);
 
 			expect(result[1]).eql(new Uint8Array([1, 2, 3]));
@@ -162,8 +156,8 @@ describe('binaryHandler', () => {
 
 		it('shoud read write method with array of Uint8Arrays', () => {
 			serverSide.write['u8aa'](writer, [1, [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]]);
-			reader.setBuffer(new Uint8Array(writer.getBuffer()));
-			const result = [reader.readUint8()];
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
 			clientSide.read['u8aa'](reader, result);
 
 			expect(result[1]).eql([new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]);

@@ -5,5 +5,5 @@ export { createServerRaw, createServer, broadcast, createServerHost } from './se
 export { createClientOptions } from './serverUtils';
 export { Server, ClientState, ServerHost } from './serverInterfaces';
 export * from './method';
-export { ArrayBufferPacketReader } from './packet/arrayBufferPacketReader';
-export { ArrayBufferPacketWriter } from './packet/arrayBufferPacketWriter';
+export * from './packet/binaryReader';
+export * from './packet/binaryWriter';

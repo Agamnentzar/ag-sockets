@@ -1,7 +1,6 @@
 import { delay, createKillMethod } from './common';
 import * as http from 'http';
 import * as WebSocket from 'ws';
-import * as uWebSocket from 'uws';
 import { WebSocketServer as ClusterWsServer } from 'clusterws-uws';
 import { expect } from 'chai';
 import { assert, stub, spy, SinonSpy } from 'sinon';
@@ -95,7 +94,7 @@ describe('ClientSocket + Server', () => {
 	) {
 		connected = spy();
 
-		serverHost = createServerHost(httpServer, { path: '/ws', ws: options.ws, arrayBuffer: options.arrayBuffer, errorHandler, log });
+		serverHost = createServerHost(httpServer, { path: '/ws', ws: options.ws, errorHandler, log });
 		serverSocket = serverHost.socket(Server, Client, c => {
 			server = new Server(c);
 			server.connected = connected as any;
@@ -140,10 +139,9 @@ describe('ClientSocket + Server', () => {
 	});
 
 	[
-		{ name: 'ws', ws: WebSocket, arrayBuffer: false },
-		{ name: 'µWS', ws: uWebSocket, arrayBuffer: true },
-		{ name: 'clusterWS-µWS', ws: { Server: ClusterWsServer }, arrayBuffer: true },
-	].forEach(({ name, ws, arrayBuffer }) => {
+		{ name: 'ws', ws: WebSocket },
+		{ name: 'clusterWS-µWS', ws: { Server: ClusterWsServer } },
+	].forEach(({ name, ws }) => {
 		describe(`[${name}]`, () => {
 			afterEach(function (done) {
 				killServer(done);
@@ -152,7 +150,7 @@ describe('ClientSocket + Server', () => {
 			it('connects to correct end point', async () => {
 				let server1: Server;
 				let server2: Server2;
-				const host = createServerHost(httpServer, { path: '/ws', ws, errorHandler, log, arrayBuffer });
+				const host = createServerHost(httpServer, { path: '/ws', ws, errorHandler, log });
 				const socket1 = host.socket(Server, Client, c => server1 = new Server(c), { id: 'socket1' });
 				host.socket(Server2, Client, c => server2 = new Server2(c), { id: 'socket2' });
 
@@ -174,7 +172,7 @@ describe('ClientSocket + Server', () => {
 
 		describe(`[${name}]`, () => {
 			beforeEach(function (done) {
-				setupServerClient(done, { ws, arrayBuffer });
+				setupServerClient(done, { ws });
 			});
 
 			afterEach(function (done) {

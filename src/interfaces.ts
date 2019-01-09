@@ -103,7 +103,7 @@ export interface Packet {
 	id: number;
 	name: string;
 	args: any[];
-	binary?: any;
+	binary?: Uint8Array;
 	json?: string;
 }
 

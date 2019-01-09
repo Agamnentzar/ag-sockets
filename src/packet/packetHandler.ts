@@ -1,9 +1,10 @@
 import { FuncList, Packet } from '../interfaces';
 import { getLength } from '../utils';
-import { PacketWriter, PacketReader } from './packetCommon';
+import { BinaryWriter, resetWriter, resizeWriter, getWriterBuffer } from './binaryWriter';
+import { BinaryReader, createBinaryReader, readUint8 } from './binaryReader';
 
 export interface Send {
-	(data: string | ArrayBuffer): void;
+	(data: string | ArrayBuffer | Uint8Array): void;
 }
 
 export const enum MessageType {
@@ -13,7 +14,7 @@ export const enum MessageType {
 }
 
 export interface IBinaryWriteHandler {
-	(writer: PacketWriter, args: any[]): void;
+	(writer: BinaryWriter, args: any[]): void;
 }
 
 export interface IBinaryWriteHandlers {
@@ -21,7 +22,7 @@ export interface IBinaryWriteHandlers {
 }
 
 export interface IBinaryReadHandlers {
-	[key: string]: (reader: PacketReader, result: any[]) => void;
+	[key: string]: (reader: BinaryReader, result: any[]) => void;
 }
 
 export interface IBinaryHandlers {
@@ -43,8 +44,7 @@ export class PacketHandler {
 	constructor(
 		private readNames: string[],
 		private remoteNames: string[],
-		private packetWriter: PacketWriter,
-		private packetReader: PacketReader,
+		private packetWriter: BinaryWriter,
 		handlers: IBinaryHandlers,
 		private onlyBinary: any,
 		private onSend?: (packet: Packet) => void,
@@ -55,8 +55,22 @@ export class PacketHandler {
 	}
 	private getBinary(packet: Packet, handler: IBinaryWriteHandler) {
 		if (!packet.binary) {
-			handler(this.packetWriter, packet.args);
-			packet.binary = this.packetWriter.getBuffer();
+			do {
+				try {
+					resetWriter(this.packetWriter);
+					handler(this.packetWriter, packet.args);
+					break;
+				} catch (e) {
+					if (!(e instanceof RangeError)) {
+						throw e;
+					} else {
+						resizeWriter(this.packetWriter);
+					}
+				}
+			} while (true);
+			// handler(this.packetWriter, packet.args);
+
+			packet.binary = getWriterBuffer(this.packetWriter);
 		}
 
 		return packet.binary;
@@ -90,8 +104,8 @@ export class PacketHandler {
 		if (typeof data === 'string') {
 			return JSON.parse(data);
 		} else {
-			this.packetReader.setBuffer(data);
-			const id = this.packetReader.readUint8();
+			const packetReader = createBinaryReader(data);
+			const id = readUint8(packetReader);
 			const name = this.readNames[id];
 			const handler = this.readHandlers[name];
 			const result = [id];
@@ -100,8 +114,7 @@ export class PacketHandler {
 				throw new Error(`Missing packet handler for: ${name} (${id})`);
 			}
 
-			handler(this.packetReader, result);
-			this.packetReader.done();
+			handler(packetReader, result);
 			return result;
 		}
 	}
@@ -153,7 +166,7 @@ export class PacketHandler {
 				id: funcId,
 				name: funcName,
 				args,
-				binary: binary ? data : undefined,
+				binary: binary ? data as any : undefined,
 				json: binary ? undefined : data as any,
 			});
 		}

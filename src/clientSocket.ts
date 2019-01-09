@@ -9,8 +9,7 @@ import {
 import { createHandlers } from './packet/binaryHandler';
 import { PacketHandler } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
-import { ArrayBufferPacketWriter } from './packet/arrayBufferPacketWriter';
-import { ArrayBufferPacketReader } from './packet/arrayBufferPacketReader';
+import { createBinaryWriter } from './packet/binaryWriter';
 
 export interface ClientErrorHandler {
 	handleRecvError(error: Error, data: string | Uint8Array): void;
@@ -117,17 +116,16 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		window.addEventListener('beforeunload', beforeunload);
 
-		const reader = new ArrayBufferPacketReader();
-		const writer = new ArrayBufferPacketWriter();
+		const writer = createBinaryWriter();
 		const handlers = createHandlers(getBinary(options.server), getBinary(options.client));
 		const serverMethods = getNames(options.server);
 		const clientmethods = getNames(options.client);
 		const ignore = [...getIgnore(options.server), ...getIgnore(options.client)];
 
 		if (options.debug) {
-			packet = new DebugPacketHandler(clientmethods, serverMethods, writer, reader, handlers, {}, ignore, log);
+			packet = new DebugPacketHandler(clientmethods, serverMethods, writer, handlers, {}, ignore, log);
 		} else {
-			packet = new PacketHandler(clientmethods, serverMethods, writer, reader, handlers, {});
+			packet = new PacketHandler(clientmethods, serverMethods, writer, handlers, {});
 		}
 
 		supportsBinary = !!theSocket.binaryType;

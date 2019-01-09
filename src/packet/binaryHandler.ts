@@ -1,20 +1,16 @@
 import { Packets, Bin } from '../interfaces';
+import {
+	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
+	writeString, writeObject, writeArrayBuffer, writeUint8Array, writeInt8, writeArray
+} from './binaryWriter';
+import {
+	readInt8, readUint8, readUint16, readInt16, readUint32, readInt32, readFloat32, readFloat64, readBoolean,
+	readString, readObject, readArrayBuffer, readUint8Array, readArray
+} from './binaryReader';
 
-interface CodeSize {
+interface Result {
 	code: string;
-	size: number;
 }
-
-const sizes: number[] = [];
-sizes[Bin.U8] = 1;
-sizes[Bin.I8] = 1;
-sizes[Bin.U16] = 2;
-sizes[Bin.I16] = 2;
-sizes[Bin.U32] = 4;
-sizes[Bin.I32] = 4;
-sizes[Bin.F32] = 4;
-sizes[Bin.F64] = 8;
-sizes[Bin.Bool] = 1;
 
 const names: string[] = [];
 names[Bin.U8] = 'Uint8';
@@ -31,50 +27,45 @@ names[Bin.Obj] = 'Object';
 names[Bin.Buffer] = 'ArrayBuffer';
 names[Bin.U8Array] = 'Uint8Array';
 
-function isComplexArray(array: (Bin | any[])[]): array is Bin[] {
-	return !array.some(x => x === Bin.Obj || x === Bin.Str || x === Bin.Buffer || x === Bin.U8Array || Array.isArray(x));
-}
+const methods = {
+	writeUint8,
+	writeInt8,
+	writeUint16,
+	writeInt16,
+	writeUint32,
+	writeInt32,
+	writeFloat32,
+	writeFloat64,
+	writeBoolean,
+	writeString,
+	writeObject,
+	writeArrayBuffer,
+	writeUint8Array,
+	writeArray,
+	readUint8,
+	readInt8,
+	readUint16,
+	readInt16,
+	readUint32,
+	readInt32,
+	readFloat32,
+	readFloat64,
+	readBoolean,
+	readString,
+	readObject,
+	readArrayBuffer,
+	readUint8Array,
+	readArray,
+};
 
-function writeFieldSize(f: Bin | Bin[] | any[], n: string, indent: string): any {
-	if (f instanceof Array) {
-		if (isComplexArray(f)) {
-			return `writer.measureSimpleArray(${n}, ${f.reduce((sum, x) => sum + sizes[x], 0)})`;
-		} else {
-			let code = '';
-			let size = 0;
-
-			if (f.length === 1) {
-				code += `\n${indent}\t+ ${writeFieldSize(f[0], `item`, indent + '\t')}`;
-			} else {
-				for (let i = 0; i < f.length; i++) {
-					const s = writeFieldSize(f[i], `item[${i}]`, indent + '\t');
-
-					if (isNaN(s))
-						code += `\n${indent}\t+ ${s}`;
-					else
-						size += s;
-				}
-			}
-
-			return `writer.measureArray(${n}, function (item) { return ${size}${code}; })`;
-		}
-	} else {
-		if (f === Bin.Obj || f === Bin.Str || f === Bin.Buffer || f === Bin.U8Array) {
-			return `writer.measure${names[f]}(${n})`;
-		} else {
-			return sizes[f];
-		}
-	}
-}
-
-function writeField(obj: CodeSize, f: Bin | any[], n: string, indent: string) {
+function writeField(obj: Result, f: Bin | any[], n: string, indent: string) {
 	if (f instanceof Array) {
 		if (f.length === 1) {
-			obj.code += `${indent}writer.writeArray(${n}, function (item) {\n`;
+			obj.code += `${indent}writeArray(writer, ${n}, function (item) {\n`;
 			writeField(obj, f[0], 'item', indent + '\t');
 			obj.code += `${indent}});\n`;
 		} else {
-			obj.code += `${indent}writer.writeArray(${n}, function (item) {\n`;
+			obj.code += `${indent}writeArray(writer, ${n}, function (item) {\n`;
 
 			for (let i = 0; i < f.length; i++)
 				writeField(obj, f[i], `item[${i}]`, indent + '\t');
@@ -82,29 +73,19 @@ function writeField(obj: CodeSize, f: Bin | any[], n: string, indent: string) {
 			obj.code += `${indent}});\n`;
 		}
 	} else {
-		obj.code += `${indent}writer.write${names[f]}(${n});\n`;
+		obj.code += `${indent}write${names[f]}(writer, ${n});\n`;
 	}
 }
 
 function createWriteFunction(fields: any[]) {
 	const obj = { code: '', size: 1 };
 
-	for (let i = 0; i < fields.length; i++) {
-		const size = writeFieldSize(fields[i], `args[${i + 1}]`, '\t\t');
-
-		if (isNaN(size))
-			obj.code += `\t\tsize += ${size};\n`;
-		else
-			obj.size += size;
-	}
-
-	obj.code += '\t\twriter.init(size);\n';
-	obj.code += '\t\twriter.writeUint8(args[0]);\n';
+	obj.code += '\t\twriteUint8(writer, args[0]);\n';
 
 	for (let i = 0; i < fields.length; i++)
 		writeField(obj, fields[i], `args[${i + 1}]`, '\t\t');
 
-	return `function (writer, args) {\n\t\tvar size = ${obj.size};\n${obj.code}\t}`;
+	return `function (writer, args) {\n${obj.code}\t}`;
 }
 
 function readField(f: Bin | any[], indent: string) {
@@ -122,9 +103,9 @@ function readField(f: Bin | any[], indent: string) {
 			code += `${indent}]`;
 		}
 
-		return `reader.readArray(function () { return ${code.trim()}; })`;
+		return `readArray(reader, function () { return ${code.trim()}; })`;
 	} else {
-		return `reader.read${names[f]}()`;
+		return `read${names[f]}(reader)`;
 	}
 }
 
@@ -144,9 +125,11 @@ export function createHandlers(writeFields: Packets, readFields: Packets): any {
 	const readLines = Object.keys(readFields)
 		.map(key => key + ': ' + createReadFunction(readFields[key]));
 
-	const code = 'var write = {\n\t' + writeLines.join(',\n\t') + '\n};\n\n'
-		+ 'var read = {\n\t' + readLines.join(',\n\t') + '\n};\n\n'
-		+ 'return { write: write, read: read };';
+	const code =
+		`${Object.keys(methods).map(key => `var ${key} = methods.${key};`).join('\n')}\n\n`
+		+ `var write = {\n\t${writeLines.join(',\n\t')}\n};\n\n`
+		+ `var read = {\n\t${readLines.join(',\n\t')}\n};\n\n`
+		+ `return { write: write, read: read };`;
 
-	return (new Function(code))();
+	return (new Function('methods', code))(methods);
 }

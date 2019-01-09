@@ -60,19 +60,12 @@ const CLIENT_OPTIONS = {
 	],
 };
 
-function arrayBufferEqual(expectation: number[]) {
-	return match.instanceOf(ArrayBuffer)
-		.and(match((value: ArrayBuffer) => value.byteLength === expectation.length))
-		.and(match((value: ArrayBuffer) => {
-			const buffer = new Uint8Array(value);
+function bufferToArray(buffer: Buffer) {
+	return Array.from(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength));
+}
 
-			for (let i = 0; i < expectation.length; i++) {
-				if (buffer[i] !== expectation[i])
-					return false;
-			}
-
-			return true;
-		}));
+function arrayBufferToArray(buffer: ArrayBuffer) {
+	return Array.from(new Uint8Array(buffer));
 }
 
 function emptyErrorHandler(): ErrorHandler {
@@ -151,8 +144,9 @@ describe('serverSocket', () => {
 			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, keepOriginalRequest: true });
 			await getLastServer().connectClient();
 
-			return delay(50)
-				.then(() => expect(server1.client.originalRequest).eql({ url: 'ws://test/?bin=false', headers: { foo: 'bar' } }));
+			await delay(50);
+
+			expect(server1!.client.originalRequest).eql({ url: 'ws://test/?bin=false', headers: { foo: 'bar' } });
 		});
 
 		it('does not pass request info to client if keepOriginalRequest option is not true', async () => {
@@ -381,6 +375,13 @@ describe('serverSocket', () => {
 		let onSend: SinonStub;
 		let onRecv: SinonStub;
 
+		async function connectClientAndSaveMessages(bin = false) {
+			const client = await server.connectClient(bin);
+			const result = { message: undefined as any };
+			client.send = message => result.message = message.slice(0);
+			return result;
+		}
+
 		beforeEach(() => {
 			errorHandler = defaultErrorHandler();
 			servers = [];
@@ -388,7 +389,7 @@ describe('serverSocket', () => {
 			onSend = stub();
 			onRecv = stub();
 			serverHost = createServerHost(
-				httpServer, { ws, path: '/foo', perMessageDeflate: false, arrayBuffer: true, errorHandler });
+				httpServer, { ws, path: '/foo', perMessageDeflate: false, errorHandler });
 			serverSocket = serverHost.socket(Server1, Client1, client => {
 				const s = new Server1(client);
 				onServer(s);
@@ -522,12 +523,13 @@ describe('serverSocket', () => {
 		it('sends promise result back to client', async () => {
 			const client = await server.connectClient();
 			const send = stub(client, 'send');
-			stub(servers[0], 'login').resolves({ foo: 'bar' });
+			stub(servers[0], 'login').resolves({ foo: 'bar' } as any);
 
 			client.invoke('message', '[1, "test"]');
 
-			return delay(10)
-				.then(() => assert.calledWith(send, JSON.stringify([MessageType.Resolved, 1, 1, { foo: 'bar' }])));
+			await delay(10);
+
+			assert.calledWith(send, JSON.stringify([MessageType.Resolved, 1, 1, { foo: 'bar' }]));
 		});
 
 		it('sends message to client (JSON)', async () => {
@@ -540,12 +542,11 @@ describe('serverSocket', () => {
 		});
 
 		it('sends message to client (binary)', async () => {
-			const client = await server.connectClient(true);
-			const send = stub(client, 'send');
+			const send = await connectClientAndSaveMessages(true);
 
 			servers[0].client.bye(5);
 
-			assert.calledWith(send, arrayBufferEqual([1, 5]));
+			expect(bufferToArray(send.message)).eql([1, 5]);
 		});
 
 		it('reports sent packet to onSend hook', async () => {
@@ -554,7 +555,11 @@ describe('serverSocket', () => {
 
 			servers[0].client.bye(5);
 
-			assert.calledWithMatch(onSend, { id: 1, name: 'bye', binary: send.args[0][0], args: [1, 5] });
+			const arg = onSend.args[1][0];
+			expect(arg.id).equal(1);
+			expect(arg.name).equal('bye');
+			expect(arrayBufferToArray(arg.binary)).eql(arrayBufferToArray(send.args[0][0]));
+			expect(arg.args).eql([1, 5]);
 		});
 
 		describe('(rate limit)', () => {
@@ -635,36 +640,36 @@ describe('serverSocket', () => {
 
 		describe('broadcast()', () => {
 			it('sends message to all clients (JSON)', async () => {
-				const send1 = stub(await server.connectClient(), 'send');
-				const send2 = stub(await server.connectClient(), 'send');
+				const send1 = await connectClientAndSaveMessages();
+				const send2 = await connectClientAndSaveMessages();
 				const clients = servers.map(s => s.client);
 
 				broadcast(clients, c => c.hi('boop'));
 
-				assert.calledWith(send1, '[0,"boop"]');
-				assert.calledWith(send2, '[0,"boop"]');
+				expect(send1.message).equal('[0,"boop"]');
+				expect(send2.message).equal('[0,"boop"]');
 			});
 
 			it('sends message to all clients (binary)', async () => {
-				const send1 = stub(await server.connectClient(true), 'send');
-				const send2 = stub(await server.connectClient(true), 'send');
+				const send1 = await connectClientAndSaveMessages(true);
+				const send2 = await connectClientAndSaveMessages(true);
 				const clients = servers.map(s => s.client);
 
 				broadcast(clients, c => c.bye(5));
 
-				assert.calledWith(send1, arrayBufferEqual([1, 5]));
-				assert.calledWith(send2, arrayBufferEqual([1, 5]));
+				expect(arrayBufferToArray(send1.message)).eql([1, 5]);
+				expect(arrayBufferToArray(send2.message)).eql([1, 5]);
 			});
 
 			it('sends message to all clients (mixed)', async () => {
-				const send1 = stub(await server.connectClient(true), 'send');
-				const send2 = stub(await server.connectClient(), 'send');
+				const send1 = await connectClientAndSaveMessages(true);
+				const send2 = await connectClientAndSaveMessages();
 				const clients = servers.map(s => s.client);
 
 				broadcast(clients, c => c.bye(5));
 
-				assert.calledWith(send1, arrayBufferEqual([1, 5]));
-				assert.calledWith(send2, '[1,5]');
+				expect(arrayBufferToArray(send1.message)).eql([1, 5]);
+				expect(send2.message).equal('[1,5]');
 			});
 
 			it('does nothing for empty client list', () => {

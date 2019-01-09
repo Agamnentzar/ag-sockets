@@ -53,7 +53,6 @@ export interface GlobalConfig {
 	path?: string;
 	errorHandler?: ErrorHandler;
 	perMessageDeflate?: boolean;
-	arrayBuffer?: boolean;
 	log?: Logger;
 	ws?: any;
 }

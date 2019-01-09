@@ -1,5 +1,5 @@
 export * from './interfaces';
 export { createClientSocket, ClientErrorHandler } from './clientSocket';
 export { Method, getMethods } from './method';
-export { ArrayBufferPacketReader } from './packet/arrayBufferPacketReader';
-export { ArrayBufferPacketWriter } from './packet/arrayBufferPacketWriter';
+export * from './packet/binaryReader';
+export * from './packet/binaryWriter';

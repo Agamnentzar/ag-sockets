@@ -6,8 +6,6 @@ import { ErrorHandler, OriginalRequest } from './server';
 import { PacketHandler, MessageType, Send } from './packet/packetHandler';
 import { DebugPacketHandler } from './packet/debugPacketHandler';
 import { createHandlers } from './packet/binaryHandler';
-import { ArrayBufferPacketWriter } from './packet/arrayBufferPacketWriter';
-import { ArrayBufferPacketReader } from './packet/arrayBufferPacketReader';
 import {
 	ClientInternal, Server, ClientState, InternalServer, GlobalConfig, ServerHost, CreateServerMethod, CreateServer
 } from './serverInterfaces';
@@ -16,6 +14,7 @@ import {
 	createServerOptions, optionsWithDefaults, toClientOptions, createRateLimit, getBinaryOnlyPackets, getQuery,
 	callWithErrorHandling,
 } from './serverUtils';
+import { createBinaryWriter } from './packet/binaryWriter';
 
 export function broadcast<TClient>(clients: TClient[], action: (client: TClient) => any) {
 	if (clients && clients.length) {
@@ -50,7 +49,6 @@ export function createServerRaw(
 		log,
 		ws: options.ws,
 		perMessageDeflate: options.perMessageDeflate,
-		arrayBuffer: options.arrayBuffer,
 	});
 	const socket = host.socketRaw(createServer, { id: 'socket', ...options });
 	socket.close = host.close;
@@ -64,7 +62,6 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 		log = console.log.bind(console),
 		errorHandler = defaultErrorHandler,
 		perMessageDeflate = true,
-		arrayBuffer = false,
 	} = globalConfig;
 	const servers: InternalServer[] = [];
 
@@ -80,7 +77,7 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 			const originalRequest = createOriginalRequest(socket, request);
 			const query = getQuery(originalRequest.url);
 			const server = getServer(query.id);
-			connectClient(socket, server, originalRequest, arrayBuffer, errorHandler, log);
+			connectClient(socket, server, originalRequest, errorHandler, log);
 		} catch (e) {
 			socket.terminate();
 			errorHandler.handleError(null, e);
@@ -173,16 +170,15 @@ function createPacketHandler(options: ServerOptions, log: Logger): PacketHandler
 
 	const onlyBinary = getBinaryOnlyPackets(options.client);
 	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
-	const reader = new ArrayBufferPacketReader();
-	const writer = new ArrayBufferPacketWriter();
+	const writer = createBinaryWriter();
 	const serverMethods = getNames(options.server);
 	const ignore = [...getIgnore(options.client), ...getIgnore(options.server)];
 
 	return options.debug ?
 		new DebugPacketHandler(
-			serverMethods, serverMethods, writer, reader, handlers, onlyBinary, ignore, log) :
+			serverMethods, serverMethods, writer, handlers, onlyBinary, ignore, log) :
 		new PacketHandler(
-			serverMethods, serverMethods, writer, reader, handlers, onlyBinary, options.onSend, options.onRecv);
+			serverMethods, serverMethods, writer, handlers, onlyBinary, options.onSend, options.onRecv);
 }
 
 function createInternalServer(
@@ -319,8 +315,7 @@ function closeServer(server: InternalServer) {
 }
 
 function connectClient(
-	socket: ws, server: InternalServer, originalRequest: OriginalRequest, arrayBuffer: boolean,
-	errorHandler: ErrorHandler, log: Logger
+	socket: ws, server: InternalServer, originalRequest: OriginalRequest, errorHandler: ErrorHandler, log: Logger
 ) {
 	const query = getQuery(originalRequest.url);
 	const t = query.t || '';
@@ -376,7 +371,7 @@ function connectClient(
 	};
 
 	function send(data: string | ArrayBuffer) {
-		if (!arrayBuffer && typeof data !== 'string') {
+		if (typeof data !== 'string') {
 			socket.send(new Buffer(data));
 		} else {
 			socket.send(data);

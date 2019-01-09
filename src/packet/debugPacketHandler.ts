@@ -1,19 +1,18 @@
 import { FuncList, Logger, Packet } from '../interfaces';
 import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction, Send } from './packetHandler';
-import { PacketWriter, PacketReader } from './packetCommon';
+import { BinaryWriter } from './binaryWriter';
 
 export class DebugPacketHandler extends PacketHandler {
 	constructor(
 		readNames: string[],
 		remoteNames: string[],
-		packetWriter: PacketWriter,
-		packetReader: PacketReader,
+		packetWriter: BinaryWriter,
 		handlers: IBinaryHandlers,
 		onlyBinary: any,
 		private ignorePackets: string[],
 		private log: Logger
 	) {
-		super(readNames, remoteNames, packetWriter, packetReader, handlers, onlyBinary);
+		super(readNames, remoteNames, packetWriter, handlers, onlyBinary);
 	}
 	sendPacket(send: Send, packet: Packet, supportsBinary: boolean): number {
 		const size = this.writePacket(send, packet, supportsBinary);

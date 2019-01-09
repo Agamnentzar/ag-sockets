@@ -3,23 +3,20 @@ import { expect } from 'chai';
 import { assert, spy, stub } from 'sinon';
 import { Bin } from '../interfaces';
 import { MessageType, PacketHandler } from '../packet/packetHandler';
-import { ArrayBufferPacketWriter } from '../packet/arrayBufferPacketWriter';
-import { ArrayBufferPacketReader } from '../packet/arrayBufferPacketReader';
 import { createHandlers } from '../packet/binaryHandler';
+import { createBinaryWriter, BinaryWriter, getWriterBuffer } from '../packet/binaryWriter';
 
 describe('PacketHandler', () => {
 	let handler: PacketHandler;
 	let funcs: { foo(): any; };
 	let special: any;
 	let binary: any;
-	let writer: ArrayBufferPacketWriter;
-	let reader: ArrayBufferPacketReader;
+	let writer: BinaryWriter;
 
 	beforeEach(() => {
-		writer = new ArrayBufferPacketWriter();
-		reader = new ArrayBufferPacketReader();
+		writer = createBinaryWriter();
 		binary = createHandlers({ foo: [Bin.U8] }, { foo: [Bin.U8] });
-		handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary, {});
+		handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
 	});
 
 	describe('send()', () => {
@@ -46,7 +43,7 @@ describe('PacketHandler', () => {
 
 			handler.send(send, 'foo', 1, [8], true);
 
-			assert.calledWith(send, writer.getBuffer());
+			assert.calledWith(send, getWriterBuffer(writer));
 		});
 
 		it('returns binary message length', () => {
@@ -54,9 +51,8 @@ describe('PacketHandler', () => {
 		});
 
 		it('returns binary message length (ArrayBuffer)', () => {
-			const writer = new ArrayBufferPacketWriter();
-			const reader = new ArrayBufferPacketReader();
-			const handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary, {});
+			const writer = createBinaryWriter();
+			const handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
 
 			expect(handler.send(spy(), 'foo', 1, [8], true)).equal(2);
 		});
@@ -135,9 +131,8 @@ describe('PacketHandler', () => {
 		});
 
 		it('returns binary message length (ArrayBuffer)', () => {
-			const writer = new ArrayBufferPacketWriter();
-			const reader = new ArrayBufferPacketReader();
-			const handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, reader, binary, {});
+			const writer = createBinaryWriter();
+			const handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
 
 			const bytes = new Uint8Array(2);
 			bytes[0] = 1;

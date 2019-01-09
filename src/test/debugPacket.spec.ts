@@ -4,25 +4,22 @@ import { Bin } from '../interfaces';
 import { MessageType } from '../packet/packetHandler';
 import { DebugPacketHandler } from '../packet/debugPacketHandler';
 import { createHandlers } from '../packet/binaryHandler';
-import { ArrayBufferPacketWriter } from '../packet/arrayBufferPacketWriter';
-import { ArrayBufferPacketReader } from '../packet/arrayBufferPacketReader';
+import { BinaryWriter, createBinaryWriter } from '../packet/binaryWriter';
 
 describe('DebugPacketHandler', () => {
 	let handler: DebugPacketHandler;
 	let funcs: any;
 	let special: any;
 	let binary: any;
-	let writer: ArrayBufferPacketWriter;
-	let reader: ArrayBufferPacketReader;
+	let writer: BinaryWriter;
 	let log: SinonSpy;
 
 	beforeEach(() => {
-		writer = new ArrayBufferPacketWriter();
-		reader = new ArrayBufferPacketReader();
+		writer = createBinaryWriter();
 		binary = createHandlers({ foo: [Bin.U8] }, { foo: [Bin.U8] });
 		log = spy();
 		handler = new DebugPacketHandler(
-			['', 'foo', 'abc'], ['', 'bar', 'abc'], writer, reader, binary, {}, ['abc'], log);
+			['', 'foo', 'abc'], ['', 'bar', 'abc'], writer, binary, {}, ['abc'], log);
 	});
 
 	describe('send()', () => {
