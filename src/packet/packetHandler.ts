@@ -61,14 +61,13 @@ export class PacketHandler {
 					handler(this.packetWriter, packet.args);
 					break;
 				} catch (e) {
-					if (!(e instanceof RangeError)) {
-						throw e;
-					} else {
+					if (e instanceof RangeError || /DataView/.test(e.message)) {
 						resizeWriter(this.packetWriter);
+					} else {
+						throw e;
 					}
 				}
 			} while (true);
-			// handler(this.packetWriter, packet.args);
 
 			packet.binary = getWriterBuffer(this.packetWriter);
 		}
