@@ -1,6 +1,6 @@
 import { encodeStringTo, stringLengthInBytes } from '../utf8';
 import { Type, Consts, NumberType } from './packetCommon';
-import { ReadWriteAnyState } from '../interfaces';
+import { WriteAnyState } from '../interfaces';
 
 export interface BinaryWriter {
 	bytes: Uint8Array;
@@ -21,7 +21,7 @@ export function writeBoolean(writer: BinaryWriter, value: boolean) {
 
 export function writeString(writer: BinaryWriter, value: string | null) {
 	if (value == null) {
-		writeLength(writer, -1);
+		writeNullLength(writer);
 	} else {
 		writeLength(writer, stringLengthInBytes(value));
 		writeStringValue(writer, value);
@@ -29,12 +29,12 @@ export function writeString(writer: BinaryWriter, value: string | null) {
 }
 
 export function writeObject(writer: BinaryWriter, value: any) {
-	writeAny(writer, value, { strings: [] });
+	writeAny(writer, value, { strings: new Map<string, number>() });
 }
 
 export function writeUint8Array(writer: BinaryWriter, value: Uint8Array | null) {
 	if (value == null) {
-		writeLength(writer, -1);
+		writeNullLength(writer);
 	} else {
 		writeLength(writer, value.byteLength);
 		writeBytes(writer, value);
@@ -43,7 +43,7 @@ export function writeUint8Array(writer: BinaryWriter, value: Uint8Array | null) 
 
 export function writeArrayBuffer(writer: BinaryWriter, value: ArrayBuffer | null) {
 	if (value == null) {
-		writeLength(writer, -1);
+		writeNullLength(writer);
 	} else {
 		writeLength(writer, value.byteLength);
 		writeBytes(writer, new Uint8Array(value));
@@ -52,7 +52,7 @@ export function writeArrayBuffer(writer: BinaryWriter, value: ArrayBuffer | null
 
 export function writeArrayHeader<T>(writer: BinaryWriter, value: T[] | null): value is T[] {
 	if (value == null) {
-		writeLength(writer, -1);
+		writeNullLength(writer);
 		return false;
 	} else {
 		writeLength(writer, value.length);
@@ -68,15 +68,39 @@ export function writeArray<T>(writer: BinaryWriter, value: T[] | null, writeOne:
 	}
 }
 
+function writeNullLength(writer: BinaryWriter) {
+	writeUint16(writer, 0x8000);
+}
+
 export function writeLength(writer: BinaryWriter, value: number) {
 	if (value === -1) {
-		writeUint8(writer, 0x80);
-		writeUint8(writer, 0x00);
+		writeNullLength(writer);
+	} else if ((value & 0xffffff80) === 0) {
+		writeUint8(writer, value);
+	} else if ((value & 0xffffc000) === 0) {
+		const a = (value & 0x7f) | 0x80;
+		const b = value >> 7;
+		writeUint16(writer, (a << 8) | b);
+	} else if ((value & 0xffe00000) === 0) {
+		const a = (value & 0x7f) | 0x80;
+		const b = ((value >> 7) & 0x7f) | 0x80;
+		const c = value >> 14;
+		writeUint8(writer, a);
+		writeUint16(writer, (b << 8) | c);
+	} else if ((value & 0xf0000000) === 0) {
+		const a = (value & 0x7f) | 0x80;
+		const b = ((value >> 7) & 0x7f) | 0x80;
+		const c = ((value >> 14) & 0x7f) | 0x80;
+		const d = value >> 21;
+		writeUint32(writer, (a << 24) | (b << 16) | (c << 8) | d);
 	} else {
-		do {
-			writeUint8(writer, (value & 0x7f) | ((value >> 7) ? 0x80 : 0x00));
-			value = value >> 7;
-		} while (value);
+		const a = (value & 0x7f) | 0x80;
+		const b = ((value >> 7) & 0x7f) | 0x80;
+		const c = ((value >> 14) & 0x7f) | 0x80;
+		const d = ((value >> 21) & 0x7f) | 0x80;
+		const e = value >> 28;
+		writeUint8(writer, a);
+		writeUint32(writer, (b << 24) | (c << 16) | (d << 8) | e);
 	}
 }
 
@@ -95,42 +119,42 @@ export function resizeWriter(writer: BinaryWriter) {
 }
 
 export function writeInt8(writer: BinaryWriter, value: number) {
-	writer.view.setInt8(writer.offset, value);
+	writer.view.setInt8(writer.offset, value | 0);
 	writer.offset += 1;
 }
 
 export function writeUint8(writer: BinaryWriter, value: number) {
-	writer.view.setUint8(writer.offset, value);
+	writer.view.setUint8(writer.offset, value | 0);
 	writer.offset += 1;
 }
 
 export function writeInt16(writer: BinaryWriter, value: number) {
-	writer.view.setInt16(writer.offset, value);
+	writer.view.setInt16(writer.offset, value | 0);
 	writer.offset += 2;
 }
 
 export function writeUint16(writer: BinaryWriter, value: number) {
-	writer.view.setUint16(writer.offset, value);
+	writer.view.setUint16(writer.offset, value | 0);
 	writer.offset += 2;
 }
 
 export function writeInt32(writer: BinaryWriter, value: number) {
-	writer.view.setInt32(writer.offset, value);
+	writer.view.setInt32(writer.offset, value | 0);
 	writer.offset += 4;
 }
 
 export function writeUint32(writer: BinaryWriter, value: number) {
-	writer.view.setUint32(writer.offset, value);
+	writer.view.setUint32(writer.offset, value | 0);
 	writer.offset += 4;
 }
 
 export function writeFloat32(writer: BinaryWriter, value: number) {
-	writer.view.setFloat32(writer.offset, value);
+	writer.view.setFloat32(writer.offset, +value);
 	writer.offset += 4;
 }
 
 export function writeFloat64(writer: BinaryWriter, value: number) {
-	writer.view.setFloat64(writer.offset, value);
+	writer.view.setFloat64(writer.offset, +value);
 	writer.offset += 8;
 }
 
@@ -156,7 +180,7 @@ function writeShortLength(writer: BinaryWriter, type: Type, length: number) {
 	}
 }
 
-export function writeAny(writer: BinaryWriter, value: any, state: ReadWriteAnyState) {
+export function writeAny(writer: BinaryWriter, value: any, state: WriteAnyState) {
 	if (value === undefined) {
 		writeUint8(writer, Type.Const | Consts.Undefined);
 	} else if (value === null) {
@@ -208,9 +232,9 @@ export function writeAny(writer: BinaryWriter, value: any, state: ReadWriteAnySt
 			}
 		}
 	} else if (typeof value === 'string') {
-		const index = state.strings.indexOf(value);
+		const index = state.strings.get(value);
 
-		if (index !== -1) {
+		if (index !== undefined) {
 			writeShortLength(writer, Type.StringRef, index);
 		} else {
 			const length = stringLengthInBytes(value);
@@ -218,7 +242,7 @@ export function writeAny(writer: BinaryWriter, value: any, state: ReadWriteAnySt
 			writeStringValue(writer, value);
 
 			if (value) {
-				state.strings.push(value);
+				state.strings.set(value, state.strings.size);
 			}
 		}
 	} else if (Array.isArray(value)) {
@@ -234,14 +258,14 @@ export function writeAny(writer: BinaryWriter, value: any, state: ReadWriteAnySt
 
 		for (let i = 0; i < keys.length; i++) {
 			const key = keys[i];
-			const index = state.strings.indexOf(key);
+			const index = state.strings.get(key);
 
-			if (index === -1) {
+			if (index === undefined) {
 				writeLength(writer, stringLengthInBytes(key));
 				writeStringValue(writer, key);
 
 				if (key) {
-					state.strings.push(key);
+					state.strings.set(key, state.strings.size);
 				}
 			} else {
 				writeLength(writer, 0);

@@ -1,6 +1,6 @@
 import { decodeString } from '../utf8';
 import { Consts, Type, NumberType } from './packetCommon';
-import { ReadWriteAnyState } from '../interfaces';
+import { ReadAnyState } from '../interfaces';
 
 export interface BinaryReader {
 	view: DataView;
@@ -136,7 +136,7 @@ function readShortLength(reader: BinaryReader, length: number) {
 	return length === 0x1f ? readLength(reader) : length;
 }
 
-export function readAny(reader: BinaryReader, state: ReadWriteAnyState): any {
+export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 	const byte = readUint8(reader);
 	const type = byte & 0xe0;
 	const value = byte & 0x1f;

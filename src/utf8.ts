@@ -1,24 +1,3 @@
-function forEachCharacter(value: string, callback: (code: number) => void) {
-	for (let i = 0; i < value.length; i++) {
-		const code = value.charCodeAt(i);
-
-		// high surrogate
-		if (code >= 0xd800 && code <= 0xdbff) {
-			if ((i + 1) < value.length) {
-				const extra = value.charCodeAt(i + 1);
-
-				// low surrogate
-				if ((extra & 0xfc00) === 0xdc00) {
-					i++;
-					callback(((code & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000);
-				}
-			}
-		} else {
-			callback(code);
-		}
-	}
-}
-
 function charLengthInBytes(code: number): number {
 	if ((code & 0xffffff80) === 0) {
 		return 1;
@@ -33,36 +12,76 @@ function charLengthInBytes(code: number): number {
 
 export function stringLengthInBytes(value: string): number {
 	let result = 0;
-	forEachCharacter(value, code => result += charLengthInBytes(code));
+
+	for (let i = 0; i < value.length; i++) {
+		const code = value.charCodeAt(i);
+
+		// high surrogate
+		if (code >= 0xd800 && code <= 0xdbff) {
+			if ((i + 1) < value.length) {
+				const extra = value.charCodeAt(i + 1);
+
+				// low surrogate
+				if ((extra & 0xfc00) === 0xdc00) {
+					i++;
+					result += charLengthInBytes(((code & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000);
+				}
+			}
+		} else {
+			result += charLengthInBytes(code);
+		}
+	}
+
 	return result;
 }
 
-export function encodeStringTo(buffer: Uint8Array | Buffer, offset: number, value: string): number {
-	forEachCharacter(value, code => {
-		const length = charLengthInBytes(code);
+function writeCharacter(buffer: Uint8Array | Buffer, offset: number, code: number): number {
+	const length = charLengthInBytes(code);
 
-		if (length === 1) {
+	switch (length) {
+		case 1:
 			buffer[offset] = code;
-			offset++;
-		} else {
-			if (length === 2) {
-				buffer[offset] = ((code >> 6) & 0x1f) | 0xc0;
-				offset += 1;
-			} else if (length === 3) {
-				buffer[offset] = ((code >> 12) & 0x0f) | 0xe0;
-				buffer[offset + 1] = ((code >> 6) & 0x3f) | 0x80;
-				offset += 2;
-			} else {
-				buffer[offset] = ((code >> 18) & 0x07) | 0xf0;
-				buffer[offset + 1] = ((code >> 12) & 0x3f) | 0x80;
-				buffer[offset + 2] = ((code >> 6) & 0x3f) | 0x80;
-				offset += 3;
-			}
+			break;
+		case 2:
+			buffer[offset] = ((code >> 6) & 0x1f) | 0xc0;
+			buffer[offset + 1] = (code & 0x3f) | 0x80;
+			break;
+		case 3:
+			buffer[offset] = ((code >> 12) & 0x0f) | 0xe0;
+			buffer[offset + 1] = ((code >> 6) & 0x3f) | 0x80;
+			buffer[offset + 2] = (code & 0x3f) | 0x80;
+			break;
+		default:
+			buffer[offset] = ((code >> 18) & 0x07) | 0xf0;
+			buffer[offset + 1] = ((code >> 12) & 0x3f) | 0x80;
+			buffer[offset + 2] = ((code >> 6) & 0x3f) | 0x80;
+			buffer[offset + 3] = (code & 0x3f) | 0x80;
+			break;
+	}
 
-			buffer[offset] = (code & 0x3f) | 0x80;
-			offset++;
+	return length;
+}
+
+export function encodeStringTo(buffer: Uint8Array | Buffer, offset: number, value: string): number {
+	for (let i = 0; i < value.length; i++) {
+		const code = value.charCodeAt(i);
+
+		// high surrogate
+		if (code >= 0xd800 && code <= 0xdbff) {
+			if ((i + 1) < value.length) {
+				const extra = value.charCodeAt(i + 1);
+
+				// low surrogate
+				if ((extra & 0xfc00) === 0xdc00) {
+					i++;
+					const fullCode = ((code & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000;
+					offset += writeCharacter(buffer, offset, fullCode);
+				}
+			}
+		} else {
+			offset += writeCharacter(buffer, offset, code);
 		}
-	});
+	}
 
 	return offset;
 }

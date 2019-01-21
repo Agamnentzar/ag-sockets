@@ -95,7 +95,11 @@ export interface CommonOptions {
 	requestParams?: any;
 }
 
-export interface ReadWriteAnyState {
+export interface WriteAnyState {
+	strings: Map<string, number>;
+}
+
+export interface ReadAnyState {
 	strings: string[];
 }
 
