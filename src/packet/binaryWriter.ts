@@ -1,5 +1,5 @@
 import { encodeStringTo, stringLengthInBytes } from '../utf8';
-import { Type, Consts, NumberType } from './packetCommon';
+import { Type, Special, NumberType } from './packetCommon';
 import { WriteAnyState } from '../interfaces';
 
 export interface BinaryWriter {
@@ -182,13 +182,13 @@ function writeShortLength(writer: BinaryWriter, type: Type, length: number) {
 
 export function writeAny(writer: BinaryWriter, value: any, state: WriteAnyState) {
 	if (value === undefined) {
-		writeUint8(writer, Type.Const | Consts.Undefined);
+		writeUint8(writer, Type.Special | Special.Undefined);
 	} else if (value === null) {
-		writeUint8(writer, Type.Const | Consts.Null);
+		writeUint8(writer, Type.Special | Special.Null);
 	} else if (value === true) {
-		writeUint8(writer, Type.Const | Consts.True);
+		writeUint8(writer, Type.Special | Special.True);
 	} else if (value === false) {
-		writeUint8(writer, Type.Const | Consts.False);
+		writeUint8(writer, Type.Special | Special.False);
 	} else if (typeof value === 'number') {
 		if ((value >>> 0) === value) {
 			value = value >>> 0;
@@ -253,26 +253,31 @@ export function writeAny(writer: BinaryWriter, value: any, state: WriteAnyState)
 			writeAny(writer, value[i], state);
 		}
 	} else if (typeof value === 'object') {
-		const keys = Object.keys(value);
-		writeShortLength(writer, Type.Object, keys.length);
+		if (value instanceof Uint8Array) {
+			writeUint8(writer, Type.Special | Special.Uint8Array);
+			writeUint8Array(writer, value);
+		} else {
+			const keys = Object.keys(value);
+			writeShortLength(writer, Type.Object, keys.length);
 
-		for (let i = 0; i < keys.length; i++) {
-			const key = keys[i];
-			const index = state.strings.get(key);
+			for (let i = 0; i < keys.length; i++) {
+				const key = keys[i];
+				const index = state.strings.get(key);
 
-			if (index === undefined) {
-				writeLength(writer, stringLengthInBytes(key));
-				writeStringValue(writer, key);
+				if (index === undefined) {
+					writeLength(writer, stringLengthInBytes(key));
+					writeStringValue(writer, key);
 
-				if (key) {
-					state.strings.set(key, state.strings.size);
+					if (key) {
+						state.strings.set(key, state.strings.size);
+					}
+				} else {
+					writeLength(writer, 0);
+					writeLength(writer, index);
 				}
-			} else {
-				writeLength(writer, 0);
-				writeLength(writer, index);
-			}
 
-			writeAny(writer, value[key], state);
+				writeAny(writer, value[key], state);
+			}
 		}
 	} else {
 		throw new Error(`Invalid type: ${value}`);

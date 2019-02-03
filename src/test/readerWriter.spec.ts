@@ -121,13 +121,17 @@ describe('PacketReader + PacketWriter', () => {
 	});
 
 	describe('binary object encoding', () => {
-		function readWriteObjectTest(obj: any, message?: string) {
+		function writeRead(obj: any) {
 			const writer = createBinaryWriter(10000);
 			writeObject(writer, obj);
 			// const jsonLength = JSON.stringify(obj) && JSON.stringify(obj).length || 0;
 			// console.log(`size: ${writer.offset} / ${jsonLength + writer.measureLength(jsonLength)}`);
 			const reader = createBinaryReader(getWriterBuffer(writer));
-			expect(readObject(reader)).eql(obj, message);
+			return readObject(reader);
+		}
+
+		function readWriteObjectTest(obj: any, message?: string) {
+			expect(writeRead(obj)).eql(obj, message);
 		}
 
 		it('reads and writes undefined', () => readWriteObjectTest(undefined));
@@ -231,6 +235,12 @@ describe('PacketReader + PacketWriter', () => {
 			expect(() => readWriteObjectTest({
 				foo() { },
 			})).throw('Invalid type: ');
+		});
+
+		it('handles typed array', () => {
+			const result = writeRead({ data: new Uint8Array([1, 2, 3, 4]) });
+			expect(result.data).instanceof(Uint8Array);
+			expect(Array.from(result.data)).eql([1, 2, 3, 4]);
 		});
 	});
 });

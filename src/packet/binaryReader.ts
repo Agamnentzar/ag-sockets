@@ -1,5 +1,5 @@
 import { decodeString } from '../utf8';
-import { Consts, Type, NumberType } from './packetCommon';
+import { Special, Type, NumberType } from './packetCommon';
 import { ReadAnyState } from '../interfaces';
 
 export interface BinaryReader {
@@ -142,12 +142,13 @@ export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 	const value = byte & 0x1f;
 
 	switch (type) {
-		case Type.Const:
+		case Type.Special:
 			switch (value) {
-				case Consts.Undefined: return undefined;
-				case Consts.Null: return null;
-				case Consts.True: return true;
-				case Consts.False: return false;
+				case Special.Undefined: return undefined;
+				case Special.Null: return null;
+				case Special.True: return true;
+				case Special.False: return false;
+				case Special.Uint8Array: return readUint8Array(reader);
 				default:
 					throw new Error(`Incorrect value: ${value} (${byte})`);
 			}

@@ -1,5 +1,5 @@
 export const enum Type {
-	Const = 0 << 5,
+	Special = 0 << 5,
 	Number = 1 << 5,
 	String = 2 << 5,
 	Array = 3 << 5,
@@ -9,11 +9,12 @@ export const enum Type {
 	StringRef = 7 << 5,
 }
 
-export const enum Consts {
+export const enum Special {
 	Undefined = 0,
 	Null = 1,
 	True = 2,
 	False = 3,
+	Uint8Array = 4,
 }
 
 export const enum NumberType {
