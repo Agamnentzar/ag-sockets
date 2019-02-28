@@ -21,6 +21,8 @@ const defaultErrorHandler: ClientErrorHandler = {
 	}
 };
 
+const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
+
 export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
 	options: ClientOptions,
 	token?: string | null | undefined,
@@ -47,6 +49,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		server: {} as any as TServer,
 		sentSize: 0,
 		receivedSize: 0,
+		lastPacket: 0,
 		isConnected: false,
 		connect,
 		disconnect,
@@ -132,6 +135,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		theSocket.binaryType = 'arraybuffer';
 		theSocket.onmessage = message => {
+			clientSocket.lastPacket = now();
+
 			const messageData: string | ArrayBuffer | undefined = message.data;
 
 			if (messageData && packet && (typeof messageData === 'string' || messageData.byteLength > 0)) {
@@ -152,6 +157,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				theSocket.close();
 				return;
 			}
+
+			clientSocket.lastPacket = now();
 
 			if (options.debug) {
 				log('socket opened');

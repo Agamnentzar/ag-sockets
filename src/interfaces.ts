@@ -26,6 +26,7 @@ export interface SocketService<TClient extends SocketClient, TServer extends Soc
 	server: TServer;
 	sentSize: number;
 	receivedSize: number;
+	lastPacket: number;
 	isConnected: boolean;
 	supportsBinary: boolean;
 	connect(): void;
