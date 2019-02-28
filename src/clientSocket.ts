@@ -132,8 +132,9 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		theSocket.binaryType = 'arraybuffer';
 		theSocket.onmessage = message => {
-			if (message.data && packet) {
-				const messageData: string | ArrayBuffer = message.data;
+			const messageData: string | ArrayBuffer | undefined = message.data;
+
+			if (messageData && packet && (typeof messageData === 'string' || messageData.byteLength > 0)) {
 				const data = typeof messageData === 'string' ? messageData : new Uint8Array(messageData);
 
 				try {
