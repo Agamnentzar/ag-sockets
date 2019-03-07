@@ -165,6 +165,10 @@ export function writeBytes(writer: BinaryWriter, value: Uint8Array) {
 
 export function writeStringValue(writer: BinaryWriter, value: string) {
 	writer.offset = encodeStringTo(writer.bytes, writer.offset, value);
+
+	if (writer.offset > writer.bytes.byteLength) {
+		throw new Error('Exceeded DataView size');
+	}
 }
 
 const floats = new Float32Array(1);

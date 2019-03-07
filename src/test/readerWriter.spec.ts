@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import {
 	createBinaryWriter, writeInt8, writeUint8, writeInt16, writeUint16, writeInt32, writeUint32,
 	writeFloat32, writeFloat64, writeBoolean, writeBytes, writeLength, writeString, writeObject,
-	writeArray, writeArrayBuffer, writeUint8Array, getWriterBuffer, resetWriter
+	writeArray, writeArrayBuffer, writeUint8Array, getWriterBuffer, resetWriter, writeStringValue
 } from '../packet/binaryWriter';
 import {
 	createBinaryReader, readInt8, readUint8, readInt16, readUint16, readInt32, readUint32,
@@ -118,6 +118,12 @@ describe('PacketReader + PacketWriter', () => {
 		expect(writer.offset).equal(1);
 		resetWriter(writer);
 		expect(writer.offset).equal(0);
+	});
+
+	it('throws when writing string too large for the buffer', () => {
+		const writer = createBinaryWriter(16);
+		expect(() => writeStringValue(writer, 'some long string that is larger than the buffer'))
+			.throw('Exceeded DataView size');
 	});
 
 	describe('binary object encoding', () => {

@@ -17,6 +17,7 @@ describe('binaryHandler', () => {
 		buf: [Bin.Buffer],
 		u8a: [Bin.U8Array],
 		u8aa: [[Bin.U8Array]],
+		obj1: [Bin.Obj],
 	};
 
 	const server: Packets = {
@@ -155,7 +156,7 @@ describe('binaryHandler', () => {
 			expect(result[1]).eql(new Uint8Array([1, 2, 3]));
 		});
 
-		it('shoud read write method with array of Uint8Arrays', () => {
+		it('reads and writes array of Uint8Arrays', () => {
 			serverSide.write['u8aa'](writer, [1, [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]]);
 			reader = createBinaryReader(getWriterBuffer(writer));
 			const result = [readUint8(reader)];

@@ -455,7 +455,7 @@ describe('serverSocket', () => {
 
 			await server.connectClient();
 
-			assert.calledWithMatch(handleError, match.any, error);
+			assert.calledWithMatch(handleError as any, match.any, error);
 		});
 
 		it('reports rejection from server.connected()', async () => {
@@ -466,7 +466,7 @@ describe('serverSocket', () => {
 			await server.connectClient();
 
 			await Promise.resolve();
-			assert.calledWithMatch(handleError, match.any, error);
+			assert.calledWithMatch(handleError as any, match.any, error);
 		});
 
 		it('reports exception from server.disconnected()', async () => {
@@ -477,7 +477,7 @@ describe('serverSocket', () => {
 
 			client.invoke('close');
 
-			assert.calledWithMatch(handleError, match.any, error);
+			assert.calledWithMatch(handleError as any, match.any, error);
 		});
 
 		it('reports rejection from server.disconnected()', async () => {
@@ -490,7 +490,7 @@ describe('serverSocket', () => {
 
 			await Promise.resolve();
 
-			assert.calledWithMatch(handleError, match.any, error);
+			assert.calledWithMatch(handleError as any, match.any, error);
 		});
 
 		it('does not handle any messages after socket is closed', async () => {
@@ -563,8 +563,8 @@ describe('serverSocket', () => {
 		});
 
 		describe('(rate limit)', () => {
-			let handleRecvError: SinonStub;
-			let handleRejection: SinonStub;
+			let handleRecvError: SinonStub<any>;
+			let handleRejection: SinonStub<any>;
 
 			beforeEach(() => {
 				handleRecvError = stub(errorHandler, 'handleRecvError');

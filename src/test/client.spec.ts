@@ -124,7 +124,7 @@ describe('ClientSocket', () => {
 
 			lastWebSocket.onmessage({ data: '' });
 
-			assert.calledWith(send, '');
+			assert.calledWith(send as any, '');
 		});
 
 		it('should not send ping if connection is not open', () => {
@@ -289,7 +289,7 @@ describe('ClientSocket', () => {
 
 			service.server.test2();
 
-			assert.calledWith(send, '[0]');
+			assert.calledWith(send as any, '[0]');
 		});
 
 		it('rejects when rate limit is exceeded', async () => {
@@ -412,7 +412,7 @@ describe('ClientSocket', () => {
 
 				lastWebSocket.onmessage({ data: '[1, 2]' });
 
-				assert.calledWith(foo, 2);
+				assert.calledWith(foo as any, 2);
 			});
 
 			it('resolves pending promise', async () => {

@@ -76,7 +76,7 @@ describe('PacketHandler', () => {
 
 			handler.recv('[1,"a","b",5]', funcs, special);
 
-			assert.calledWith(foo, 'a', 'b', 5);
+			assert.calledWith(foo as any, 'a', 'b', 5);
 		});
 
 		it('reads VERSION message from websocket', () => {
@@ -118,7 +118,7 @@ describe('PacketHandler', () => {
 
 			handler.recv(new Uint8Array([1, 8]), funcs, special);
 
-			assert.calledWith(foo, 8);
+			assert.calledWith(foo as any, 8);
 		});
 
 		it('returns binary message length', () => {
