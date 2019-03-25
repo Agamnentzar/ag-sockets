@@ -21,8 +21,6 @@ const defaultErrorHandler: ClientErrorHandler = {
 	}
 };
 
-const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
-
 export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
 	options: ClientOptions,
 	token?: string | null | undefined,
@@ -34,6 +32,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	const defers = new Map<number, Deferred<any>>();
 	const inProgressFields: { [key: string]: number } = {};
 	const rateLimits: RateLimit[] = [];
+	const convertToArrayBuffer = typeof navigator !== 'undefined' && /MSIE 10/.test(navigator.userAgent);
+	const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
 	let supportsBinary = isSupportingBinary();
 	let socket: WebSocket | null = null;
 	let connecting = false;
@@ -246,6 +246,13 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 	function send(data: any) {
 		if (socket && socket.readyState === WebSocket.OPEN) {
+			if (convertToArrayBuffer && data instanceof Uint8Array) {
+				const buffer = new ArrayBuffer(data.byteLength);
+				const view = new Uint8Array(buffer);
+				view.set(data);
+				data = buffer;
+			}
+
 			socket.send(data);
 			return true;
 		} else {
