@@ -32,7 +32,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	const defers = new Map<number, Deferred<any>>();
 	const inProgressFields: { [key: string]: number } = {};
 	const rateLimits: RateLimit[] = [];
-	const convertToArrayBuffer = typeof navigator !== 'undefined' && /MSIE 10/.test(navigator.userAgent);
+	const convertToArrayBuffer = typeof navigator !== 'undefined' && /MSIE 10|Trident\/7/.test(navigator.userAgent);
 	const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
 	let supportsBinary = isSupportingBinary();
 	let socket: WebSocket | null = null;
