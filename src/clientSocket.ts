@@ -135,6 +135,10 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		theSocket.binaryType = 'arraybuffer';
 		theSocket.onmessage = message => {
+			if (socket !== theSocket) {
+				return;
+			}
+
 			clientSocket.lastPacket = now();
 
 			const messageData: string | ArrayBuffer | undefined = message.data;
