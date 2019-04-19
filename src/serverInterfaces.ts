@@ -55,6 +55,8 @@ export interface GlobalConfig {
 	perMessageDeflate?: boolean;
 	log?: Logger;
 	ws?: any;
+	errorCode?: number;
+	errorName?: string;
 }
 
 export interface InternalServer {

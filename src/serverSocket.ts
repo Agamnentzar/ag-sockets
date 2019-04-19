@@ -62,6 +62,8 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 		log = console.log.bind(console),
 		errorHandler = defaultErrorHandler,
 		perMessageDeflate = true,
+		errorCode = 400,
+		errorName = 'Bad Request',
 	} = globalConfig;
 	const servers: InternalServer[] = [];
 
@@ -108,21 +110,21 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 			const server = getServer(query.id);
 
 			if (!server.verifyClient(req)) {
-				next(false, 400, 'Bad Request');
+				next(false, errorCode, errorName);
 			} else if (server.clientLimit !== 0 && server.clientLimit <= server.clients.length) {
-				next(false, 400, 'Bad Request');
+				next(false, errorCode, errorName);
 			} else if (server.connectionTokens) {
 				if (hasToken(server, query.t)) {
 					next(true, 200, 'OK');
 				} else {
-					next(false, 400, 'Bad Request');
+					next(false, errorCode, errorName);
 				}
 			} else {
 				next(true, 200, 'OK');
 			}
 		} catch (e) {
 			errorHandler.handleError(null, e);
-			next(false, 400, 'Bad Request');
+			next(false, errorCode, errorName);
 		}
 	}
 
