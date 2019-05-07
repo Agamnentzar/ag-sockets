@@ -1,10 +1,16 @@
 import './common';
 import { expect } from 'chai';
 import { assert, spy, stub } from 'sinon';
-import { Bin } from '../interfaces';
+import { Bin, PacketHandlerHooks } from '../interfaces';
 import { MessageType, PacketHandler } from '../packet/packetHandler';
 import { createHandlers } from '../packet/binaryHandler';
 import { createBinaryWriter, BinaryWriter, getWriterBuffer } from '../packet/binaryWriter';
+
+const packetHandlerHooks: PacketHandlerHooks = {
+	writing() { },
+	sending() { },
+	done() { },
+};
 
 describe('PacketHandler', () => {
 	let handler: PacketHandler;
@@ -23,38 +29,38 @@ describe('PacketHandler', () => {
 		it('sends message to websocket', () => {
 			const send = spy();
 
-			handler.send(send, 'foo', 1, ['a', 'b', 5], false);
+			handler.send(send, 'foo', 1, ['a', 'b', 5], false, packetHandlerHooks);
 
 			assert.calledWith(send, '[1,"a","b",5]');
 		});
 
 		it('returns message length', () => {
-			expect(handler.send(spy(), 'foo', 1, ['a', 'b', 5], false)).equal('[1,"a","b",5]'.length);
+			expect(handler.send(spy(), 'foo', 1, ['a', 'b', 5], false, packetHandlerHooks)).equal('[1,"a","b",5]'.length);
 		});
 
 		it('returns 0 on error', () => {
 			const send = stub().throws(new Error(''));
 
-			expect(handler.send(send, 'foo', 1, ['a', 'b', 5], true)).equal(0);
+			expect(handler.send(send, 'foo', 1, ['a', 'b', 5], true, packetHandlerHooks)).equal(0);
 		});
 
 		it('sends binary message', () => {
 			const send = spy();
 
-			handler.send(send, 'foo', 1, [8], true);
+			handler.send(send, 'foo', 1, [8], true, packetHandlerHooks);
 
 			assert.calledWith(send, getWriterBuffer(writer));
 		});
 
 		it('returns binary message length', () => {
-			expect(handler.send(spy(), 'foo', 1, [8], true)).equal(2);
+			expect(handler.send(spy(), 'foo', 1, [8], true, packetHandlerHooks)).equal(2);
 		});
 
 		it('returns binary message length (ArrayBuffer)', () => {
 			const writer = createBinaryWriter();
 			const handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
 
-			expect(handler.send(spy(), 'foo', 1, [8], true)).equal(2);
+			expect(handler.send(spy(), 'foo', 1, [8], true, packetHandlerHooks)).equal(2);
 		});
 	});
 

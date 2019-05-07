@@ -164,3 +164,9 @@ export function getBinary(methods: MethodDef[]) {
 	});
 	return result;
 }
+
+export interface PacketHandlerHooks {
+	writing(): void;
+	sending(): void;
+	done(): void;
+}

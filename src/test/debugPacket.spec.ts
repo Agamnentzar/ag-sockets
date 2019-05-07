@@ -1,10 +1,16 @@
 import './common';
 import { assert, spy, stub, SinonSpy } from 'sinon';
-import { Bin } from '../interfaces';
+import { Bin, PacketHandlerHooks } from '../interfaces';
 import { MessageType } from '../packet/packetHandler';
 import { DebugPacketHandler } from '../packet/debugPacketHandler';
 import { createHandlers } from '../packet/binaryHandler';
 import { BinaryWriter, createBinaryWriter } from '../packet/binaryWriter';
+
+const packetHandlerHooks: PacketHandlerHooks = {
+	writing() { },
+	sending() { },
+	done() { },
+};
 
 describe('DebugPacketHandler', () => {
 	let handler: DebugPacketHandler;
@@ -24,19 +30,19 @@ describe('DebugPacketHandler', () => {
 
 	describe('send()', () => {
 		it('should log sent message', () => {
-			handler.send(spy(), 'foo', 1, ['a', 'b', 5], false);
+			handler.send(spy(), 'foo', 1, ['a', 'b', 5], false, packetHandlerHooks);
 
 			assert.calledWithMatch(log, 'SEND [13] (str)', 'foo', [1, 'a', 'b', 5]);
 		});
 
 		it('should log sent binary message', () => {
-			handler.send(spy(), 'foo', 1, [8], true);
+			handler.send(spy(), 'foo', 1, [8], true, packetHandlerHooks);
 
 			assert.calledWithMatch(log, 'SEND [2] (bin)', 'foo', [1, 8]);
 		});
 
 		it('should not log ignored message', () => {
-			handler.send(spy(), 'abc', 2, ['a', 'b', 5], true);
+			handler.send(spy(), 'abc', 2, ['a', 'b', 5], true, packetHandlerHooks);
 
 			assert.notCalled(log);
 		});

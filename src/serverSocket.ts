@@ -238,11 +238,13 @@ function createInternalServer(
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
 				packetHandler.send(
-					send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result], obj.supportsBinary);
+					send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result],
+					obj.supportsBinary, obj.client.__internalHooks);
 			}, (e: Error) => {
 				e = errorHandler.handleRejection(obj.client, e) || e;
 				packetHandler.send(
-					send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'], obj.supportsBinary);
+					send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'],
+					obj.supportsBinary, obj.client.__internalHooks);
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
 	}
@@ -316,6 +318,9 @@ function closeServer(server: InternalServer) {
 	}
 }
 
+function noop() {
+}
+
 function connectClient(
 	socket: ws, server: InternalServer, originalRequest: OriginalRequest, errorHandler: ErrorHandler, log: Logger
 ) {
@@ -350,6 +355,9 @@ function connectClient(
 			__internalHooks: {
 				executeForClients,
 				sendPacket,
+				writing: noop,
+				sending: noop,
+				done: noop,
 			},
 			id: server.currentClientId++,
 			tokenId: token ? token.id : undefined,
@@ -381,7 +389,7 @@ function connectClient(
 	}
 
 	function sendPacket(packet: Packet) {
-		server.packetHandler.sendPacket(send, packet, obj.supportsBinary);
+		server.packetHandler.sendPacket(send, packet, obj.supportsBinary, obj.client.__internalHooks);
 	}
 
 	function handleConnected(serverActions: SocketServer) {
@@ -471,14 +479,15 @@ function connectClient(
 		});
 
 		server.clientMethods.forEach((name, id) => {
-			obj.client[name] = (...args: any[]) => server.packetHandler.send(send, name, id, args, obj.supportsBinary);
+			obj.client[name] = (...args: any[]) =>
+				server.packetHandler.send(send, name, id, args, obj.supportsBinary, obj.client.__internalHooks);
 		});
 
 		if (server.debug) {
 			log('client connected');
 		}
 
-		server.packetHandler.send(send, '*version', MessageType.Version, [server.hash], obj.supportsBinary);
+		server.packetHandler.send(send, '*version', MessageType.Version, [server.hash], obj.supportsBinary, obj.client.__internalHooks);
 		server.clients.push(obj);
 
 		handleConnected(serverActions);

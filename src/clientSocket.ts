@@ -1,6 +1,6 @@
 import {
 	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore,
-	getBinary, Logger
+	getBinary, Logger, PacketHandlerHooks
 } from './interfaces';
 import {
 	checkRateLimit, parseRateLimit, RateLimit, supportsBinary as isSupportingBinary, Deferred, deferred,
@@ -19,6 +19,12 @@ const defaultErrorHandler: ClientErrorHandler = {
 	handleRecvError(error: Error) {
 		throw error;
 	}
+};
+
+const packetHandlerHooks: PacketHandlerHooks = {
+	writing() { },
+	sending() { },
+	done() { },
 };
 
 export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
@@ -292,7 +298,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	function createSimpleMethod(name: string, id: number) {
 		clientSocket.server[name] = (...args: any[]) => {
 			if (checkRateLimit(id, rateLimits) && packet) {
-				clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary);
+				clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary, packetHandlerHooks);
 				lastSentId++;
 				return true;
 			} else {
@@ -323,7 +329,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				return Promise.reject(new Error('not initialized'));
 			}
 
-			clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary);
+			clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary, packetHandlerHooks);
 			const messageId = ++lastSentId;
 			const defer = deferred<any>();
 			defers.set(messageId, defer);

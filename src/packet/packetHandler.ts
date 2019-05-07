@@ -1,4 +1,4 @@
-import { FuncList, Packet } from '../interfaces';
+import { FuncList, Packet, PacketHandlerHooks } from '../interfaces';
 import { getLength } from '../utils';
 import { BinaryWriter, resetWriter, resizeWriter, getWriterBuffer } from './binaryWriter';
 import { BinaryReader, createBinaryReader, readUint8 } from './binaryReader';
@@ -85,17 +85,23 @@ export class PacketHandler {
 
 		return packet.json;
 	}
-	protected writePacket(send: Send, packet: Packet, supportsBinary: boolean) {
+	protected writePacket(send: Send, packet: Packet, supportsBinary: boolean, hooks: PacketHandlerHooks) {
 		const handler = this.writeHandlers[packet.name];
 
 		if (supportsBinary && handler) {
+			hooks.writing();
 			const data = this.getBinary(packet, handler);
+			hooks.sending();
 			send(data);
+			hooks.done();
 			this.lastWriteBinary = true;
 			return getLength(data);
 		} else {
+			hooks.writing();
 			const data = this.getJSON(packet);
+			hooks.sending();
 			send(data);
+			hooks.done();
 			return data.length;
 		}
 	}
@@ -128,19 +134,19 @@ export class PacketHandler {
 			return this.readNames[id];
 		}
 	}
-	send(send: Send, name: string, id: number, args: any[], supportsBinary: boolean): number {
-		return this.sendPacket(send, { id, name, args: [id, ...args] }, supportsBinary);
+	send(send: Send, name: string, id: number, args: any[], supportsBinary: boolean, hooks: PacketHandlerHooks): number {
+		return this.sendPacket(send, { id, name, args: [id, ...args] }, supportsBinary, hooks);
 	}
-	sendPacket(send: Send, packet: Packet, supportsBinary: boolean): number {
+	sendPacket(send: Send, packet: Packet, supportsBinary: boolean, hooks: PacketHandlerHooks): number {
 		try {
-			const size = this.writePacket(send, packet, supportsBinary);
+			const size = this.writePacket(send, packet, supportsBinary, hooks);
 
 			if (this.onSend) {
 				this.onSend(packet);
 			}
 
 			return size;
-		} catch (e) {
+		} catch {
 			return 0;
 		}
 	}

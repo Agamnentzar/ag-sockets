@@ -1,4 +1,4 @@
-import { Packet, ClientOptions, SocketServer, ServerOptions, Logger, MethodDef } from './interfaces';
+import { Packet, ClientOptions, SocketServer, ServerOptions, Logger, MethodDef, PacketHandlerHooks } from './interfaces';
 import { SocketServerClient, ErrorHandler } from './server';
 import { IncomingMessage } from 'http';
 import { Send, PacketHandler } from './packet/packetHandler';
@@ -9,7 +9,7 @@ export interface Token {
 	expire: number;
 }
 
-export interface ServerHooks {
+export interface ServerHooks extends PacketHandlerHooks {
 	sendPacket(packet: Packet): void;
 	executeForClients(clients: any[], action: (client: any) => any): void;
 }

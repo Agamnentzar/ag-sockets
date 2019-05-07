@@ -1,4 +1,4 @@
-import { FuncList, Logger, Packet } from '../interfaces';
+import { FuncList, Logger, Packet, PacketHandlerHooks } from '../interfaces';
 import { PacketHandler, IFunctionHandler, IBinaryHandlers, defaultHandleFunction, Send } from './packetHandler';
 import { BinaryWriter } from './binaryWriter';
 
@@ -14,8 +14,8 @@ export class DebugPacketHandler extends PacketHandler {
 	) {
 		super(readNames, remoteNames, packetWriter, handlers, onlyBinary);
 	}
-	sendPacket(send: Send, packet: Packet, supportsBinary: boolean): number {
-		const size = this.writePacket(send, packet, supportsBinary);
+	sendPacket(send: Send, packet: Packet, supportsBinary: boolean, hooks: PacketHandlerHooks): number {
+		const size = this.writePacket(send, packet, supportsBinary, hooks);
 
 		if (this.ignorePackets.indexOf(packet.name) === -1) {
 			const mode = this.lastWriteBinary ? 'bin' : 'str';
