@@ -1,7 +1,7 @@
 import { delay, createKillMethod } from './common';
 import * as http from 'http';
 import * as WebSocket from 'ws';
-import { WebSocketServer as ClusterWsServer } from 'clusterws-uws';
+import { WebSocketServer as ClusterWsServer } from '@clusterws/cws';
 import { expect } from 'chai';
 import { assert, stub, spy, SinonSpy } from 'sinon';
 import { Bin, ServerOptions, ClientOptions, SocketService } from '../interfaces';

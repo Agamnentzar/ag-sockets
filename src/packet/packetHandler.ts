@@ -4,7 +4,7 @@ import { BinaryWriter, resetWriter, resizeWriter, getWriterBuffer } from './bina
 import { BinaryReader, createBinaryReader, readUint8 } from './binaryReader';
 
 export interface Send {
-	(data: string | ArrayBuffer | Uint8Array): void;
+	(data: string | Uint8Array): void;
 }
 
 export const enum MessageType {

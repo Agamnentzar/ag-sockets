@@ -380,9 +380,9 @@ function connectClient(
 		},
 	};
 
-	function send(data: string | ArrayBuffer) {
+	function send(data: string | Uint8Array) {
 		if (typeof data !== 'string') {
-			socket.send(new Buffer(data));
+			socket.send(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
 		} else {
 			socket.send(data);
 		}
