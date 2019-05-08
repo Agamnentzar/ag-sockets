@@ -161,6 +161,10 @@ export function writeFloat64(writer: BinaryWriter, value: number) {
 export function writeBytes(writer: BinaryWriter, value: Uint8Array) {
 	writer.bytes.set(value, writer.offset);
 	writer.offset += value.length;
+
+	if (writer.offset > writer.bytes.byteLength) {
+		throw new Error('Exceeded DataView size');
+	}
 }
 
 export function writeStringValue(writer: BinaryWriter, value: string) {
