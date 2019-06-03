@@ -196,6 +196,8 @@ function createInternalServer(
 		id: options.id || 'socket',
 		clients: [],
 		tokens: [],
+		totalSent: 0,
+		totalReceived: 0,
 		currentClientId: 1,
 		path: options.path || '',
 		hash: options.hash || 0,
@@ -382,8 +384,10 @@ function connectClient(
 
 	function send(data: string | Uint8Array) {
 		if (typeof data !== 'string') {
+			server.totalSent += data.byteLength;
 			socket.send(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
 		} else {
+			server.totalSent += data.length;
 			socket.send(data);
 		}
 	}
@@ -415,6 +419,7 @@ function connectClient(
 
 				const messageLength = getLength(message);
 				bytesReceived += messageLength;
+				server.totalReceived += bytesReceived;
 
 				let data: string | Uint8Array;
 

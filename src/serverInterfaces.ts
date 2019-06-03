@@ -66,6 +66,8 @@ export interface InternalServer {
 	currentClientId: number;
 	pingInterval: any;
 	tokenInterval: any;
+	totalSent: number;
+	totalReceived: number;
 	// options
 	id: string;
 	path: string;

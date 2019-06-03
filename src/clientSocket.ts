@@ -296,7 +296,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	}
 
 	function createSimpleMethod(name: string, id: number) {
-		clientSocket.server[name] = (...args: any[]) => {
+		(clientSocket.server as any)[name] = (...args: any[]) => {
 			if (checkRateLimit(id, rateLimits) && packet) {
 				clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary, packetHandlerHooks);
 				lastSentId++;
@@ -316,7 +316,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			});
 		}
 
-		clientSocket.server[name] = (...args: any[]): Promise<any> => {
+		(clientSocket.server as any)[name] = (...args: any[]): Promise<any> => {
 			if (!clientSocket.isConnected) {
 				return Promise.reject(new Error('not connected'));
 			}
