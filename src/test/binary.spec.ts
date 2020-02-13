@@ -166,7 +166,7 @@ describe('binaryHandler', () => {
 			expect(result[1]).eql([new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]);
 		});
 
-		it.only('reads and writes raw buffer', () => {
+		it('reads and writes raw buffer', () => {
 			serverSide.write['raw'](writer, [1, new Uint8Array([1, 2, 3, 4, 5])]);
 			reader = createBinaryReader(getWriterBuffer(writer));
 			const result = [readUint8(reader)];
