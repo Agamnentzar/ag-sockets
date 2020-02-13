@@ -14,7 +14,7 @@ import { createServerHost } from '../serverSocket';
 
 const apply = (f: () => void) => f();
 
-@Socket({ path: '/ws/test', pingInterval: 100, debug: true, clientLimit: 2 })
+@Socket({ path: '/ws/test', pingInterval: 100, debug: false, clientLimit: 2 })
 class Server implements SocketServer {
 	constructor(public client: Client & ClientExtensions) { }
 	@Method({ binary: [Bin.Str], ignore: true })
@@ -41,6 +41,10 @@ class Server implements SocketServer {
 	@Method({ rateLimit: '1/s', promise: true })
 	limitedPromise() {
 		return Promise.resolve();
+	}
+	@Method({ rateLimit: '1/s', promise: true, binary: [Bin.U16] })
+	limitedPromiseBin(value: number) {
+		return Promise.resolve(value);
 	}
 	connected() { }
 	disconnected() { }

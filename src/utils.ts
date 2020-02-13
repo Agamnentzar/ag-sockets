@@ -1,3 +1,12 @@
+export interface RateLimit {
+	limit: number;
+	frame: number;
+	calls: number[];
+	promise?: boolean;
+}
+
+export type RateLimits = (RateLimit | undefined)[];
+
 export function getLength(message: any): number {
 	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
 }
@@ -47,14 +56,7 @@ export function parseRateLimit(value: string, extended: boolean) {
 	return { limit, frame };
 }
 
-export interface RateLimit {
-	limit: number;
-	frame: number;
-	calls: number[];
-	promise?: boolean;
-}
-
-export function checkRateLimit(funcId: number, rates: (RateLimit | undefined)[]) {
+export function checkRateLimit(funcId: number, rates: RateLimits) {
 	const rate = rates[funcId];
 
 	if (rate) {

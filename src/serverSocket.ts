@@ -1,32 +1,18 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
 import * as ws from 'ws';
-import { ServerOptions, ClientOptions, getNames, getBinary, getIgnore, SocketServer, Logger, Packet } from './interfaces';
+import { ServerOptions, ClientOptions, getNames, SocketServer, Logger } from './interfaces';
 import { checkRateLimit, getLength, cloneDeep, removeItem } from './utils';
 import { ErrorHandler, OriginalRequest } from './server';
-import { PacketHandler, MessageType, Send } from './packet/packetHandler';
-import { DebugPacketHandler } from './packet/debugPacketHandler';
-import { createHandlers } from './packet/binaryHandler';
+import { MessageType, Send, createPacketHandler, HandleResult, HandlerOptions } from './packet/packetHandler';
 import {
-	ClientInternal, Server, ClientState, InternalServer, GlobalConfig, ServerHost, CreateServerMethod, CreateServer
+	Server, ClientState, InternalServer, GlobalConfig, ServerHost, CreateServerMethod, CreateServer
 } from './serverInterfaces';
 import {
 	hasToken, createToken, getToken, getTokenFromClient, returnTrue, createOriginalRequest, defaultErrorHandler,
-	createServerOptions, optionsWithDefaults, toClientOptions, createRateLimit, getBinaryOnlyPackets, getQuery,
+	createServerOptions, optionsWithDefaults, toClientOptions, createRateLimit, getQuery,
 	callWithErrorHandling,
 } from './serverUtils';
-import { createBinaryWriter } from './packet/binaryWriter';
-
-export function broadcast<TClient>(clients: TClient[], action: (client: TClient) => any) {
-	if (clients && clients.length) {
-		const hooks = (clients[0] as any as ClientInternal).__internalHooks;
-
-		if (!hooks) {
-			throw new Error('Invalid client');
-		}
-
-		hooks.executeForClients(clients, action);
-	}
-}
+import { BinaryReader, createBinaryReaderFromBuffer, getBinaryReaderBuffer } from './packet/binaryReader';
 
 export function createServer<TServer, TClient>(
 	httpServer: HttpServer,
@@ -163,55 +149,42 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 	return { close, socket, socketRaw };
 }
 
-function createPacketHandler(options: ServerOptions, log: Logger): PacketHandler {
-	if (!options.client || !options.server)
-		throw new Error('Missing server or client method definitions');
-
-	if (options.client.length > 250 || options.server.length > 250)
-		throw new Error('Too many methods');
-
-	const onlyBinary = getBinaryOnlyPackets(options.client);
-	const handlers = createHandlers(getBinary(options.client), getBinary(options.server));
-	const writer = createBinaryWriter();
-	const serverMethods = getNames(options.server);
-	const ignore = [...getIgnore(options.client), ...getIgnore(options.server)];
-
-	return options.debug ?
-		new DebugPacketHandler(
-			serverMethods, serverMethods, writer, handlers, onlyBinary, ignore, log) :
-		new PacketHandler(
-			serverMethods, serverMethods, writer, handlers, onlyBinary, options.onSend, options.onRecv);
-}
-
 function createInternalServer(
 	createServer: CreateServerMethod, options: ServerOptions, errorHandler: ErrorHandler, log: Logger,
 ): InternalServer {
 	options = optionsWithDefaults(options);
 
-	const packetHandler = createPacketHandler(options, log);
+	const handlerOptions: HandlerOptions = {
+		debug: options.debug,
+		development: options.development,
+		forceBinary: options.forceBinary,
+		onSend: options.onSend,
+		onRecv: options.onRecv,
+		useBuffer: true,
+	};
+
+	const packetHandler = createPacketHandler(options.server, options.client, handlerOptions, log);
 	const clientOptions = toClientOptions(options);
 	const clientMethods = getNames(options.client!);
-	const proxy: any = {};
 	const server: InternalServer = {
-		id: options.id || 'socket',
+		id: options.id ?? 'socket',
 		clients: [],
 		tokens: [],
 		totalSent: 0,
 		totalReceived: 0,
 		currentClientId: 1,
-		path: options.path || '',
-		hash: options.hash || 0,
+		path: options.path ?? '',
+		hash: options.hash ?? 0,
 		debug: !!options.debug,
 		forceBinary: !!options.forceBinary,
 		connectionTokens: !!options.connectionTokens,
 		keepOriginalRequest: !!options.keepOriginalRequest,
-		tokenLifetime: options.tokenLifetime || 0,
-		clientLimit: options.clientLimit || 0,
-		transferLimit: options.transferLimit || 0,
-		verifyClient: options.verifyClient || returnTrue,
+		tokenLifetime: options.tokenLifetime ?? 0,
+		clientLimit: options.clientLimit ?? 0,
+		transferLimit: options.transferLimit ?? 0,
+		verifyClient: options.verifyClient ?? returnTrue,
 		serverMethods: options.server!,
 		clientMethods,
-		executeForClients,
 		handleResult,
 		createServer,
 		packetHandler,
@@ -220,33 +193,19 @@ function createInternalServer(
 		tokenInterval: undefined,
 	};
 
-	let proxyPacket: Packet | undefined;
-
-	clientMethods.forEach((name, id) => proxy[name] = (...args: any[]) => proxyPacket = { id, name, args: [id, ...args] });
-
-	function createPacket(action: (client: any) => any): Packet {
-		action(proxy);
-		const packet = proxyPacket!;
-		proxyPacket = undefined;
-		return packet;
-	}
-
-	function executeForClients(clients: ClientInternal[], action: (client: any) => any) {
-		const packet = createPacket(action);
-		clients.forEach(c => c.__internalHooks.sendPacket(packet));
-	}
-
 	function handleResult(send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) {
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
+				// TODO: send this through generated handlers
 				packetHandler.send(
 					send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result],
-					obj.supportsBinary, obj.client.__internalHooks);
+					obj.supportsBinary);
 			}, (e: Error) => {
 				e = errorHandler.handleRejection(obj.client, e) || e;
+				// TODO: send this through generated handlers
 				packetHandler.send(
 					send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'],
-					obj.supportsBinary, obj.client.__internalHooks);
+					obj.supportsBinary);
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
 	}
@@ -320,9 +279,6 @@ function closeServer(server: InternalServer) {
 	}
 }
 
-function noop() {
-}
-
 function connectClient(
 	socket: ws, server: InternalServer, originalRequest: OriginalRequest, errorHandler: ErrorHandler, log: Logger
 ) {
@@ -337,7 +293,7 @@ function connectClient(
 	}
 
 	const rates = server.serverMethods.map(createRateLimit);
-	const { executeForClients, handleResult } = server;
+	const { handleResult } = server;
 
 	let bytesReset = Date.now();
 	let bytesReceived = 0;
@@ -354,13 +310,6 @@ function connectClient(
 			socket.send('');
 		},
 		client: {
-			__internalHooks: {
-				executeForClients,
-				sendPacket,
-				writing: noop,
-				sending: noop,
-				done: noop,
-			},
 			id: server.currentClientId++,
 			tokenId: token ? token.id : undefined,
 			tokenData: token ? token.data : undefined,
@@ -382,18 +331,18 @@ function connectClient(
 		},
 	};
 
-	function send(data: string | Uint8Array) {
-		if (typeof data !== 'string') {
+	// TODO: remove Uint8Array from here
+	function send(data: string | Uint8Array | Buffer) {
+		if (data instanceof Buffer) {
+			server.totalSent += data.byteLength;
+			socket.send(data);
+		} else if (typeof data !== 'string') {
 			server.totalSent += data.byteLength;
 			socket.send(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
 		} else {
 			server.totalSent += data.length;
 			socket.send(data);
 		}
-	}
-
-	function sendPacket(packet: Packet) {
-		server.packetHandler.sendPacket(send, packet, obj.supportsBinary, obj.client.__internalHooks);
 	}
 
 	function handleConnected(serverActions: SocketServer) {
@@ -411,6 +360,10 @@ function connectClient(
 		}
 	}
 
+	const handleResult2: HandleResult = (funcId, fundName, result, messageId) => {
+		handleResult(send, obj, funcId, fundName, result, messageId);
+	};
+
 	function serverActionsCreated(serverActions: SocketServer) {
 		socket.on('message', (message: string | Buffer | ArrayBuffer, flags?: { binary: boolean; }) => {
 			try {
@@ -421,14 +374,17 @@ function connectClient(
 				bytesReceived += messageLength;
 				server.totalReceived += bytesReceived;
 
-				let data: string | Uint8Array;
+				let data: string | undefined = undefined;
+				let reader: BinaryReader | undefined = undefined;
 
-				if (message instanceof Buffer) {
-					data = new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
-				} else if (message instanceof ArrayBuffer) {
-					data = new Uint8Array(message);
-				} else {
-					data = message;
+				if (messageLength) {
+					if (message instanceof Buffer) {
+						reader = createBinaryReaderFromBuffer(message.buffer, message.byteOffset, message.byteLength);
+					} else if (message instanceof ArrayBuffer) {
+						reader = createBinaryReaderFromBuffer(message, 0, message.byteLength);
+					} else {
+						data = message;
+					}
 				}
 
 				const now = Date.now();
@@ -440,37 +396,43 @@ function connectClient(
 					transferLimitExceeded = true;
 					obj.client.disconnect(true, true);
 					errorHandler.handleRecvError(
-						obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${transferLimit} (${diff}ms)`), data);
+						obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${transferLimit} (${diff}ms)`),
+						reader ? getBinaryReaderBuffer(reader) : data!);
 					return;
 				}
 
-				if (server.forceBinary && typeof data === 'string') {
+				if (server.forceBinary && data !== undefined) {
 					obj.client.disconnect(true, true);
-					errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`), data);
+					errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`),
+						reader ? getBinaryReaderBuffer(reader) : data!);
 					return;
 				}
 
 				obj.lastMessageTime = Date.now();
 				obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
 
-				if (data && messageLength) {
+				if (reader || data) {
 					obj.lastMessageId++;
 					const messageId = obj.lastMessageId;
 
 					try {
-						server.packetHandler.recv(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
-							const rate = rates[funcId];
+						if (data !== undefined) {
+							server.packetHandler.recv(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
+								const rate = rates[funcId];
 
-							if (checkRateLimit(funcId, rates)) {
-								handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
-							} else if (rate && rate.promise) {
-								handleResult(send, obj, funcId, funcName, Promise.reject(new Error('Rate limit exceeded')), messageId);
-							} else {
-								throw new Error(`Rate limit exceeded (${funcName})`);
-							}
-						});
+								if (checkRateLimit(funcId, rates)) {
+									handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
+								} else if (rate && rate.promise) {
+									handleResult(send, obj, funcId, funcName, Promise.reject(new Error('Rate limit exceeded')), messageId);
+								} else {
+									throw new Error(`Rate limit exceeded (${funcName})`);
+								}
+							});
+						} else {
+							server.packetHandler.recvBinary(serverActions, reader!, rates, messageId, handleResult2);
+						}
 					} catch (e) {
-						errorHandler.handleRecvError(obj.client, e, data);
+						errorHandler.handleRecvError(obj.client, e, reader ? getBinaryReaderBuffer(reader) : data!);
 					}
 				}
 
@@ -483,16 +445,13 @@ function connectClient(
 			}
 		});
 
-		server.clientMethods.forEach((name, id) => {
-			obj.client[name] = (...args: any[]) =>
-				server.packetHandler.send(send, name, id, args, obj.supportsBinary, obj.client.__internalHooks);
-		});
+		server.packetHandler.createRemote(obj.client, send, obj);
 
 		if (server.debug) {
 			log('client connected');
 		}
 
-		server.packetHandler.send(send, '*version', MessageType.Version, [server.hash], obj.supportsBinary, obj.client.__internalHooks);
+		server.packetHandler.send(send, '*version', MessageType.Version, [server.hash], obj.supportsBinary);
 		server.clients.push(obj);
 
 		handleConnected(serverActions);

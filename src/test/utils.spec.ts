@@ -14,8 +14,8 @@ describe('getLength()', () => {
 	});
 
 	it('returns length of given Buffer', () => {
-		expect(getLength(new Buffer(0))).equal(0);
-		expect(getLength(new Buffer(5))).equal(5);
+		expect(getLength(Buffer.alloc(0))).equal(0);
+		expect(getLength(Buffer.alloc(5))).equal(5);
 	});
 
 	it('returns length of given ArrayBuffer', () => {

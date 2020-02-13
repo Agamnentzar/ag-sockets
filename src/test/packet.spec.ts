@@ -1,16 +1,10 @@
 import './common';
 import { expect } from 'chai';
 import { assert, spy, stub } from 'sinon';
-import { Bin, PacketHandlerHooks } from '../interfaces';
-import { MessageType, PacketHandler } from '../packet/packetHandler';
+import { Bin } from '../interfaces';
+import { MessageType, PacketHandler, ReleasePacketHandler } from '../packet/packetHandler';
 import { createHandlers } from '../packet/binaryHandler';
 import { createBinaryWriter, BinaryWriter, getWriterBuffer } from '../packet/binaryWriter';
-
-const packetHandlerHooks: PacketHandlerHooks = {
-	writing() { },
-	sending() { },
-	done() { },
-};
 
 describe('PacketHandler', () => {
 	let handler: PacketHandler;
@@ -22,45 +16,47 @@ describe('PacketHandler', () => {
 	beforeEach(() => {
 		writer = createBinaryWriter();
 		binary = createHandlers({ foo: [Bin.U8] }, { foo: [Bin.U8] });
-		handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
+		handler = new ReleasePacketHandler(
+			() => { }, () => { }, ['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
 	});
 
 	describe('send()', () => {
 		it('sends message to websocket', () => {
 			const send = spy();
 
-			handler.send(send, 'foo', 1, ['a', 'b', 5], false, packetHandlerHooks);
+			handler.send(send, 'foo', 1, ['a', 'b', 5], false);
 
 			assert.calledWith(send, '[1,"a","b",5]');
 		});
 
 		it('returns message length', () => {
-			expect(handler.send(spy(), 'foo', 1, ['a', 'b', 5], false, packetHandlerHooks)).equal('[1,"a","b",5]'.length);
+			expect(handler.send(spy(), 'foo', 1, ['a', 'b', 5], false)).equal('[1,"a","b",5]'.length);
 		});
 
 		it('returns 0 on error', () => {
 			const send = stub().throws(new Error(''));
 
-			expect(handler.send(send, 'foo', 1, ['a', 'b', 5], true, packetHandlerHooks)).equal(0);
+			expect(handler.send(send, 'foo', 1, ['a', 'b', 5], true)).equal(0);
 		});
 
 		it('sends binary message', () => {
 			const send = spy();
 
-			handler.send(send, 'foo', 1, [8], true, packetHandlerHooks);
+			handler.send(send, 'foo', 1, [8], true);
 
 			assert.calledWith(send, getWriterBuffer(writer));
 		});
 
 		it('returns binary message length', () => {
-			expect(handler.send(spy(), 'foo', 1, [8], true, packetHandlerHooks)).equal(2);
+			expect(handler.send(spy(), 'foo', 1, [8], true)).equal(2);
 		});
 
 		it('returns binary message length (ArrayBuffer)', () => {
 			const writer = createBinaryWriter();
-			const handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
+			const handler = new ReleasePacketHandler(
+				() => { }, () => { }, ['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
 
-			expect(handler.send(spy(), 'foo', 1, [8], true, packetHandlerHooks)).equal(2);
+			expect(handler.send(spy(), 'foo', 1, [8], true)).equal(2);
 		});
 	});
 
@@ -113,12 +109,6 @@ describe('PacketHandler', () => {
 			handler.recv(JSON.stringify([100, 123]), funcs, special);
 		});
 
-		it('returns message length', () => {
-			stub(funcs, 'foo');
-
-			expect(handler.recv('[1,"a","b",5]', funcs, special)).equal('[1,"a","b",5]'.length);
-		});
-
 		it('reads binary message from websocket', () => {
 			const foo = stub(funcs, 'foo');
 
@@ -127,23 +117,9 @@ describe('PacketHandler', () => {
 			assert.calledWith(foo as any, 8);
 		});
 
-		it('returns binary message length', () => {
-			expect(handler.recv(new Uint8Array([1, 8]), funcs, special)).equal(2);
-		});
-
 		it('throws if binary handler is missing', () => {
 			expect(() => handler.recv(new Uint8Array([2, 8]), funcs, special))
 				.throw('Missing packet handler for: abc (2)');
-		});
-
-		it('returns binary message length (ArrayBuffer)', () => {
-			const writer = createBinaryWriter();
-			const handler = new PacketHandler(['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
-
-			const bytes = new Uint8Array(2);
-			bytes[0] = 1;
-			bytes[1] = 8;
-			expect(handler.recv(bytes, funcs, special)).equal(2);
 		});
 
 		it('calls handle function with all parameters', () => {

@@ -1,15 +1,11 @@
 import {
-	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, getNames, getIgnore,
-	getBinary, Logger, PacketHandlerHooks
+	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, Logger
 } from './interfaces';
 import {
-	checkRateLimit, parseRateLimit, RateLimit, supportsBinary as isSupportingBinary, Deferred, deferred,
-	queryString
+	checkRateLimit, parseRateLimit, supportsBinary as isSupportingBinary, Deferred,
+	deferred, queryString, getLength, RateLimits
 } from './utils';
-import { createHandlers } from './packet/binaryHandler';
-import { PacketHandler } from './packet/packetHandler';
-import { DebugPacketHandler } from './packet/debugPacketHandler';
-import { createBinaryWriter } from './packet/binaryWriter';
+import { PacketHandler, createPacketHandler } from './packet/packetHandler';
 
 export interface ClientErrorHandler {
 	handleRecvError(error: Error, data: string | Uint8Array): void;
@@ -19,12 +15,6 @@ const defaultErrorHandler: ClientErrorHandler = {
 	handleRecvError(error: Error) {
 		throw error;
 	}
-};
-
-const packetHandlerHooks: PacketHandlerHooks = {
-	writing() { },
-	sending() { },
-	done() { },
 };
 
 export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
@@ -37,7 +27,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	const special: FuncList = {};
 	const defers = new Map<number, Deferred<any>>();
 	const inProgressFields: { [key: string]: number } = {};
-	const rateLimits: RateLimit[] = [];
+	const rateLimits: RateLimits = [];
 	const convertToArrayBuffer = typeof navigator !== 'undefined' && /MSIE 10|Trident\/7/.test(navigator.userAgent);
 	const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
 	let supportsBinary = isSupportingBinary();
@@ -125,17 +115,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		window.addEventListener('beforeunload', beforeunload);
 
-		const writer = createBinaryWriter();
-		const handlers = createHandlers(getBinary(options.server), getBinary(options.client));
-		const serverMethods = getNames(options.server);
-		const clientmethods = getNames(options.client);
-		const ignore = [...getIgnore(options.server), ...getIgnore(options.client)];
-
-		if (options.debug) {
-			packet = new DebugPacketHandler(clientmethods, serverMethods, writer, handlers, {}, ignore, log);
-		} else {
-			packet = new PacketHandler(clientmethods, serverMethods, writer, handlers, {});
-		}
+		packet = createPacketHandler(options.client, options.server, { debug: !!options.debug }, log);
 
 		supportsBinary = !!theSocket.binaryType;
 
@@ -153,7 +133,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				const data = typeof messageData === 'string' ? messageData : new Uint8Array(messageData);
 
 				try {
-					clientSocket.receivedSize += packet.recv(data, clientSocket.client, special);
+					clientSocket.receivedSize += getLength(data);
+					packet.recv(data, clientSocket.client, special);
 				} catch (e) {
 					errorHandler.handleRecvError(e, data);
 				}
@@ -298,7 +279,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	function createSimpleMethod(name: string, id: number) {
 		(clientSocket.server as any)[name] = (...args: any[]) => {
 			if (checkRateLimit(id, rateLimits) && packet) {
-				clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary, packetHandlerHooks);
+				clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary);
 				lastSentId++;
 				return true;
 			} else {
@@ -329,7 +310,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				return Promise.reject(new Error('not initialized'));
 			}
 
-			clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary, packetHandlerHooks);
+			clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary);
 			const messageId = ++lastSentId;
 			const defer = deferred<any>();
 			defers.set(messageId, defer);

@@ -7,7 +7,7 @@ Library for communication via WebSockets
 
 ## Installation
 
-```
+```bash
 npm install ag-sockets
 npm install ws # peer dependency
 ```

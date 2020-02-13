@@ -1,33 +1,59 @@
 import { Packets, Bin } from '../interfaces';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
-	writeString, writeObject, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader
+	writeString, writeObject, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,
+	writeBytes, resizeWriter,
 } from './binaryWriter';
 import {
 	readInt8, readUint8, readUint16, readInt16, readUint32, readInt32, readFloat32, readFloat64, readBoolean,
-	readString, readObject, readArrayBuffer, readUint8Array, readArray
+	readString, readObject, readArrayBuffer, readUint8Array, readArray, readBytes, BinaryReader
 } from './binaryReader';
 
 interface Result {
 	code: string;
 }
 
-const names: string[] = [];
-names[Bin.U8] = 'Uint8';
-names[Bin.I8] = 'Int8';
-names[Bin.U16] = 'Uint16';
-names[Bin.I16] = 'Int16';
-names[Bin.U32] = 'Uint32';
-names[Bin.I32] = 'Int32';
-names[Bin.F32] = 'Float32';
-names[Bin.F64] = 'Float64';
-names[Bin.Bool] = 'Boolean';
-names[Bin.Str] = 'String';
-names[Bin.Obj] = 'Object';
-names[Bin.Buffer] = 'ArrayBuffer';
-names[Bin.U8Array] = 'Uint8Array';
+export const binaryNames: string[] = [];
+binaryNames[Bin.U8] = 'Uint8';
+binaryNames[Bin.I8] = 'Int8';
+binaryNames[Bin.U16] = 'Uint16';
+binaryNames[Bin.I16] = 'Int16';
+binaryNames[Bin.U32] = 'Uint32';
+binaryNames[Bin.I32] = 'Int32';
+binaryNames[Bin.F32] = 'Float32';
+binaryNames[Bin.F64] = 'Float64';
+binaryNames[Bin.Bool] = 'Boolean';
+binaryNames[Bin.Str] = 'String';
+binaryNames[Bin.Obj] = 'Object';
+binaryNames[Bin.Buffer] = 'ArrayBuffer';
+binaryNames[Bin.U8Array] = 'Uint8Array';
+binaryNames[Bin.Raw] = 'Bytes';
 
-const methods = {
+function readBytesRaw(reader: BinaryReader) {
+	const length = reader.view.byteLength - (reader.view.byteOffset + reader.offset);
+	return readBytes(reader, length);
+}
+
+export const readerMethods = {
+	resizeWriter,
+	readUint8,
+	readInt8,
+	readUint16,
+	readInt16,
+	readUint32,
+	readInt32,
+	readFloat32,
+	readFloat64,
+	readBoolean,
+	readString,
+	readObject,
+	readArrayBuffer,
+	readUint8Array,
+	readArray,
+	readBytes: readBytesRaw,
+};
+
+export const writerMethods = {
 	writeUint8,
 	writeInt8,
 	writeUint16,
@@ -43,20 +69,12 @@ const methods = {
 	writeUint8Array,
 	writeArrayHeader,
 	writeArray,
-	readUint8,
-	readInt8,
-	readUint16,
-	readInt16,
-	readUint32,
-	readInt32,
-	readFloat32,
-	readFloat64,
-	readBoolean,
-	readString,
-	readObject,
-	readArrayBuffer,
-	readUint8Array,
-	readArray,
+	writeBytes,
+};
+
+export const readerWriterMethods = {
+	...readerMethods,
+	...writerMethods,
 };
 
 let id = 0;
@@ -84,7 +102,7 @@ function writeField(obj: Result, f: Bin | any[], n: string, indent: string) {
 		obj.code += `${indent}\t}\n`;
 		obj.code += `${indent}}\n`;
 	} else {
-		obj.code += `${indent}write${names[f]}(writer, ${n});\n`;
+		obj.code += `${indent}write${binaryNames[f]}(writer, ${n});\n`;
 	}
 }
 
@@ -118,7 +136,7 @@ function readField(f: Bin | any[], indent: string) {
 
 		return `readArray(reader, function (reader) { return ${code.trim()}; })`;
 	} else {
-		return `read${names[f]}(reader)`;
+		return `read${binaryNames[f]}(reader)`;
 	}
 }
 
@@ -139,10 +157,10 @@ export function createHandlers(writeFields: Packets, readFields: Packets): any {
 		.map(key => key + ': ' + createReadFunction(readFields[key]));
 
 	const code =
-		`${Object.keys(methods).map(key => `var ${key} = methods.${key};`).join('\n')}\n\n`
+		`${Object.keys(readerWriterMethods).map(key => `var ${key} = methods.${key};`).join('\n')}\n\n`
 		+ `var write = {\n\t${writeLines.join(',\n\t')}\n};\n\n`
 		+ `var read = {\n\t${readLines.join(',\n\t')}\n};\n\n`
 		+ `return { write: write, read: read };`;
 
-	return (new Function('methods', code))(methods);
+	return (new Function('methods', code))(readerWriterMethods);
 }

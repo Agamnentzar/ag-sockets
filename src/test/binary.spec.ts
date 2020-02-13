@@ -18,6 +18,7 @@ describe('binaryHandler', () => {
 		u8a: [Bin.U8Array],
 		u8aa: [[Bin.U8Array]],
 		obj1: [Bin.Obj],
+		raw: [Bin.Raw],
 	};
 
 	const server: Packets = {
@@ -163,6 +164,15 @@ describe('binaryHandler', () => {
 			clientSide.read['u8aa'](reader, result);
 
 			expect(result[1]).eql([new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]);
+		});
+
+		it.only('reads and writes raw buffer', () => {
+			serverSide.write['raw'](writer, [1, new Uint8Array([1, 2, 3, 4, 5])]);
+			reader = createBinaryReader(getWriterBuffer(writer));
+			const result = [readUint8(reader)];
+			clientSide.read['raw'](reader, result);
+
+			expect(result[1]).eql(new Uint8Array([1, 2, 3, 4, 5]));
 		});
 	});
 });

@@ -1,4 +1,4 @@
-import { Packet, ClientOptions, SocketServer, ServerOptions, Logger, MethodDef, PacketHandlerHooks } from './interfaces';
+import { ClientOptions, SocketServer, ServerOptions, Logger, MethodDef } from './interfaces';
 import { SocketServerClient, ErrorHandler } from './server';
 import { IncomingMessage } from 'http';
 import { Send, PacketHandler } from './packet/packetHandler';
@@ -9,21 +9,12 @@ export interface Token {
 	expire: number;
 }
 
-export interface ServerHooks extends PacketHandlerHooks {
-	sendPacket(packet: Packet): void;
-	executeForClients(clients: any[], action: (client: any) => any): void;
-}
-
-export interface ClientInternal {
-	__internalHooks: ServerHooks;
-}
-
 export interface ClientState {
 	lastMessageTime: number;
 	lastMessageId: number;
 	token: Token | undefined;
 	ping(): void;
-	client: SocketServerClient & ClientInternal;
+	client: SocketServerClient;
 	supportsBinary: boolean;
 }
 
@@ -84,7 +75,6 @@ export interface InternalServer {
 	verifyClient: (req: IncomingMessage) => boolean;
 	// methods
 	createServer: CreateServerMethod;
-	executeForClients: (clients: ClientInternal[], action: (client: any) => any) => void;
 	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) => void;
 	packetHandler: PacketHandler;
 	server: Server;

@@ -4,7 +4,7 @@ import * as http from 'http';
 import { expect } from 'chai';
 import { assert, stub, spy, match, SinonStub, useFakeTimers, SinonFakeTimers } from 'sinon';
 import {
-	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions, broadcast,
+	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions,
 	SocketClient, ClientExtensions, Bin, createClientOptions, ServerHost,
 } from '../index';
 import { MessageType } from '../packet/packetHandler';
@@ -62,10 +62,6 @@ const CLIENT_OPTIONS = {
 
 function bufferToArray(buffer: Buffer) {
 	return Array.from(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength));
-}
-
-function arrayBufferToArray(buffer: ArrayBuffer) {
-	return Array.from(new Uint8Array(buffer));
 }
 
 function emptyErrorHandler(): ErrorHandler {
@@ -517,7 +513,7 @@ describe('serverSocket', () => {
 
 			client.invoke('message', '[0,"test"]');
 
-			assert.calledWithMatch(onRecv, { id: 0, name: 'hello', json: '[0,"test"]', args: ['test'] });
+			assert.calledWithMatch(onRecv, 0, 'hello', 10, false);
 		});
 
 		it('sends promise result back to client', async () => {
@@ -550,16 +546,11 @@ describe('serverSocket', () => {
 		});
 
 		it('reports sent packet to onSend hook', async () => {
-			const client = await server.connectClient(true);
-			const send = stub(client, 'send');
+			await server.connectClient(true);
 
 			servers[0].client.bye(5);
 
-			const arg = onSend.args[1][0];
-			expect(arg.id).equal(1);
-			expect(arg.name).equal('bye');
-			expect(arrayBufferToArray(arg.binary)).eql(arrayBufferToArray(send.args[0][0]));
-			expect(arg.args).eql([1, 5]);
+			expect(onSend.args[1]).eql([1, 'bye', 2, true]);
 		});
 
 		describe('(rate limit)', () => {
@@ -635,59 +626,6 @@ describe('serverSocket', () => {
 				const options = socketServer.options();
 
 				expect(withoutUndefinedProperties(options)).eql(Object.assign({ hash: options.hash }, CLIENT_OPTIONS));
-			});
-		});
-
-		describe('broadcast()', () => {
-			it('sends message to all clients (JSON)', async () => {
-				const send1 = await connectClientAndSaveMessages();
-				const send2 = await connectClientAndSaveMessages();
-				const clients = servers.map(s => s.client);
-
-				broadcast(clients, c => c.hi('boop'));
-
-				expect(send1.message).equal('[0,"boop"]');
-				expect(send2.message).equal('[0,"boop"]');
-			});
-
-			it('sends message to all clients (binary)', async () => {
-				const send1 = await connectClientAndSaveMessages(true);
-				const send2 = await connectClientAndSaveMessages(true);
-				const clients = servers.map(s => s.client);
-
-				broadcast(clients, c => c.bye(5));
-
-				expect(arrayBufferToArray(send1.message)).eql([1, 5]);
-				expect(arrayBufferToArray(send2.message)).eql([1, 5]);
-			});
-
-			it('sends message to all clients (mixed)', async () => {
-				const send1 = await connectClientAndSaveMessages(true);
-				const send2 = await connectClientAndSaveMessages();
-				const clients = servers.map(s => s.client);
-
-				broadcast(clients, c => c.bye(5));
-
-				expect(arrayBufferToArray(send1.message)).eql([1, 5]);
-				expect(send2.message).equal('[1,5]');
-			});
-
-			it('does nothing for empty client list', () => {
-				broadcast([] as Client1[], c => c.hi('boop'));
-			});
-
-			it('throws for invalid client object', () => {
-				expect(() => broadcast([{}] as any[], c => c.hi('boop'))).throw('Invalid client');
-			});
-
-			it('calls callback only once', async () => {
-				await server.connectClients(3);
-				const clients = servers.map(s => s.client);
-				const action = spy();
-
-				broadcast(clients, action);
-
-				assert.calledOnce(action);
 			});
 		});
 	});

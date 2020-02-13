@@ -111,11 +111,15 @@ export function optionsWithDefaults(options: ServerOptions): ServerOptions {
 	};
 }
 
+export function isBinaryOnlyPacket(method: MethodDef) {
+	return typeof method !== 'string' && method[1].binary && hasArrayBuffer(method[1].binary);
+}
+
 export function getBinaryOnlyPackets(client: MethodDef[]) {
 	const result: any = {};
 
 	client
-		.filter(x => typeof x !== 'string' && hasArrayBuffer(x[1].binary!))
+		.filter(isBinaryOnlyPacket)
 		.map(x => x[0] as string)
 		.forEach(key => result[key] = true);
 

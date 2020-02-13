@@ -13,6 +13,16 @@ export function createBinaryReader(buffer: Uint8Array): BinaryReader {
 	return { view, offset };
 }
 
+export function createBinaryReaderFromBuffer(buffer: ArrayBuffer, byteOffset: number, byteLength: number): BinaryReader {
+	const view = new DataView(buffer, byteOffset, byteLength);
+	const offset = 0;
+	return { view, offset };
+}
+
+export function getBinaryReaderBuffer(reader: BinaryReader) {
+	return new Uint8Array(reader.view.buffer, reader.view.byteOffset, reader.view.byteLength);
+}
+
 export function readInt8(reader: BinaryReader) {
 	const offset = reader.offset;
 	reader.offset += 1;

@@ -37,7 +37,7 @@ describe('utf8', () => {
 		});
 
 		it('should write string to Buffer at specified offset', () => {
-			const buffer = new Buffer(10);
+			const buffer = Buffer.alloc(10);
 			encodeStringTo(buffer, 5, 'abc');
 
 			expect(buffer[5]).equal('a'.charCodeAt(0));

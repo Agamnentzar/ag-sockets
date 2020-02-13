@@ -47,6 +47,7 @@ export enum Bin {
 	Obj,
 	Buffer,
 	U8Array,
+	Raw,
 }
 
 export type BinaryDef = (Bin | (Bin | (Bin | any[]))[])[];
@@ -88,8 +89,10 @@ export interface CommonOptions {
 	pingInterval?: number;
 	/** delay for client to wait before trying to reconnect in milliseconds */
 	reconnectTimeout?: number;
-	/** log messages to console */
+	/** log debug information to console */
 	debug?: boolean;
+	/** log additional errors to console */
+	development?: boolean;
 	/** version hash */
 	hash?: number;
 	/** custom request parameters */
@@ -104,6 +107,9 @@ export interface ReadAnyState {
 	strings: string[];
 }
 
+export type OnSendRecv = (id: number, name: string, size: number, binary: boolean) => void;
+
+// TODO: remove
 export interface Packet {
 	id: number;
 	name: string;
@@ -136,8 +142,8 @@ export interface ServerOptions extends CommonOptions {
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
 	/** send/recv handlers */
-	onSend?: (packet: Packet) => void;
-	onRecv?: (packet: Packet) => void;
+	onSend?: OnSendRecv;
+	onRecv?: OnSendRecv;
 	client?: MethodDef[];
 	server?: MethodDef[];
 }
@@ -145,6 +151,12 @@ export interface ServerOptions extends CommonOptions {
 export interface ClientOptions extends CommonOptions {
 	client: MethodDef[];
 	server: MethodDef[];
+}
+
+export interface RemoteOptions {
+	log?: Logger;
+	onSend?: OnSendRecv;
+	onRecv?: OnSendRecv;
 }
 
 export function getNames(methods: MethodDef[]) {
@@ -163,10 +175,4 @@ export function getBinary(methods: MethodDef[]) {
 		}
 	});
 	return result;
-}
-
-export interface PacketHandlerHooks {
-	writing(): void;
-	sending(): void;
-	done(): void;
 }
