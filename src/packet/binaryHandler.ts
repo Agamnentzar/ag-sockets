@@ -35,7 +35,6 @@ function readBytesRaw(reader: BinaryReader) {
 }
 
 export const readerMethods = {
-	resizeWriter,
 	readUint8,
 	readInt8,
 	readUint16,
@@ -54,6 +53,7 @@ export const readerMethods = {
 };
 
 export const writerMethods = {
+	resizeWriter,
 	writeUint8,
 	writeInt8,
 	writeUint16,
