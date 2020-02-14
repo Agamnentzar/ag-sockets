@@ -390,7 +390,7 @@ describe('serverSocket', () => {
 				const s = new Server1(client);
 				onServer(s);
 				return s;
-			}, { ws, path: '/foo', perMessageDeflate: false, onSend, onRecv });
+			}, { ws, path: '/foo', perMessageDeflate: false, onSend, onRecv, development: true });
 			server = getLastServer();
 		});
 

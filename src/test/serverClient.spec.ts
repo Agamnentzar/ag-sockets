@@ -46,6 +46,9 @@ class Server implements SocketServer {
 	limitedPromiseBin(value: number) {
 		return Promise.resolve(value);
 	}
+	@Method({ binary: [Bin.U8ArrayOffsetLength] })
+	partialBuffer(_buffer: Uint8Array, _offset: number, _length: number) {
+	}
 	connected() { }
 	disconnected() { }
 }

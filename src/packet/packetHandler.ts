@@ -1,12 +1,79 @@
-import { FuncList, Packet, Logger, getBinary, getNames, getIgnore, MethodDef, OnSendRecv, Bin, RemoteOptions } from '../interfaces';
-import { getLength, checkRateLimit, RateLimits } from '../utils';
-import { BinaryWriter, resetWriter, resizeWriter, getWriterBuffer, createBinaryWriter } from './binaryWriter';
-import { BinaryReader, createBinaryReader, readUint8 } from './binaryReader';
-import { createHandlers, binaryNames, readerMethods, writerMethods } from './binaryHandler';
-import { getBinaryOnlyPackets, isBinaryOnlyPacket } from '../serverUtils';
+import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSendRecv, Bin, RemoteOptions } from '../interfaces';
+import { checkRateLimit, RateLimits } from '../utils';
+import { isBinaryOnlyPacket } from '../serverUtils';
+import {
+	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
+	writeString, writeObject, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,
+	writeBytes, resizeWriter, createBinaryWriter, writeBytesRange,
+} from './binaryWriter';
+import {
+	readInt8, readUint8, readUint16, readInt16, readUint32, readInt32, readFloat32, readFloat64, readBoolean,
+	readString, readObject, readArrayBuffer, readUint8Array, readArray, readBytes, BinaryReader
+} from './binaryReader';
+
+const binaryNames: string[] = [];
+binaryNames[Bin.I8] = 'Int8';
+binaryNames[Bin.U8] = 'Uint8';
+binaryNames[Bin.I16] = 'Int16';
+binaryNames[Bin.U16] = 'Uint16';
+binaryNames[Bin.I32] = 'Int32';
+binaryNames[Bin.U32] = 'Uint32';
+binaryNames[Bin.F32] = 'Float32';
+binaryNames[Bin.F64] = 'Float64';
+binaryNames[Bin.Bool] = 'Boolean';
+binaryNames[Bin.Str] = 'String';
+binaryNames[Bin.Obj] = 'Object';
+binaryNames[Bin.Buffer] = 'ArrayBuffer';
+binaryNames[Bin.U8Array] = 'Uint8Array';
+binaryNames[Bin.Raw] = 'Bytes';
+
+function readBytesRaw(reader: BinaryReader) {
+	const length = reader.view.byteLength - (reader.view.byteOffset + reader.offset);
+	return readBytes(reader, length);
+}
+
+const readerMethods = {
+	readUint8,
+	readInt8,
+	readUint16,
+	readInt16,
+	readUint32,
+	readInt32,
+	readFloat32,
+	readFloat64,
+	readBoolean,
+	readString,
+	readObject,
+	readArrayBuffer,
+	readUint8Array,
+	readArray,
+	readBytes: readBytesRaw,
+};
+
+const writerMethods = {
+	createWriter: createBinaryWriter,
+	resizeWriter,
+	writeUint8,
+	writeInt8,
+	writeUint16,
+	writeInt16,
+	writeUint32,
+	writeInt32,
+	writeFloat32,
+	writeFloat64,
+	writeBoolean,
+	writeString,
+	writeObject,
+	writeArrayBuffer,
+	writeUint8Array,
+	writeArrayHeader,
+	writeArray,
+	writeBytes,
+	writeBytesRange,
+};
 
 export interface Send {
-	(data: string | Uint8Array): void;
+	(data: string | Uint8Array): void; // or Buffer
 }
 
 export const enum MessageType {
@@ -15,32 +82,16 @@ export const enum MessageType {
 	Rejected = 253,
 }
 
-export interface IBinaryWriteHandler {
-	(writer: BinaryWriter, args: any[]): void;
-}
-
-export interface IBinaryWriteHandlers {
-	[key: string]: IBinaryWriteHandler;
-}
-
-export interface IBinaryReadHandlers {
-	[key: string]: (reader: BinaryReader, result: any[]) => void;
-}
-
-export interface IBinaryHandlers {
-	write: IBinaryWriteHandlers;
-	read: IBinaryReadHandlers;
-}
-
-export interface IFunctionHandler {
+export interface FunctionHandler {
 	(funcId: number, funcName: string, func: Function, funcObj: any, args: any[]): void;
 }
 
-export const defaultHandleFunction: IFunctionHandler =
+export const defaultHandler: FunctionHandler =
 	(_funcId, _funcName, func, funcObj, args) => func.apply(funcObj, args);
 
 export interface RemoteState {
 	supportsBinary: boolean;
+	sentSize: number;
 }
 
 export type HandleResult = (funcId: number, funcName: string, result: Promise<any>, messageId: number) => void;
@@ -55,198 +106,18 @@ export interface HandlerOptions {
 }
 
 type CreateRemoteHandler = (
-	remote: any, send: Send, writer: BinaryWriter, state: RemoteState, options: RemoteOptions, writerMethods: any
+	remote: any, send: Send, state: RemoteState, options: RemoteOptions, writerMethods: any
 ) => any;
 
 type LocalHandler = (
-	actions: any, reader: BinaryReader, rates: RateLimits, messageId: number, handleResult: HandleResult
+	actions: any, reader: BinaryReader, rates: RateLimits, messageId: number, handleResult?: HandleResult
 ) => void;
 
 export interface PacketHandler {
-	send(send: Send, name: string, id: number, args: any[], supportsBinary: boolean): number;
-	recv(data: string | Uint8Array, funcList: FuncList, specialFuncList: FuncList, handleFunction?: IFunctionHandler): void;
-	recvBinary(actions: any, reader: BinaryReader, rates: RateLimits, messageId: number, handleResult: HandleResult): void;
+	sendString(send: Send, name: string, id: number, args: any[]): number;
 	createRemote(remote: any, send: Send, state: RemoteState): void;
-}
-
-export class ReleasePacketHandler implements PacketHandler {
-	private writeHandlers: IBinaryWriteHandlers;
-	private readHandlers: IBinaryReadHandlers;
-	protected lastWriteBinary = false;
-	protected remoteOptions: RemoteOptions;
-	constructor(
-		private localHandler: LocalHandler,
-		private createRemoteHandler: CreateRemoteHandler,
-		private localNames: string[],
-		private remoteNames: string[],
-		private packetWriter: BinaryWriter,
-		handlers: IBinaryHandlers,
-		private onlyBinary: any,
-		private onSend?: OnSendRecv,
-		private onRecv?: OnSendRecv,
-		private development = false,
-	) {
-		this.writeHandlers = handlers.write;
-		this.readHandlers = handlers.read;
-		this.remoteOptions = { onSend, onRecv };
-	}
-	protected writePacket(send: Send, packet: Packet, supportsBinary: boolean) {
-		const handler = this.writeHandlers[packet.name];
-
-		if (supportsBinary && handler) {
-			if (!packet.binary) {
-				do {
-					try {
-						resetWriter(this.packetWriter);
-						handler(this.packetWriter, packet.args);
-						break;
-					} catch (e) {
-						if (e instanceof RangeError || /DataView/.test(e.message)) {
-							resizeWriter(this.packetWriter);
-						} else {
-							throw e;
-						}
-					}
-				} while (true);
-
-				packet.binary = getWriterBuffer(this.packetWriter);
-			}
-
-			const data = packet.binary;
-			send(data);
-			this.lastWriteBinary = true;
-			return getLength(data);
-		} else {
-			if (this.onlyBinary[packet.name]) {
-				throw new Error(`Packet "${packet.name}" supports only binary protocol`);
-			}
-
-			if (!packet.json) {
-				packet.json = JSON.stringify(packet.args);
-			}
-
-			const data = packet.json;
-			send(data);
-			return data.length;
-		}
-	}
-	send(send: Send, name: string, id: number, args: any[], supportsBinary: boolean): number {
-		try {
-			const packet: Packet = { id, name, args: [id, ...args] };
-			const size = this.writePacket(send, packet, supportsBinary);
-			this.onSend?.(packet.id, packet.name, size, !!packet.binary);
-			return size;
-		} catch (e) {
-			if (this.development) {
-				console.error(e);
-			}
-			return 0;
-		}
-	}
-	protected getFuncName(id: any, args: any[]) {
-		if (id === MessageType.Version) {
-			return '*version';
-		} else if (id === MessageType.Rejected) {
-			return '*reject:' + this.remoteNames[args.shift()];
-		} else if (id === MessageType.Resolved) {
-			return '*resolve:' + this.remoteNames[args.shift()];
-		} else {
-			return this.localNames[id];
-		}
-	}
-	protected read(data: string | Uint8Array): any[] {
-		if (typeof data === 'string') {
-			return JSON.parse(data);
-		} else {
-			const packetReader = createBinaryReader(data);
-			const id = readUint8(packetReader);
-			const name = this.localNames[id];
-			const handler = this.readHandlers[name];
-			const result = [id];
-
-			if (!handler) throw new Error(`Missing packet handler for: ${name} (${id})`);
-
-			handler(packetReader, result);
-			return result;
-		}
-	}
-	recv(
-		data: string | Uint8Array, funcList: FuncList, specialFuncList: FuncList,
-		handleFunction: IFunctionHandler = defaultHandleFunction
-	) {
-		const args = this.read(data);
-		const funcId = args.shift();
-		const funcName = this.getFuncName(funcId, args);
-		const funcSpecial = funcName && funcName.charAt(0) === '*';
-		const funcObj = funcSpecial ? specialFuncList : funcList;
-		const func = funcObj[funcName];
-
-		if (func) handleFunction(funcId, funcName, func, funcObj, args);
-
-		this.onRecv?.(funcId, funcName, data.length, typeof data !== 'string');
-	}
-	createRemote(remote: any, send: Send, state: RemoteState) {
-		this.createRemoteHandler(remote, send, this.packetWriter, state, this.remoteOptions, writerMethods);
-	}
-	recvBinary(actions: any, reader: BinaryReader, rates: RateLimits, messageId: number, handleResult: HandleResult) {
-		this.localHandler(actions, reader, rates, messageId, handleResult);
-	}
-}
-
-export class DebugPacketHandler extends ReleasePacketHandler {
-	constructor(
-		localHandler: LocalHandler,
-		createRemoteHandler: CreateRemoteHandler,
-		readNames: string[],
-		remoteNames: string[],
-		packetWriter: BinaryWriter,
-		handlers: IBinaryHandlers,
-		onlyBinary: any,
-		private ignorePackets: string[],
-		private log: Logger,
-		development = false
-	) {
-		super(localHandler, createRemoteHandler, readNames, remoteNames, packetWriter, handlers, onlyBinary,
-			undefined, undefined, development);
-		this.remoteOptions.log = log;
-	}
-	send(send: Send, name: string, id: number, args: any[], supportsBinary: boolean): number {
-		const packet: Packet = { id, name, args: [id, ...args] };
-		const size = this.writePacket(send, packet, supportsBinary);
-
-		if (this.ignorePackets.indexOf(packet.name) === -1) {
-			const mode = this.lastWriteBinary ? 'bin' : 'str';
-			this.log(`SEND [${size}] (${mode})`, packet.name, packet.args);
-		}
-
-		return size;
-	}
-	recv(
-		data: string | Uint8Array, funcList: FuncList, specialFuncList: FuncList,
-		handleFunction: IFunctionHandler = defaultHandleFunction
-	) {
-		const args = this.read(data);
-		const funcId = args.shift();
-		const funcName = this.getFuncName(funcId, args);
-
-		if (!funcName) this.log(`invalid message id: ${funcId}`);
-
-		const funcSpecial = funcName && funcName[0] === '*';
-		const funcObj = funcSpecial ? specialFuncList : funcList;
-		const func = funcObj[funcName];
-
-		if (this.ignorePackets.indexOf(funcName) === -1) {
-			const size = getLength(data);
-			const mode = typeof data !== 'string' ? 'bin' : 'str';
-			this.log(`RECV [${size}] (${mode})`, funcName, args);
-		}
-
-		if (func) {
-			handleFunction(funcId, funcName, func, funcObj, args);
-		} else {
-			this.log(`invalid message: ${funcName}`, args);
-		}
-	}
+	recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction?: FunctionHandler): void;
+	recvBinary(actions: any, reader: BinaryReader, rates: RateLimits, messageId: number, handleResult?: HandleResult): void;
 }
 
 export function createPacketHandler(
@@ -255,28 +126,84 @@ export function createPacketHandler(
 	if (!local || !remote) throw new Error('Missing server or client method definitions');
 	if (local.length > 250 || remote.length > 250) throw new Error('Too many methods');
 
-	const writer = createBinaryWriter();
-	const onlyBinary = getBinaryOnlyPackets(remote);
-	const handlers = createHandlers(getBinary(remote), getBinary(local));
-	const remoteMethods = getNames(remote);
-	const localMethods = getNames(local);
-	const ignore = [...getIgnore(remote), ...getIgnore(local)];
-	const localHandler = generateLocalHandlerCode(local, options, readerMethods, checkRateLimit);
+	const remoteNames = getNames(remote);
+	const localNames = getNames(local);
+	const ignorePackets = [...getIgnore(remote), ...getIgnore(local)];
+	const recvBinary = generateLocalHandlerCode(local, options, readerMethods, checkRateLimit);
 	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
 
-	if (options.debug) {
-		return new DebugPacketHandler(
-			localHandler, createRemoteHandler, localMethods, remoteMethods, writer,
-			handlers, onlyBinary, ignore, log);
-	} else {
-		return new ReleasePacketHandler(
-			localHandler, createRemoteHandler, localMethods, remoteMethods, writer,
-			handlers, onlyBinary, options.onSend, options.onRecv);
+	const debug = !!options.debug;
+	const development = !!options.development;
+	const onSend = options.onSend;
+	const onRecv = options.onRecv;
+
+	function sendString(send: Send, name: string, id: number, args: any[]): number {
+		try {
+			const data = JSON.stringify([id, ...args]);
+			send(data);
+
+			if (debug && ignorePackets.indexOf(name) === -1) {
+				log(`SEND [${data.length}] (str)`, name, [id, ...args]);
+			}
+
+			onSend?.(id, name, data.length, false);
+			return data.length;
+		} catch (e) {
+			if (debug) throw e;
+			if (development) console.error(e);
+			return 0;
+		}
 	}
+
+	function createRemote(remote: any, send: Send, state: RemoteState) {
+		createRemoteHandler(remote, send, state, options, writerMethods);
+	}
+
+	function recvString(
+		data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction: FunctionHandler = defaultHandler
+	) {
+		const args = JSON.parse(data);
+		const funcId = args.shift();
+		let funcName: string | undefined;
+		let funcSpecial = false;
+
+		if (funcId === MessageType.Version) {
+			funcName = '*version';
+			funcSpecial = true;
+		} else if (funcId === MessageType.Rejected) {
+			funcName = '*reject:' + remoteNames[args.shift()];
+			funcSpecial = true;
+		} else if (funcId === MessageType.Resolved) {
+			funcName = '*resolve:' + remoteNames[args.shift()];
+			funcSpecial = true;
+		} else {
+			funcName = localNames[funcId];
+		}
+
+		const funcObj = funcSpecial ? specialFuncList : funcList;
+		const func = funcObj[funcName];
+
+		if (debug && ignorePackets.indexOf(funcName) === -1) {
+			log(`RECV [${data.length}] (str)`, funcName, args);
+		}
+
+		if (func) {
+			handleFunction(funcId, funcName, func, funcObj, args);
+		} else {
+			if (debug) log(`invalid message: ${funcName}`, args);
+			if (development) console.error('Invalid packet');
+		}
+
+		onRecv?.(funcId, funcName, data.length, false);
+	}
+
+	return { sendString, createRemote, recvString, recvBinary };
 }
 
+// code generation
+
 function generateLocalHandlerCode(
-	local: MethodDef[], { debug }: HandlerOptions, readerMethods: any, checkRateLimit: any
+	methods: MethodDef[], { debug }: HandlerOptions, readerMethods: any, checkRateLimit: any
 ): LocalHandler {
 	let code = ``;
 	code += `${Object.keys(readerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n\n`;
@@ -286,7 +213,7 @@ function generateLocalHandlerCode(
 
 	let packetId = 0;
 
-	for (const method of local) {
+	for (const method of methods) {
 		const name = typeof method === 'string' ? method : method[0];
 		const options = typeof method === 'string' ? {} : method[1];
 		const args = [];
@@ -306,7 +233,10 @@ function generateLocalHandlerCode(
 
 			code += createReadFunction(options.binary, '        ');
 
-			for (let i = 0; i < options.binary.length; i++) args.push(i);
+			for (let i = 0, j = 0; i < options.binary.length; i++ , j++) {
+				if (options.binary[i] === Bin.U8ArrayOffsetLength) args.push(j++, j++);
+				args.push(j);
+			}
 
 			if (debug) {
 				code += `        console.log('RECV [' + reader.view.byteLength + '] (bin)', '${name}', [${args.map(i => `a${i}`).join(', ')}]);\n`;
@@ -353,7 +283,8 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 	code += `${Object.keys(writerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n`;
 	code += `  var log = remoteOptions.log || function () {};\n`;
 	code += `  var onSend = remoteOptions.onSend || function () {};\n`;
-	code += `  var onRecv = remoteOptions.onRecv || function () {};\n\n`;
+	code += `  var onRecv = remoteOptions.onRecv || function () {};\n`;
+	code += `  var writer = createWriter();\n\n`;
 
 	let packetId = 0;
 	const bufferCtor = handlerOptions.useBuffer ? 'Buffer.from' : 'new Uint8Array';
@@ -365,7 +296,13 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 		let args = [];
 
 		if (options.binary) {
-			args.push(...options.binary.map((_, i) => 'a' + i));
+			for (let i = 0, j = 0; i < options.binary.length; i++) {
+				if (options.binary[i] === Bin.U8ArrayOffsetLength) {
+					args.push(`a${j++}`, `a${j++}`);
+				}
+
+				args.push(`a${j++}`);
+			}
 		}
 
 		code += `  remote.${name} = function (${args.join(', ')}) {\n`;
@@ -384,7 +321,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += createWriteFunction(packetId, options.binary, `${indent}      `);
 			code += `${indent}      var buffer = ${bufferCtor}(writer.bytes.buffer, writer.bytes.byteOffset, writer.offset);\n`;
 			code += `${indent}      send(buffer);\n`;
-			// code += `${indent}      state.sentSize += buffer.${bufferLength};\n`;
+			code += `${indent}      remoteState.sentSize += buffer.${bufferLength};\n`;
 			code += `${indent}      onSend(${packetId}, '${name}', buffer.${bufferLength}, true);\n`;
 
 			if (handlerOptions.debug && !options.ignore) {
@@ -420,7 +357,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}  for (var i = 0; i < arguments.length; i++) args.push(arguments[i]);\n`;
 			code += `${indent}  var json = JSON.stringify(args);\n`;
 			code += `${indent}  send(json);\n`;
-			// code += `${indent}  state.sentSize += json.length;\n`;
+			code += `${indent}  remoteState.sentSize += json.length;\n`;
 			code += `${indent}  onSend(${packetId}, '${name}', json.length, false);\n`;
 
 			if (handlerOptions.debug && !options.ignore) {
@@ -448,8 +385,8 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 		packetId++;
 	}
 
-	// console.log(`\n\nfunction createMethods(send, writer, state, methods) {\n${code}}\n`);
-	return new Function('remote', 'send', 'writer', 'remoteState', 'remoteOptions', 'methods', code) as any;
+	// console.log(`\n\nfunction createMethods(send, state, methods) {\n${code}}\n`);
+	return new Function('remote', 'send', 'remoteState', 'remoteOptions', 'methods', code) as any;
 }
 
 let id = 0;
@@ -486,8 +423,13 @@ function writeField(f: Bin | any[], n: string, indent: string) {
 function createWriteFunction(id: number, fields: any[], indent: string) {
 	let code = `${indent}writeUint8(writer, ${id});\n`;
 
-	for (let i = 0; i < fields.length; i++) {
-		code += writeField(fields[i], `a${i}`, indent);
+	for (let i = 0, j = 0; i < fields.length; i++ , j++) {
+		if (fields[i] === Bin.U8ArrayOffsetLength) {
+			code += `${indent}writeBytesRange(writer, a${j}, a${j + 1}, a${j + 2});\n`;
+			j += 2;
+		} else {
+			code += writeField(fields[i], `a${j}`, indent);
+		}
 	}
 
 	return code;
@@ -518,8 +460,15 @@ function readField(f: Bin | any[], indent: string) {
 function createReadFunction(fields: any[], indent: string) {
 	let code = '';
 
-	for (let i = 0; i < fields.length; i++) {
-		code += `${indent}var a${i} = ${readField(fields[i], indent)};\n`;
+	for (let i = 0, j = 0; i < fields.length; i++ , j++) {
+		if (fields[i] === Bin.U8ArrayOffsetLength) {
+			code += `${indent}var a${j} = readUint8Array(reader);\n`;
+			code += `${indent}var a${j + 1} = a${j}.byteOffset;\n`;
+			code += `${indent}var a${j + 2} = a${j}.byteLength;\n`;
+			j += 2;
+		} else {
+			code += `${indent}var a${j} = ${readField(fields[i], indent)};\n`;
+		}
 	}
 
 	return code;

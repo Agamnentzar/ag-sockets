@@ -270,7 +270,7 @@ describe('ClientSocket', () => {
 
 	describe('(not connected)', () => {
 		it('rejects if called promise methods when not connected', async () => {
-			await expect(service.server.foo()).rejectedWith('not connected');
+			await expect(service.server.foo()).rejectedWith('Not connected');
 		});
 	});
 
@@ -294,7 +294,7 @@ describe('ClientSocket', () => {
 
 		it('rejects when rate limit is exceeded', async () => {
 			service.server.foo2();
-			await expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+			await expect(service.server.foo2()).rejectedWith('Rate limit exceeded');
 		});
 
 		it('returns false when rate limit is exceeded', () => {
@@ -313,14 +313,14 @@ describe('ClientSocket', () => {
 
 		it('rejects when rate limit is exceeded', async () => {
 			service.server.foo2();
-			await expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+			await expect(service.server.foo2()).rejectedWith('Rate limit exceeded');
 		});
 
 		it('does not send request when rate limit is exceeded (promise)', async () => {
 			service.server.foo2();
 			const send = stub(lastWebSocket, 'send');
 
-			await expect(service.server.foo2()).rejectedWith('rate limit exceeded');
+			await expect(service.server.foo2()).rejectedWith('Rate limit exceeded');
 
 			assert.notCalled(send);
 		});
@@ -392,7 +392,7 @@ describe('ClientSocket', () => {
 
 				lastWebSocket.onclose();
 
-				await expect(promise).rejectedWith('disconnected');
+				await expect(promise).rejectedWith('Disconnected');
 			});
 		});
 

@@ -158,6 +158,28 @@ export function writeFloat64(writer: BinaryWriter, value: number) {
 	writer.offset += 8;
 }
 
+export function writeBytesRange(writer: BinaryWriter, value: Uint8Array, offset: number, length: number) {
+	writeLength(writer, length);
+	const bytes = writer.bytes;
+
+	if (length <= 64) {
+		let dst = writer.offset;
+		let src = offset;
+
+		for (let i = 0; i < length; i++ , dst++ , src++) {
+			bytes[dst] = value[src];
+		}
+	} else {
+		bytes.set(value.subarray(offset, offset + length), writer.offset);
+	}
+
+	writer.offset += length;
+
+	if (writer.offset > writer.bytes.byteLength) {
+		throw new Error('Exceeded DataView size');
+	}
+}
+
 export function writeBytes(writer: BinaryWriter, value: Uint8Array) {
 	writer.bytes.set(value, writer.offset);
 	writer.offset += value.length;

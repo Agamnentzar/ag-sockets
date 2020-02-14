@@ -3,9 +3,10 @@ import {
 } from './interfaces';
 import {
 	checkRateLimit, parseRateLimit, supportsBinary as isSupportingBinary, Deferred,
-	deferred, queryString, getLength, RateLimits
+	deferred, queryString, RateLimits
 } from './utils';
 import { PacketHandler, createPacketHandler } from './packet/packetHandler';
+import { createBinaryReaderFromBuffer } from './packet/binaryReader';
 
 export interface ClientErrorHandler {
 	handleRecvError(error: Error, data: string | Uint8Array): void;
@@ -16,6 +17,8 @@ const defaultErrorHandler: ClientErrorHandler = {
 		throw error;
 	}
 };
+
+const pingBuffer = new ArrayBuffer(0);
 
 export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
 	options: ClientOptions,
@@ -37,6 +40,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	let pingInterval: any;
 	let lastPing = 0;
 	let packet: PacketHandler | undefined = undefined;
+	let remote: { [key: string]: Function; } | undefined = undefined;
 	let lastSentId = 0;
 	let versionValidated = false;
 
@@ -71,17 +75,14 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			versionValidated = true;
 			lastSentId = 0;
 			clientSocket.isConnected = true;
-			notifyServerOfBinarySupport();
 
-			if (clientSocket.client.connected) {
-				clientSocket.client.connected();
-			}
+			// notify server of binary support
+			if (supportsBinary) send(pingBuffer);
+
+			clientSocket.client.connected?.();
 		} else {
 			disconnect();
-
-			if (clientSocket.client.invalidVersion) {
-				clientSocket.client.invalidVersion(version, options.hash!);
-			}
+			clientSocket.client.invalidVersion?.(version, options.hash!);
 		}
 	};
 
@@ -107,36 +108,40 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	function connect() {
 		connecting = true;
 
-		if (socket) {
-			return;
-		}
+		if (socket) return;
 
 		const theSocket = socket = new WebSocket(getWebsocketUrl());
+		const mockRateLimits: RateLimits = [];
 
 		window.addEventListener('beforeunload', beforeunload);
 
 		packet = createPacketHandler(options.client, options.server, { debug: !!options.debug }, log);
 
+		remote = {};
+		packet.createRemote(remote, send, clientSocket);
+
 		supportsBinary = !!theSocket.binaryType;
 
 		theSocket.binaryType = 'arraybuffer';
 		theSocket.onmessage = message => {
-			if (socket !== theSocket) {
-				return;
-			}
+			if (socket !== theSocket) return;
 
 			clientSocket.lastPacket = now();
 
-			const messageData: string | ArrayBuffer | undefined = message.data;
+			const data: string | ArrayBuffer | undefined = message.data;
 
-			if (messageData && packet && (typeof messageData === 'string' || messageData.byteLength > 0)) {
-				const data = typeof messageData === 'string' ? messageData : new Uint8Array(messageData);
-
+			if (data && packet && (typeof data === 'string' || data.byteLength > 0)) {
 				try {
-					clientSocket.receivedSize += getLength(data);
-					packet.recv(data, clientSocket.client, special);
+					if (typeof data === 'string') {
+						clientSocket.receivedSize += data.length;
+						packet.recvString(data, clientSocket.client, special);
+					} else {
+						clientSocket.receivedSize += data.byteLength;
+						const reader = createBinaryReaderFromBuffer(data, 0, data.byteLength);
+						packet.recvBinary(clientSocket.client, reader, mockRateLimits, 0);
+					}
 				} catch (e) {
-					errorHandler.handleRecvError(e, data);
+					errorHandler.handleRecvError(e, typeof data === 'string' ? data : new Uint8Array(data));
 				}
 			} else {
 				sendPing();
@@ -151,9 +156,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 			clientSocket.lastPacket = now();
 
-			if (options.debug) {
-				log('socket opened');
-			}
+			if (options.debug) log('socket opened');
 
 			if (options.pingInterval) {
 				pingInterval = setInterval(() => sendPing(), options.pingInterval);
@@ -161,19 +164,12 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		};
 
 		theSocket.onerror = e => {
-			if (options.debug) {
-				log('socket error', e);
-			}
+			if (options.debug) log('socket error', e);
 		};
 
 		theSocket.onclose = e => {
-			if (options.debug) {
-				log('socket closed', e);
-			}
-
-			if (socket && socket !== theSocket) {
-				return;
-			}
+			if (options.debug) log('socket closed', e);
+			if (socket && socket !== theSocket) return;
 
 			socket = null;
 			versionValidated = false;
@@ -193,7 +189,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				}, options.reconnectTimeout);
 			}
 
-			defers.forEach(d => d.reject(new Error('disconnected')));
+			defers.forEach(d => d.reject(new Error('Disconnected')));
 			defers.clear();
 
 			Object.keys(inProgressFields).forEach(key => inProgressFields[key] = 0);
@@ -229,14 +225,9 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		window.removeEventListener('beforeunload', beforeunload);
 	}
 
-	function notifyServerOfBinarySupport() {
-		if (supportsBinary) {
-			send(new ArrayBuffer(0));
-		}
-	}
-
-	function send(data: any) {
+	function send(data: string | ArrayBuffer | Uint8Array) {
 		if (socket && socket.readyState === WebSocket.OPEN) {
+			// HACK: fix for IE
 			if (convertToArrayBuffer && data instanceof Uint8Array) {
 				const buffer = new ArrayBuffer(data.byteLength);
 				const view = new Uint8Array(buffer);
@@ -263,7 +254,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	}
 
 	function sendPingPacket() {
-		return send(supportsBinary ? new ArrayBuffer(0) : '');
+		return send(supportsBinary ? pingBuffer : '');
 	}
 
 	function createMethod(name: string, id: number, options: MethodOptions) {
@@ -278,8 +269,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 	function createSimpleMethod(name: string, id: number) {
 		(clientSocket.server as any)[name] = (...args: any[]) => {
-			if (checkRateLimit(id, rateLimits) && packet) {
-				clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary);
+			if (checkRateLimit(id, rateLimits) && packet && remote) {
+				remote[name].apply(null, args);
 				lastSentId++;
 				return true;
 			} else {
@@ -298,26 +289,21 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		}
 
 		(clientSocket.server as any)[name] = (...args: any[]): Promise<any> => {
-			if (!clientSocket.isConnected) {
-				return Promise.reject(new Error('not connected'));
-			}
+			if (!clientSocket.isConnected)
+				return Promise.reject(new Error('Not connected'));
 
-			if (!checkRateLimit(id, rateLimits)) {
-				return Promise.reject(new Error('rate limit exceeded'));
-			}
+			if (!checkRateLimit(id, rateLimits))
+				return Promise.reject(new Error('Rate limit exceeded'));
 
-			if (!packet) {
-				return Promise.reject(new Error('not initialized'));
-			}
+			if (!packet || !remote)
+				return Promise.reject(new Error('Not initialized'));
 
-			clientSocket.sentSize += packet.send(send, name, id, args, supportsBinary);
+			remote[name].apply(null, args);
 			const messageId = ++lastSentId;
 			const defer = deferred<any>();
 			defers.set(messageId, defer);
 
-			if (inProgressField) {
-				inProgressFields[inProgressField]++;
-			}
+			if (inProgressField) inProgressFields[inProgressField]++;
 
 			return defer.promise;
 		};
@@ -327,9 +313,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			if (defer) {
 				defers.delete(messageId);
 
-				if (inProgressField) {
-					inProgressFields[inProgressField]--;
-				}
+				if (inProgressField) inProgressFields[inProgressField]--;
 
 				apply(() => defer.resolve(result));
 			}
@@ -341,8 +325,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			if (defer) {
 				defers.delete(messageId);
 
-				if (inProgressField)
-					inProgressFields[inProgressField]--;
+				if (inProgressField) inProgressFields[inProgressField]--;
 
 				apply(() => defer.reject(new Error(error)));
 			}

@@ -196,16 +196,12 @@ function createInternalServer(
 	function handleResult(send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) {
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
-				// TODO: send this through generated handlers
-				packetHandler.send(
-					send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result],
-					obj.supportsBinary);
+				packetHandler.sendString(
+					send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result]);
 			}, (e: Error) => {
 				e = errorHandler.handleRejection(obj.client, e) || e;
-				// TODO: send this through generated handlers
-				packetHandler.send(
-					send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error'],
-					obj.supportsBinary);
+				packetHandler.sendString(
+					send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error']);
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
 	}
@@ -244,16 +240,14 @@ function createInternalServer(
 			return cloneDeep(clientOptions);
 		},
 		token(data?: any) {
-			if (!options.connectionTokens) {
+			if (!options.connectionTokens)
 				throw new Error('Option connectionTokens not set');
-			} else {
-				return createToken(server, data).id;
-			}
+
+			return createToken(server, data).id;
 		},
 		clearTokens(test: (id: string, data?: any) => boolean) {
-			if (!options.connectionTokens) {
+			if (!options.connectionTokens)
 				throw new Error('Option connectionTokens not set');
-			}
 
 			server.tokens = server.tokens
 				.filter(t => !test(t.id, t.data));
@@ -304,6 +298,7 @@ function connectClient(
 	const obj: ClientState = {
 		lastMessageTime: Date.now(),
 		lastMessageId: 0,
+		sentSize: 0,
 		supportsBinary: !!server.forceBinary || !!(query && query.bin === 'true'),
 		token,
 		ping() {
@@ -417,9 +412,10 @@ function connectClient(
 
 					try {
 						if (data !== undefined) {
-							server.packetHandler.recv(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
+							server.packetHandler.recvString(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
 								const rate = rates[funcId];
 
+								// TODO: move rate limits to packet handler
 								if (checkRateLimit(funcId, rates)) {
 									handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
 								} else if (rate && rate.promise) {
@@ -447,11 +443,9 @@ function connectClient(
 
 		server.packetHandler.createRemote(obj.client, send, obj);
 
-		if (server.debug) {
-			log('client connected');
-		}
+		if (server.debug) log('client connected');
 
-		server.packetHandler.send(send, '*version', MessageType.Version, [server.hash], obj.supportsBinary);
+		server.packetHandler.sendString(send, '*version', MessageType.Version, [server.hash]);
 		server.clients.push(obj);
 
 		handleConnected(serverActions);
@@ -466,9 +460,7 @@ function connectClient(
 			isConnected = false;
 			removeItem(server.clients, obj);
 
-			if (server.debug) {
-				log('client disconnected');
-			}
+			if (server.debug) log('client disconnected');
 
 			if (serverActions) {
 				handleDisconnected(serverActions);

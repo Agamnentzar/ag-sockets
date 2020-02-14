@@ -48,14 +48,11 @@ export enum Bin {
 	Buffer,
 	U8Array,
 	Raw,
+	U8ArrayOffsetLength,
 }
 
 export type BinaryDef = (Bin | (Bin | (Bin | any[]))[])[];
 export type MethodDef = string | [string, MethodOptions];
-
-export interface Packets {
-	[key: string]: BinaryDef;
-}
 
 export interface MethodOptions {
 	/** binary definition of the packet */
@@ -165,14 +162,4 @@ export function getNames(methods: MethodDef[]) {
 
 export function getIgnore(methods: MethodDef[]) {
 	return methods.map(i => (typeof i !== 'string' && i[1].ignore) ? i[0] : null).filter(x => !!x) as string[];
-}
-
-export function getBinary(methods: MethodDef[]) {
-	const result: Packets = {};
-	methods.forEach(i => {
-		if (typeof i !== 'string' && i[1].binary) {
-			result[i[0]] = i[1].binary as BinaryDef;
-		}
-	});
-	return result;
 }
