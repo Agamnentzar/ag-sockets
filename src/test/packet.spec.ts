@@ -2,16 +2,18 @@ import './common';
 import { expect } from 'chai';
 import { assert, spy, stub } from 'sinon';
 import { MessageType, PacketHandler, createPacketHandler } from '../packet/packetHandler';
+import { Bin } from '../interfaces';
+import { createBinaryReader } from '../packet/binaryReader';
 
 describe('PacketHandler', () => {
 	let handler: PacketHandler;
 	let funcs: { foo(): any; };
 	let special: any;
-	// let writer: BinaryWriter;
 
 	beforeEach(() => {
-		// writer = createBinaryWriter();
-		handler = createPacketHandler(['x', 'foo', 'abc'], ['y', 'bar'], {}, () => { });
+		handler = createPacketHandler(
+			['x', ['foo', { binary: [Bin.U8] }], 'abc'],
+			['y', ['bar', { binary: [Bin.U8] }]], {}, () => { });
 	});
 
 	describe('sendString()', () => {
@@ -33,25 +35,33 @@ describe('PacketHandler', () => {
 			expect(handler.sendString(send, 'foo', 1, ['a', 'b', 5])).equal(0);
 		});
 
-		// it('sends binary message', () => {
-		// 	const send = spy();
+		it('sends binary message', () => {
+			const send = spy();
+			const remote: any = {};
+			handler.createRemote(remote, send, { sentSize: 0, supportsBinary: true });
 
-		// 	handler.sendString(send, 'foo', 1, [8]);
+			remote.bar(8);
 
-		// 	assert.calledWith(send, getWriterBuffer(writer));
-		// });
+			assert.calledOnce(send);
+			assert.calledWithMatch(send, new Uint8Array([1, 8]));
+		});
 
-		// it('returns binary message length', () => {
-		// 	expect(handler.sendString(spy(), 'foo', 1, [8])).equal(2);
-		// });
+		it('returns sent size (string)', () => {
+			const size = handler.sendString(spy(), 'bar', 1, [5]);
 
-		// it('returns binary message length (ArrayBuffer)', () => {
-		// 	const writer = createBinaryWriter();
-		// 	const handler = new ReleasePacketHandler(
-		// 		() => { }, () => { }, ['', 'foo', 'abc'], ['', 'bar'], writer, binary, {});
+			expect(size).equal('[1,5]'.length);
+		});
 
-		// 	expect(handler.sendString(spy(), 'foo', 1, [8])).equal(2);
-		// });
+		it('increments sent size (binary)', () => {
+			const send = spy();
+			const remote: any = {};
+			const state = { sentSize: 0, supportsBinary: true };
+			handler.createRemote(remote, send, state);
+
+			remote.bar(8);
+
+			expect(state.sentSize).equal(2);
+		});
 	});
 
 	describe('recvString()', () => {
@@ -103,18 +113,18 @@ describe('PacketHandler', () => {
 			handler.recvString(JSON.stringify([100, 123]), funcs, special);
 		});
 
-		// it('reads binary message from websocket', () => {
-		// 	const foo = stub(funcs, 'foo');
+		it('reads binary message from websocket', () => {
+			const foo = stub();
 
-		// 	handler.recvString(new Uint8Array([1, 8]), funcs, special);
+			handler.recvBinary({ foo }, createBinaryReader(new Uint8Array([1, 8])), [], 1);
 
-		// 	assert.calledWith(foo as any, 8);
-		// });
+			assert.calledWith(foo, 8);
+		});
 
-		// it('throws if binary handler is missing', () => {
-		// 	expect(() => handler.recvString(new Uint8Array([2, 8]), funcs, special))
-		// 		.throw('Missing packet handler for: abc (2)');
-		// });
+		it('throws if binary handler is missing', () => {
+			expect(() => handler.recvBinary({}, createBinaryReader(new Uint8Array([2, 8])), [], 1))
+				.throw('Missing binary decoder for: abc (2)');
+		});
 
 		it('calls handle function with all parameters', () => {
 			const handleResult = spy();

@@ -253,7 +253,7 @@ function generateLocalHandlerCode(
 
 			code += `        break;\n`;
 		} else {
-			code += `        throw new Error('Missing binary decoder for ${name}');\n`;
+			code += `        throw new Error('Missing binary decoder for: ${name} (${packetId})');\n`;
 		}
 
 		code += `      }\n`;

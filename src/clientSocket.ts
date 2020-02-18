@@ -115,7 +115,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		window.addEventListener('beforeunload', beforeunload);
 
-		packet = createPacketHandler(options.client, options.server, { debug: !!options.debug }, log);
+		packet = createPacketHandler(options.client, options.server, options, log);
 
 		remote = {};
 		packet.createRemote(remote, send, clientSocket);
