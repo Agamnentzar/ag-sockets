@@ -14,6 +14,35 @@ import {
 type Foo = [any, number[]];
 
 describe('PacketReader + PacketWriter', () => {
+	it('read write length (random)', () => {
+		const writer = createBinaryWriter(34);
+		const reader = createBinaryReader(writer.bytes);
+
+		for (let i = 0; i < 1000; i++) {
+			const length = (Math.random() * 0x7fffffff) >>> 0;
+			writer.offset = 0;
+			reader.offset = 0;
+			writeLength(writer, length);
+			const actual = readLength(reader);
+
+			if (actual !== length) {
+				console.error('Different values', actual, length, writer.bytes);
+			}
+		}
+	});
+
+	[
+		0, 1, 2, 16, 0x7f, 0x80, 0x3fff, 0xc000, 0x70000000,
+	].forEach(length => it(`read write length (${length})`, () => {
+		const writer = createBinaryWriter(34);
+		const reader = createBinaryReader(writer.bytes);
+		writer.offset = 0;
+		reader.offset = 0;
+		writeLength(writer, length);
+		const actual = readLength(reader);
+		expect(actual).equal(length);
+	}));
+
 	it('reads and writes value correctly', () => {
 		const writer = createBinaryWriter(10000);
 		writeInt8(writer, -123);
@@ -247,6 +276,43 @@ describe('PacketReader + PacketWriter', () => {
 			const result = writeRead({ data: new Uint8Array([1, 2, 3, 4]) });
 			expect(result.data).instanceof(Uint8Array);
 			expect(Array.from(result.data)).eql([1, 2, 3, 4]);
+		});
+
+		it.skip('test', () => {
+			const data = [0];
+			const reader = createBinaryReader(new Uint8Array(data));
+
+			const result = {} as any;
+			result.id = readUint8(reader);
+			result.localId = readUint8(reader);
+			result.state = readObject(reader);
+
+			const length = readLength(reader);
+			result.length = length;
+			result.items = [];
+
+			// console.log(new Uint8Array(reader.view.buffer, reader.view.byteOffset + reader.offset).slice(0, 50));
+
+			for (let i = 0; i < 3; i++) {
+				const item: any[] = [];
+				item.push(readUint8(reader));
+				item.push(readUint16(reader));
+				item.push(readFloat64(reader));
+				item.push(readFloat64(reader));
+				item.push(readFloat64(reader));
+				item.push(readFloat64(reader));
+				item.push(readBoolean(reader));
+				item.push(readObject(reader));
+				item.push(readArray(reader, () => readInt16(reader)));
+				// console.log(new Uint8Array(reader.view.buffer, reader.view.byteOffset + reader.offset).slice(0, 50));
+				item.push(readUint8Array(reader));
+				result.items.push(item);
+			}
+
+			console.log(new Uint8Array(reader.view.buffer, reader.view.byteOffset + reader.offset).slice(0, 50));
+
+			// console.log(result);
+			console.log(require('util').inspect(result, false, 99, true));
 		});
 	});
 });

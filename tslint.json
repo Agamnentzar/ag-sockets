@@ -44,10 +44,6 @@
 			true,
 			"single"
 		],
-		"max-line-length": [
-			true,
-			130
-		],
 		"array-type": [ true, "array" ]
 	}
 }

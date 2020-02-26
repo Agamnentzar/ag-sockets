@@ -1,6 +1,6 @@
 {
   "name": "ag-sockets",
-  "version": "5.1.1",
+  "version": "5.2.0",
   "description": "Library for communication via WebSockets",
   "main": "dist/index.js",
   "browser": "dist/browser.js",

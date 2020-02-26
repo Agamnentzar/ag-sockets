@@ -1,177 +1,171 @@
 import './common';
-// import { expect } from 'chai';
-// import { Bin } from '../interfaces';
-// import { IBinaryHandlers } from '../packet/packetHandler';
-// import { createBinaryWriter, getWriterBuffer, BinaryWriter } from '../packet/binaryWriter';
-// import { createBinaryReader, BinaryReader, readUint8 } from '../packet/binaryReader';
+import { expect } from 'chai';
+import { spy, assert } from 'sinon';
+import { Bin, MethodDef } from '../interfaces';
+import { createPacketHandler } from '../packet/packetHandler';
+import { createBinaryReader } from '../packet/binaryReader';
 
-describe('binaryHandler', () => {
-	// const client: Packets = {
-	// 	foo: [Bin.U8, Bin.F64],
-	// 	boo: [Bin.Obj, [Bin.I32], [Bin.I32, Bin.I32, [Bin.I32]], [Bin.Obj]],
-	// 	far: [[Bin.I32, [Bin.I32, Bin.I32]]],
-	// 	fab: [[Bin.I32, [Bin.I32]]],
-	// 	obj: [[Bin.Obj]],
-	// 	all: [Bin.I8, Bin.U8, Bin.I16, Bin.U16, Bin.I32, Bin.U32, Bin.F32, Bin.F64, Bin.Bool, Bin.Str, Bin.Obj],
-	// 	buf: [Bin.Buffer],
-	// 	u8a: [Bin.U8Array],
-	// 	u8aa: [[Bin.U8Array]],
-	// 	obj1: [Bin.Obj],
-	// 	raw: [Bin.Raw],
-	// };
+describe('binary encoding', () => {
+	const client: MethodDef[] = [
+		['foo', { binary: [Bin.U8, Bin.F64] }],
+		['boo', { binary: [Bin.Obj, [Bin.I32], [Bin.I32, Bin.I32, [Bin.I32]], [Bin.Obj]] }],
+		['far', { binary: [[Bin.I32, [Bin.I32, Bin.I32]]] }],
+		['fab', { binary: [[Bin.I32, [Bin.I32]]] }],
+		['obj', { binary: [[Bin.Obj]] }],
+		['all', { binary: [Bin.I8, Bin.U8, Bin.I16, Bin.U16, Bin.I32, Bin.U32, Bin.F32, Bin.F64, Bin.Bool, Bin.Str, Bin.Obj] }],
+		['buf', { binary: [Bin.Buffer] }],
+		['u8a', { binary: [Bin.U8Array] }],
+		['u8aa', { binary: [[Bin.U8Array]] }],
+		['obj1', { binary: [Bin.Obj] }],
+		['raw', { binary: [Bin.Raw] }],
+		['raw2', { binary: [Bin.U16, Bin.Raw] }],
+		['mix', { binary: [[Bin.U8, Bin.U16, Bin.F64, Bin.F64, Bin.F64, Bin.F64, Bin.Bool, Bin.Obj, [Bin.I16], Bin.U8Array]] }],
+	];
 
-	// const server: Packets = {
-	// 	bar: [Bin.U8, Bin.Str],
-	// 	boo: [Bin.Obj, [Bin.I32], [Bin.I32, Bin.I32, [Bin.I32]], [Bin.Obj]],
-	// };
+	const server: MethodDef[] = [
+		['bar', { binary: [Bin.U8, Bin.Str] }],
+		['boo', { binary: [Bin.Obj, [Bin.I32], [Bin.I32, Bin.I32, [Bin.I32]], [Bin.Obj]] }],
+	];
 
-	// describe('createHandlers(server)', () => {
-	// 	it('should create writers for client', () => {
-	// 		const handlers: IBinaryHandlers = createHandlers(client, server);
+	let actions: any;
+	let remote: any;
 
-	// 		expect(handlers.write['foo']).exist;
-	// 	});
+	beforeEach(() => {
+		actions = {};
+		remote = {};
+		const sender = createPacketHandler(server, client, { development: true }, console.log);
+		const receiver = createPacketHandler(client, server, { development: true }, console.log);
+		const send = (buffer: Uint8Array | string) => {
+			if (typeof buffer === 'string') throw new Error('buffer is string');
+			const reader = createBinaryReader(buffer);
+			receiver.recvBinary(actions, reader, [], 0);
+		};
+		sender.createRemote(remote, send, { supportsBinary: true, sentSize: 0 });
+	});
 
-	// 	it('should create readers for server', () => {
-	// 		const handlers: IBinaryHandlers = createHandlers(client, server);
+	it('numbers', () => {
+		actions.foo = spy();
 
-	// 		expect(handlers.read['bar']).exist;
-	// 	});
+		remote.foo(8, 1.5);
 
-	// 	it('should create proper write method', () => {
-	// 		const handlers: IBinaryHandlers = createHandlers(client, server);
-	// 		const writer = createBinaryWriter();
+		assert.calledWith(actions.foo, 8, 1.5);
+	});
 
-	// 		handlers.write['foo'](writer, [1, 8, 1.5]);
+	it('arrays', () => {
+		actions.boo = spy();
 
-	// 		expect(Array.from(getWriterBuffer(writer))).eql([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]);
-	// 	});
-	// });
+		remote.boo({ foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]);
 
-	// describe('createHandlers(client)', () => {
-	// 	it('should create writers for server', () => {
-	// 		const handlers: IBinaryHandlers = createHandlers(server, client);
+		assert.calledWithMatch(actions.boo, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]);
+	});
 
-	// 		expect(handlers.write['bar']).exist;
-	// 	});
+	it('arrays 2', () => {
+		actions.far = spy();
 
-	// 	it('should create readers for client', () => {
-	// 		const handlers: IBinaryHandlers = createHandlers(server, client);
+		remote.far([[10, [[1, 2]]]]);
 
-	// 		expect(handlers.read['foo']).exist;
-	// 	});
+		assert.calledWithMatch(actions.far, [[10, [[1, 2]]]]);
+	});
 
-	// 	it('should create proper read method', () => {
-	// 		const handlers: IBinaryHandlers = createHandlers(server, client);
-	// 		const reader = createBinaryReader(new Uint8Array([0x01, 0x08, 0x03f, 0xf8, 0, 0, 0, 0, 0, 0]));
-	// 		const result = [readUint8(reader)];
+	it('arrays 3', () => {
+		actions.fab = spy();
 
-	// 		handlers.read['foo'](reader, result);
+		remote.fab([[10, [3, 3, 4]]]);
 
-	// 		expect(result).eql([1, 8, 1.5]);
-	// 	});
-	// });
+		assert.calledWithMatch(actions.fab, [[10, [3, 3, 4]]]);
+	});
 
-	// describe('readWriteTests', () => {
-	// 	let serverSide: IBinaryHandlers;
-	// 	let clientSide: IBinaryHandlers;
-	// 	let reader: BinaryReader;
-	// 	let writer: BinaryWriter;
+	it('array of objects', () => {
+		actions.obj = spy();
 
-	// 	beforeEach(() => {
-	// 		serverSide = createHandlers(client, server);
-	// 		clientSide = createHandlers(server, client);
-	// 		writer = createBinaryWriter(10000);
-	// 	});
+		remote.obj([{ a: 1 }, { b: 2 }]);
 
-	// 	it('shoud read write simple method', () => {
-	// 		serverSide.write['foo'](writer, [1, 8, 1.5]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['foo'](reader, result);
+		assert.calledWithMatch(actions.obj, [{ a: 1 }, { b: 2 }]);
+	});
 
-	// 		expect(result).eql([1, 8, 1.5]);
-	// 	});
+	it('all types', () => {
+		actions.all = spy();
 
-	// 	it('shoud read write complex arrays method', () => {
-	// 		serverSide.write['far'](writer, [3, [[10, [[1, 2]]]]]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['far'](reader, result);
+		remote.all(-123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 });
 
-	// 		expect(result).eql([3, [[10, [[1, 2]]]]]);
-	// 	});
+		assert.calledWithMatch(actions.all, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 });
+	});
 
-	// 	it('shoud read write simple arrays method', () => {
-	// 		serverSide.write['fab'](writer, [4, [[10, [3, 3, 4]]]]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['fab'](reader, result);
+	it('ArrayBuffer', () => {
+		actions.buf = spy();
 
-	// 		expect(result).eql([4, [[10, [3, 3, 4]]]]);
-	// 	});
+		remote.buf(new Uint8Array([1, 2, 3]).buffer);
 
-	// 	it('shoud read write arrays of objects method', () => {
-	// 		serverSide.write['obj'](writer, [4, [{ a: 1 }, { b: 2 }]]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['obj'](reader, result);
+		expect(new Uint8Array(actions.buf.args[0][0])).eql(new Uint8Array([1, 2, 3]));
+	});
 
-	// 		expect(result).eql([4, [{ a: 1 }, { b: 2 }]]);
-	// 	});
+	it('Uint8Array', () => {
+		actions.u8a = spy();
 
-	// 	it('shoud read write complex method', () => {
-	// 		serverSide.write['boo'](writer, [2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['boo'](reader, result);
+		remote.u8a(new Uint8Array([1, 2, 3]));
 
-	// 		expect(result).eql([2, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]]);
-	// 	});
+		assert.calledWithMatch(actions.u8a, new Uint8Array([1, 2, 3]));
+	});
 
-	// 	it('should read write all types', () => {
-	// 		serverSide.write['all'](writer, [5, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['all'](reader, result);
+	it('Uint8Array (empty)', () => {
+		actions.u8a = spy();
 
-	// 		expect(result).eql([5, -123, 200, -500, 40000, -40000, 100000, 1.5, -2.5, true, 'foo', { x: 2 }]);
-	// 	});
+		remote.u8a(new Uint8Array(0));
 
-	// 	it('shoud read write method with ArrayBuffer', () => {
-	// 		serverSide.write['buf'](writer, [1, new Uint8Array([1, 2, 3]).buffer]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['buf'](reader, result);
+		assert.calledWithMatch(actions.u8a, new Uint8Array(0));
+	});
 
-	// 		expect(new Uint8Array(result[1])).eql(new Uint8Array([1, 2, 3]));
-	// 	});
+	it('Uint8Array (null)', () => {
+		actions.u8a = spy();
 
-	// 	it('shoud read write method with Uint8Array', () => {
-	// 		serverSide.write['u8a'](writer, [1, new Uint8Array([1, 2, 3])]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['u8a'](reader, result);
+		remote.u8a(null);
 
-	// 		expect(result[1]).eql(new Uint8Array([1, 2, 3]));
-	// 	});
+		assert.calledWith(actions.u8a, null);
+	});
 
-	// 	it('reads and writes array of Uint8Arrays', () => {
-	// 		serverSide.write['u8aa'](writer, [1, [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['u8aa'](reader, result);
+	it('array of Uint8Array', () => {
+		actions.u8aa = spy();
 
-	// 		expect(result[1]).eql([new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]);
-	// 	});
+		remote.u8aa([new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]);
 
-	// 	it('reads and writes raw buffer', () => {
-	// 		serverSide.write['raw'](writer, [1, new Uint8Array([1, 2, 3, 4, 5])]);
-	// 		reader = createBinaryReader(getWriterBuffer(writer));
-	// 		const result = [readUint8(reader)];
-	// 		clientSide.read['raw'](reader, result);
+		assert.calledWithMatch(actions.u8aa, [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])]);
+	});
 
-	// 		expect(result[1]).eql(new Uint8Array([1, 2, 3, 4, 5]));
-	// 	});
-	// });
+	it('raw', () => {
+		actions.raw = spy();
+
+		remote.raw(new Uint8Array([1, 2, 3, 4, 5]));
+
+		assert.calledWithMatch(actions.raw, new Uint8Array([1, 2, 3, 4, 5]));
+	});
+
+	it('raw with data', () => {
+		actions.raw2 = spy();
+
+		remote.raw2(123, new Uint8Array([1, 2, 3, 4, 5]));
+
+		assert.calledWithMatch(actions.raw2, 123, new Uint8Array([1, 2, 3, 4, 5]));
+	});
+
+	[
+		0, 1, 2, 16, 0x7f, 0x80, 0xff, 0x3fff, 0xc000, //0x70000,
+	].forEach(length => it(`mixed complex data, length: ${length}`, () => {
+		actions.mix = spy();
+		const data = [
+			[
+				2, 5, 0, 0, 0, 0, false,
+				{ id: 20, color: 4294967295, opacity: 1, rect: { x: 0, y: 0, w: 1920, h: 1080 }, fill: true, t: 0 },
+				null, new Uint8Array(length)
+			],
+			[
+				2, 5, 0, 0, 0, 0, false,
+				{ id: 20, color: 4294967295, opacity: 1, rect: { x: 0, y: 0, w: 1920, h: 1080 }, fill: true, t: 0 },
+				null, new Uint8Array(10)
+			],
+		];
+
+		remote.mix(data);
+
+		assert.calledWithMatch(actions.mix, data);
+	}));
 });

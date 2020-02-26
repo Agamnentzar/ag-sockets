@@ -35,18 +35,22 @@ export function writeObject(writer: BinaryWriter, value: any) {
 export function writeUint8Array(writer: BinaryWriter, value: Uint8Array | null) {
 	if (value == null) {
 		writeNullLength(writer);
-	} else {
+	} else if (value instanceof Uint8Array) {
 		writeLength(writer, value.byteLength);
 		writeBytes(writer, value);
+	} else {
+		throw new Error('Value is not Uint8Array');
 	}
 }
 
 export function writeArrayBuffer(writer: BinaryWriter, value: ArrayBuffer | null) {
 	if (value == null) {
 		writeNullLength(writer);
-	} else {
+	} else if (value instanceof ArrayBuffer) {
 		writeLength(writer, value.byteLength);
 		writeBytes(writer, new Uint8Array(value));
+	} else {
+		throw new Error('Value is not ArrayBuffer');
 	}
 }
 
@@ -73,6 +77,8 @@ function writeNullLength(writer: BinaryWriter) {
 }
 
 export function writeLength(writer: BinaryWriter, value: number) {
+	if (value < -1 || value > 0x7fffffff) throw new Error('Invalid length value');
+
 	if (value === -1) {
 		writeNullLength(writer);
 	} else if ((value & 0xffffff80) === 0) {

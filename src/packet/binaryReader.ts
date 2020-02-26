@@ -129,7 +129,7 @@ export function readLength(reader: BinaryReader) {
 		bytes++;
 	} while (a & 0x80);
 
-	return bytes === 2 && length === 0 ? -1 : length;
+	return (bytes === 2 && length === 0) ? -1 : length;
 }
 
 export function readUint8Array(reader: BinaryReader) {
@@ -159,8 +159,7 @@ export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 				case Special.True: return true;
 				case Special.False: return false;
 				case Special.Uint8Array: return readUint8Array(reader);
-				default:
-					throw new Error(`Incorrect value: ${value} (${byte})`);
+				default: throw new Error(`Incorrect value (${value}, ${byte})`);
 			}
 		case Type.Number:
 			switch (value) {
@@ -172,8 +171,7 @@ export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 				case NumberType.Uint32: return readUint32(reader);
 				case NumberType.Float32: return readFloat32(reader);
 				case NumberType.Float64: return readFloat64(reader);
-				default:
-					throw new Error(`Incorrect value: ${value} (${byte})`);
+				default: throw new Error(`Incorrect value (${value}, ${byte})`);
 			}
 		case Type.TinyPositiveNumber:
 			return value;
@@ -223,7 +221,6 @@ export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 
 			return obj;
 		}
-		default:
-			throw new Error(`Incorrect type: ${type} (${byte})`);
+		default: throw new Error(`Incorrect type (${type}, ${byte})`);
 	}
 }
