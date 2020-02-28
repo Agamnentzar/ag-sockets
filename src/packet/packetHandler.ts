@@ -149,8 +149,7 @@ export function createPacketHandler(
 			onSend?.(id, name, data.length, false);
 			return data.length;
 		} catch (e) {
-			if (debug) throw e;
-			if (development) console.error(e);
+			if (debug || development) throw e;
 			return 0;
 		}
 	}
@@ -191,7 +190,7 @@ export function createPacketHandler(
 			handleFunction(funcId, funcName, func, funcObj, args);
 		} else {
 			if (debug) log(`invalid message: ${funcName}`, args);
-			if (development) console.error('Invalid packet');
+			if (development) throw new Error('Invalid packet');
 		}
 
 		onRecv?.(funcId, funcName, data.length, false);
@@ -307,7 +306,9 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 		code += `  remote.${name} = function (${args.join(', ')}) {\n`;
 
-		if (!handlerOptions.debug) {
+		const catchError = !(handlerOptions.debug || handlerOptions.development);
+
+		if (catchError) {
 			code += `    try {\n`;
 		}
 
@@ -334,13 +335,10 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}        resizeWriter(writer);\n`;
 			code += `${indent}      } else {\n`;
 
-			if (handlerOptions.debug) {
-				code += `${indent}        throw e;\n`;
-			} else {
-				if (handlerOptions.development) {
-					code += `${indent}        console.error(e);\n`;
-				}
+			if (catchError) {
 				code += `${indent}        return false;\n`;
+			} else {
+				code += `${indent}        throw e;\n`;
 			}
 
 			code += `${indent}      }\n`;
@@ -369,13 +367,8 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}}\n`;
 		}
 
-		if (!handlerOptions.debug) {
+		if (catchError) {
 			code += `    } catch (e) {\n`;
-
-			if (handlerOptions.development) {
-				code += `      console.error(e);\n`;
-			}
-
 			code += `      return false;\n`;
 			code += `    }\n`;
 		}
