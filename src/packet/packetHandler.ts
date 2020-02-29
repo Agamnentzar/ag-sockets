@@ -126,16 +126,16 @@ export function createPacketHandler(
 	if (!local || !remote) throw new Error('Missing server or client method definitions');
 	if (local.length > 250 || remote.length > 250) throw new Error('Too many methods');
 
-	const remoteNames = getNames(remote);
-	const localNames = getNames(local);
-	const ignorePackets = [...getIgnore(remote), ...getIgnore(local)];
-	const recvBinary = generateLocalHandlerCode(local, options, readerMethods, checkRateLimit);
-	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
-
 	const debug = !!options.debug;
 	const development = !!options.development;
 	const onSend = options.onSend;
-	const onRecv = options.onRecv;
+	const onRecv = options.onRecv ?? (() => { });
+
+	const remoteNames = getNames(remote);
+	const localNames = getNames(local);
+	const ignorePackets = [...getIgnore(remote), ...getIgnore(local)];
+	const recvBinary = generateLocalHandlerCode(local, options, readerMethods, checkRateLimit, onRecv);
+	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
 
 	function sendString(send: Send, name: string, id: number, args: any[]): number {
 		try {
@@ -193,7 +193,7 @@ export function createPacketHandler(
 			if (development) throw new Error('Invalid packet');
 		}
 
-		onRecv?.(funcId, funcName, data.length, false);
+		onRecv(funcId, funcName, data.length, false);
 	}
 
 	return { sendString, createRemote, recvString, recvBinary };
@@ -202,7 +202,7 @@ export function createPacketHandler(
 // code generation
 
 function generateLocalHandlerCode(
-	methods: MethodDef[], { debug }: HandlerOptions, readerMethods: any, checkRateLimit: any
+	methods: MethodDef[], { debug }: HandlerOptions, readerMethods: any, checkRateLimit: any, onRecv: OnSendRecv
 ): LocalHandler {
 	let code = ``;
 	code += `${Object.keys(readerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n\n`;
@@ -241,6 +241,8 @@ function generateLocalHandlerCode(
 				code += `        console.log('RECV [' + reader.view.byteLength + '] (bin)', '${name}', [${args.map(i => `a${i}`).join(', ')}]);\n`;
 			}
 
+			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true);\n`;
+
 			const actionsCall = `actions.${name}(${args.map(i => `a${i}`).join(', ')})`;
 
 			if (options.promise) {
@@ -273,7 +275,7 @@ function generateLocalHandlerCode(
 	code += `  };\n`;
 
 	// console.log(`\n\nfunction createMethods(methods, checkRateLimit) {\n${code}}\n`);
-	return new Function('methods', 'checkRateLimit', code)(readerMethods, checkRateLimit) as any;
+	return new Function('methods', 'checkRateLimit', 'onRecv', code)(readerMethods, checkRateLimit, onRecv) as any;
 
 }
 
@@ -282,7 +284,6 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 	code += `${Object.keys(writerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n`;
 	code += `  var log = remoteOptions.log || function () {};\n`;
 	code += `  var onSend = remoteOptions.onSend || function () {};\n`;
-	code += `  var onRecv = remoteOptions.onRecv || function () {};\n`;
 	code += `  var writer = createWriter();\n\n`;
 
 	let packetId = 0;
