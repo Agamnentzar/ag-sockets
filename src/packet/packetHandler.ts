@@ -3,12 +3,12 @@ import { checkRateLimit, RateLimits } from '../utils';
 import { isBinaryOnlyPacket } from '../serverUtils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
-	writeString, writeObject, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,
-	writeBytes, resizeWriter, createBinaryWriter, writeBytesRange,
+	writeString, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,
+	writeBytes, resizeWriter, createBinaryWriter, writeBytesRange, writeAny,
 } from './binaryWriter';
 import {
 	readInt8, readUint8, readUint16, readInt16, readUint32, readInt32, readFloat32, readFloat64, readBoolean,
-	readString, readObject, readArrayBuffer, readUint8Array, readArray, readBytes, BinaryReader
+	readString, readArrayBuffer, readUint8Array, readArray, readBytes, BinaryReader, readAny
 } from './binaryReader';
 
 const binaryNames: string[] = [];
@@ -22,7 +22,7 @@ binaryNames[Bin.F32] = 'Float32';
 binaryNames[Bin.F64] = 'Float64';
 binaryNames[Bin.Bool] = 'Boolean';
 binaryNames[Bin.Str] = 'String';
-binaryNames[Bin.Obj] = 'Object';
+binaryNames[Bin.Obj] = 'Any';
 binaryNames[Bin.Buffer] = 'ArrayBuffer';
 binaryNames[Bin.U8Array] = 'Uint8Array';
 binaryNames[Bin.Raw] = 'Bytes';
@@ -43,7 +43,7 @@ const readerMethods = {
 	readFloat64,
 	readBoolean,
 	readString,
-	readObject,
+	readAny,
 	readArrayBuffer,
 	readUint8Array,
 	readArray,
@@ -63,7 +63,7 @@ const writerMethods = {
 	writeFloat64,
 	writeBoolean,
 	writeString,
-	writeObject,
+	writeAny,
 	writeArrayBuffer,
 	writeUint8Array,
 	writeArrayHeader,
@@ -134,7 +134,7 @@ export function createPacketHandler(
 	const remoteNames = getNames(remote);
 	const localNames = getNames(local);
 	const ignorePackets = [...getIgnore(remote), ...getIgnore(local)];
-	const recvBinary = generateLocalHandlerCode(local, options, readerMethods, checkRateLimit, onRecv);
+	const recvBinary = generateLocalHandlerCode(local, options, onRecv);
 	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
 
 	function sendString(send: Send, name: string, id: number, args: any[]): number {
@@ -201,12 +201,12 @@ export function createPacketHandler(
 
 // code generation
 
-function generateLocalHandlerCode(
-	methods: MethodDef[], { debug }: HandlerOptions, readerMethods: any, checkRateLimit: any, onRecv: OnSendRecv
-): LocalHandler {
+function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOptions, onRecv: OnSendRecv): LocalHandler {
 	let code = ``;
+	code += `var anyState = { strings: [] };\n`;
 	code += `${Object.keys(readerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n\n`;
 	code += `  return function (actions, reader, rates, messageId, handleResult) {\n`;
+	code += `    anyState.strings.length = 0;\n`;
 	code += `    var packetId = readUint8(reader);\n`;
 	code += `    switch (packetId) {\n`;
 
@@ -232,24 +232,24 @@ function generateLocalHandlerCode(
 
 			code += createReadFunction(options.binary, '        ');
 
-			for (let i = 0, j = 0; i < options.binary.length; i++ , j++) {
+			for (let i = 0, j = 0; i < options.binary.length; i++, j++) {
 				if (options.binary[i] === Bin.U8ArrayOffsetLength) args.push(j++, j++);
 				args.push(j);
 			}
 
+			const argList = args.map(i => `a${i}`).join(', ');
+
 			if (debug) {
-				code += `        console.log('RECV [' + reader.view.byteLength + '] (bin)', '${name}', [${args.map(i => `a${i}`).join(', ')}]);\n`;
+				code += `        console.log('RECV [' + reader.view.byteLength + '] (bin)', '${name}', [${argList}]);\n`;
 			}
 
 			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true);\n`;
 
-			const actionsCall = `actions.${name}(${args.map(i => `a${i}`).join(', ')})`;
-
 			if (options.promise) {
-				code += `        var result = ${actionsCall};\n`;
+				code += `        var result = actions.${name}(${argList});\n`;
 				code += `        handleResult(${packetId}, '${name}', result, messageId);\n`;
 			} else {
-				code += `        ${actionsCall};\n`;
+				code += `        actions.${name}(${argList});\n`;
 			}
 
 			code += `        break;\n`;
@@ -276,7 +276,6 @@ function generateLocalHandlerCode(
 
 	// console.log(`\n\nfunction createMethods(methods, checkRateLimit) {\n${code}}\n`);
 	return new Function('methods', 'checkRateLimit', 'onRecv', code)(readerMethods, checkRateLimit, onRecv) as any;
-
 }
 
 function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: HandlerOptions): CreateRemoteHandler {
@@ -284,6 +283,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 	code += `${Object.keys(writerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n`;
 	code += `  var log = remoteOptions.log || function () {};\n`;
 	code += `  var onSend = remoteOptions.onSend || function () {};\n`;
+	code += `  var anyState = { strings: new Map() };\n`;
 	code += `  var writer = createWriter();\n\n`;
 
 	let packetId = 0;
@@ -319,6 +319,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}if (remoteState.supportsBinary) {\n`;
 			code += `${indent}  while (true) {\n`;
 			code += `${indent}    try {\n`;
+			code += `${indent}      anyState.strings.clear();\n`;
 			code += `${indent}      writer.offset = 0;\n`;
 			code += createWriteFunction(packetId, options.binary, `${indent}      `);
 			code += `${indent}      var buffer = ${bufferCtor}(writer.bytes.buffer, writer.bytes.byteOffset, writer.offset);\n`;
@@ -410,14 +411,14 @@ function writeField(f: Bin | any[], n: string, indent: string) {
 		code += `${indent}}\n`;
 		return code;
 	} else {
-		return `${indent}write${binaryNames[f]}(writer, ${n});\n`;
+		return `${indent}write${binaryNames[f]}(writer, ${n}${f === Bin.Obj ? ', anyState' : ''});\n`;
 	}
 }
 
 function createWriteFunction(id: number, fields: any[], indent: string) {
 	let code = `${indent}writeUint8(writer, ${id});\n`;
 
-	for (let i = 0, j = 0; i < fields.length; i++ , j++) {
+	for (let i = 0, j = 0; i < fields.length; i++, j++) {
 		if (fields[i] === Bin.U8ArrayOffsetLength) {
 			code += `${indent}writeBytesRange(writer, a${j}, a${j + 1}, a${j + 2});\n`;
 			j += 2;
@@ -434,12 +435,12 @@ function readField(f: Bin | any[], indent: string) {
 		let code = '';
 
 		if (f.length === 1) {
-			code += `\n${indent}\t${readField(f[0], indent + '\t')}\n${indent}`;
+			code += `\n${indent}  ${readField(f[0], indent + '  ')}\n${indent}`;
 		} else {
 			code += '[\n';
 
 			for (let i = 0; i < f.length; i++) {
-				code += `${indent}\t${readField(f[i], indent + '\t')},\n`;
+				code += `${indent}  ${readField(f[i], indent + '  ')},\n`;
 			}
 
 			code += `${indent}]`;
@@ -447,14 +448,14 @@ function readField(f: Bin | any[], indent: string) {
 
 		return `readArray(reader, function (reader) { return ${code.trim()}; })`;
 	} else {
-		return `read${binaryNames[f]}(reader)`;
+		return `read${binaryNames[f]}(reader${f === Bin.Obj ? ', anyState' : ''})`;
 	}
 }
 
 function createReadFunction(fields: any[], indent: string) {
 	let code = '';
 
-	for (let i = 0, j = 0; i < fields.length; i++ , j++) {
+	for (let i = 0, j = 0; i < fields.length; i++, j++) {
 		if (fields[i] === Bin.U8ArrayOffsetLength) {
 			code += `${indent}var a${j} = readUint8Array(reader);\n`;
 			code += `${indent}var a${j + 1} = a${j}.byteOffset;\n`;

@@ -5,9 +5,6 @@
 /resources
 /coverage
 /coverage-remapped
-/typings/index.d.ts
-/typings/globals
-/typings/modules
 /.vs
 /.vscode
-*.sln
+/.nyc_output

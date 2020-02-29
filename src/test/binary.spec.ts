@@ -16,7 +16,6 @@ describe('binary encoding', () => {
 		['buf', { binary: [Bin.Buffer] }],
 		['u8a', { binary: [Bin.U8Array] }],
 		['u8aa', { binary: [[Bin.U8Array]] }],
-		['obj1', { binary: [Bin.Obj] }],
 		['raw', { binary: [Bin.Raw] }],
 		['raw2', { binary: [Bin.U16, Bin.Raw] }],
 		['mix', { binary: [[Bin.U8, Bin.U16, Bin.F64, Bin.F64, Bin.F64, Bin.F64, Bin.Bool, Bin.Obj, [Bin.I16], Bin.U8Array]] }],
@@ -37,6 +36,7 @@ describe('binary encoding', () => {
 		const receiver = createPacketHandler(client, server, { development: true }, console.log);
 		const send = (buffer: Uint8Array | string) => {
 			if (typeof buffer === 'string') throw new Error('buffer is string');
+			// console.log(buffer.byteLength);
 			const reader = createBinaryReader(buffer);
 			receiver.recvBinary(actions, reader, [], 0);
 		};
@@ -81,6 +81,14 @@ describe('binary encoding', () => {
 		remote.obj([{ a: 1 }, { b: 2 }]);
 
 		assert.calledWithMatch(actions.obj, [{ a: 1 }, { b: 2 }]);
+	});
+
+	it('array of objects (re-use string map)', () => {
+		actions.obj = spy();
+
+		remote.obj([{ test: 1 }, { test: 2 }, { test: 3 }, { test: 4 }]);
+
+		assert.calledWithMatch(actions.obj, [{ test: 1 }, { test: 2 }, { test: 3 }, { test: 4 }]);
 	});
 
 	it('all types', () => {
