@@ -333,7 +333,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 			code += `${indent}      break;\n`;
 			code += `${indent}    } catch (e) {\n`;
-			code += `${indent}      if (e instanceof RangeError || /DataView/.test(e.message)) {\n`;
+			code += `${indent}      if (e instanceof RangeError || e instanceof TypeError || /DataView/.test(e.message)) {\n`;
 			code += `${indent}        resizeWriter(writer);\n`;
 			code += `${indent}      } else {\n`;
 
