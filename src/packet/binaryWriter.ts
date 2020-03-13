@@ -168,11 +168,14 @@ export function writeBytesRange(writer: BinaryWriter, value: Uint8Array, offset:
 	writeLength(writer, length);
 	const bytes = writer.bytes;
 
+	if ((writer.offset + length) > bytes.byteLength)
+		throw new Error('Exceeded DataView size');
+
 	if (length <= 64) {
 		let dst = writer.offset;
 		let src = offset;
 
-		for (let i = 0; i < length; i++ , dst++ , src++) {
+		for (const dstEnd = dst + length; dst < dstEnd; dst++, src++) {
 			bytes[dst] = value[src];
 		}
 	} else {
@@ -180,19 +183,14 @@ export function writeBytesRange(writer: BinaryWriter, value: Uint8Array, offset:
 	}
 
 	writer.offset += length;
-
-	if (writer.offset > writer.bytes.byteLength) {
-		throw new Error('Exceeded DataView size');
-	}
 }
 
 export function writeBytes(writer: BinaryWriter, value: Uint8Array) {
-	writer.bytes.set(value, writer.offset);
-	writer.offset += value.length;
-
-	if (writer.offset > writer.bytes.byteLength) {
+	if ((writer.offset + value.byteLength) > writer.bytes.byteLength)
 		throw new Error('Exceeded DataView size');
-	}
+
+	writer.bytes.set(value, writer.offset);
+	writer.offset += value.byteLength;
 }
 
 export function writeStringValue(writer: BinaryWriter, value: string) {
