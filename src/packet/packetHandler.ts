@@ -32,6 +32,16 @@ function readBytesRaw(reader: BinaryReader) {
 	return readBytes(reader, length);
 }
 
+declare const IndexSizeError: any;
+
+function isSizeError(e: Error) {
+	if (typeof RangeError !== 'undefined' && e instanceof RangeError) return true;
+	if (typeof TypeError !== 'undefined' && e instanceof TypeError) return true;
+	if (typeof IndexSizeError !== 'undefined' && e instanceof IndexSizeError) return true;
+	if (/DataView/.test(e.message)) return true;
+	return false;
+}
+
 const readerMethods = {
 	readUint8,
 	readInt8,
@@ -70,6 +80,7 @@ const writerMethods = {
 	writeArray,
 	writeBytes,
 	writeBytesRange,
+	isSizeError,
 };
 
 export interface Send {
@@ -333,7 +344,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 			code += `${indent}      break;\n`;
 			code += `${indent}    } catch (e) {\n`;
-			code += `${indent}      if (e instanceof RangeError || e instanceof TypeError || /DataView/.test(e.message)) {\n`;
+			code += `${indent}      if (isSizeError(e)) {\n`;
 			code += `${indent}        resizeWriter(writer);\n`;
 			code += `${indent}      } else {\n`;
 
