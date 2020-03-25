@@ -169,11 +169,9 @@ export function createPacketHandler(
 		createRemoteHandler(remote, send, state, options, writerMethods);
 	}
 
-	function recvString(
-		data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction: FunctionHandler = defaultHandler
-	) {
+	function recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction = defaultHandler) {
 		const args = JSON.parse(data);
-		const funcId = args.shift();
+		const funcId = args.shift() | 0;
 		let funcName: string | undefined;
 		let funcSpecial = false;
 
@@ -181,10 +179,10 @@ export function createPacketHandler(
 			funcName = '*version';
 			funcSpecial = true;
 		} else if (funcId === MessageType.Rejected) {
-			funcName = '*reject:' + remoteNames[args.shift()];
+			funcName = '*reject:' + remoteNames[args.shift() | 0];
 			funcSpecial = true;
 		} else if (funcId === MessageType.Resolved) {
-			funcName = '*resolve:' + remoteNames[args.shift()];
+			funcName = '*resolve:' + remoteNames[args.shift() | 0];
 			funcSpecial = true;
 		} else {
 			funcName = localNames[funcId];

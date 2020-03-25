@@ -318,6 +318,7 @@ function connectClient(
 				}
 
 				if (force) {
+					close();
 					socket.terminate();
 				} else {
 					socket.close();
@@ -455,16 +456,19 @@ function connectClient(
 		errorHandler.handleError(obj.client, e);
 	});
 
-	socket.on('close', () => {
+	let closed = false;
+
+	function close() {
+		if (closed) return;
+
 		try {
+			closed = true;
 			isConnected = false;
 			removeItem(server.clients, obj);
 
 			if (server.debug) log('client disconnected');
 
-			if (serverActions) {
-				handleDisconnected(serverActions);
-			}
+			serverActions && handleDisconnected(serverActions);
 
 			if (obj.token) {
 				obj.token.expire = Date.now() + server.tokenLifetime;
@@ -473,7 +477,9 @@ function connectClient(
 		} catch (e) {
 			errorHandler.handleError(obj.client, e);
 		}
-	});
+	}
+
+	socket.on('close', close);
 
 	Promise.resolve(server.createServer(obj.client))
 		.then(actions => {
