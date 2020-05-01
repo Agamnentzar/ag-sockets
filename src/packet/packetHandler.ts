@@ -4,7 +4,7 @@ import { isBinaryOnlyPacket } from '../serverUtils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
 	writeString, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,
-	writeBytes, resizeWriter, createBinaryWriter, writeBytesRange, writeAny,
+	writeBytes, resizeWriter, createBinaryWriter, writeBytesRange, writeAny, BinaryWriter,
 } from './binaryWriter';
 import {
 	readInt8, readUint8, readUint16, readInt16, readUint32, readInt32, readFloat32, readFloat64, readBoolean,
@@ -117,7 +117,7 @@ export interface HandlerOptions {
 }
 
 type CreateRemoteHandler = (
-	remote: any, send: Send, state: RemoteState, options: RemoteOptions, writerMethods: any
+	remote: any, send: Send, state: RemoteState, options: RemoteOptions, writerMethods: any, writer: BinaryWriter,
 ) => any;
 
 type LocalHandler = (
@@ -129,6 +129,7 @@ export interface PacketHandler {
 	createRemote(remote: any, send: Send, state: RemoteState): void;
 	recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction?: FunctionHandler): void;
 	recvBinary(actions: any, reader: BinaryReader, rates: RateLimits, messageId: number, handleResult?: HandleResult): void;
+	writerBufferSize(): number;
 }
 
 export function createPacketHandler(
@@ -147,6 +148,7 @@ export function createPacketHandler(
 	const ignorePackets = [...getIgnore(remote), ...getIgnore(local)];
 	const recvBinary = generateLocalHandlerCode(local, options, onRecv);
 	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
+	const writer = createBinaryWriter();
 
 	function sendString(send: Send, name: string, id: number, args: any[]): number {
 		try {
@@ -166,7 +168,7 @@ export function createPacketHandler(
 	}
 
 	function createRemote(remote: any, send: Send, state: RemoteState) {
-		createRemoteHandler(remote, send, state, options, writerMethods);
+		createRemoteHandler(remote, send, state, options, writerMethods, writer);
 	}
 
 	function recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction = defaultHandler) {
@@ -205,7 +207,11 @@ export function createPacketHandler(
 		onRecv(funcId, funcName, data.length, false);
 	}
 
-	return { sendString, createRemote, recvString, recvBinary };
+	function writerBufferSize() {
+		return writer.bytes.byteLength;
+	}
+
+	return { sendString, createRemote, recvString, recvBinary, writerBufferSize };
 }
 
 // code generation
@@ -292,8 +298,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 	code += `${Object.keys(writerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n`;
 	code += `  var log = remoteOptions.log || function () {};\n`;
 	code += `  var onSend = remoteOptions.onSend || function () {};\n`;
-	code += `  var anyState = { strings: new Map() };\n`;
-	code += `  var writer = createWriter();\n\n`;
+	code += `  var anyState = { strings: new Map() };\n\n`;
 
 	let packetId = 0;
 	const bufferCtor = handlerOptions.useBuffer ? 'Buffer.from' : 'new Uint8Array';
@@ -390,7 +395,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 	}
 
 	// console.log(`\n\nfunction createMethods(send, state, methods) {\n${code}}\n`);
-	return new Function('remote', 'send', 'remoteState', 'remoteOptions', 'methods', code) as any;
+	return new Function('remote', 'send', 'remoteState', 'remoteOptions', 'methods', 'writer', code) as any;
 }
 
 let id = 0;

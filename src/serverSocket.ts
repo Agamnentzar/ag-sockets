@@ -256,6 +256,10 @@ function createInternalServer(
 				.filter(c => c.token && test(c.token.id, c.token.data))
 				.forEach(c => c.client.disconnect(true, true));
 		},
+		info() {
+			const writerBufferSize = packetHandler.writerBufferSize();
+			return { writerBufferSize };
+		},
 	};
 
 	return server;

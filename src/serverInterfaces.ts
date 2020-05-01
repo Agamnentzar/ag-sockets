@@ -19,12 +19,17 @@ export interface ClientState {
 	supportsBinary: boolean;
 }
 
+export interface ServerInfo {
+	writerBufferSize: number;
+}
+
 export interface Server {
 	clients: ClientState[];
 	close(): void;
 	options(): ClientOptions;
 	token(data?: any): string;
 	clearTokens(test: (id: string, data?: any) => boolean): void;
+	info(): ServerInfo;
 }
 
 export type CreateServer<TServer, TClient> = (client: TClient & SocketServerClient) => (TServer | Promise<TServer>);
