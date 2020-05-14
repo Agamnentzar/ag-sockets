@@ -116,7 +116,7 @@ export interface Packet {
 }
 
 export interface ServerOptions extends CommonOptions {
-	/** time after after last message from client when server assumes client is not in milliseconds */
+	/** time after after last message from client when server assumes client is not responding (in milliseconds) */
 	connectionTimeout?: number;
 	/** limit connections to one per generated token */
 	connectionTokens?: boolean;

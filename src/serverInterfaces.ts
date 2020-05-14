@@ -54,6 +54,7 @@ export interface GlobalConfig {
 	ws?: any;
 	errorCode?: number;
 	errorName?: string;
+	nativePing?: number;
 }
 
 export interface InternalServer {

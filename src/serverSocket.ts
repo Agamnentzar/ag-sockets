@@ -50,6 +50,7 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 		perMessageDeflate = true,
 		errorCode = 400,
 		errorName = 'Bad Request',
+		nativePing = 0,
 	} = globalConfig;
 	const servers: InternalServer[] = [];
 
@@ -75,6 +76,14 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 	wsServer.on('error', e => {
 		errorHandler.handleError(null, e);
 	});
+
+	if (nativePing) {
+		if ('startAutoPing' in wsServer) {
+			(wsServer as any).startAutoPing(nativePing);
+		} else {
+			throw new Error('Native ping is not supported');
+		}
+	}
 
 	function getServer(id: any) {
 		if (servers.length === 1) {
@@ -213,7 +222,7 @@ function createInternalServer(
 			server.clients.forEach(c => {
 				try {
 					if ((now - c.lastMessageTime) > options.connectionTimeout!) {
-						c.client.disconnect();
+						c.client.disconnect(true);
 					} else {
 						c.ping();
 					}
