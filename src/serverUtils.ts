@@ -2,10 +2,10 @@ import { IncomingMessage } from 'http';
 import { parse as parseUrl } from 'url';
 import * as ws from 'ws';
 import { InternalServer, Token } from './serverInterfaces';
-import { parseRateLimit, RateLimit } from './utils';
+import { parseRateLimit, RateLimit, isBinaryOnlyPacket } from './utils';
 import { OriginalRequest, ErrorHandler } from './server';
 import { getMethods, getSocketMetadata } from './method';
-import { MethodDef, ServerOptions, MethodOptions, ClientOptions, BinaryDef, Bin } from './interfaces';
+import { MethodDef, ServerOptions, MethodOptions, ClientOptions } from './interfaces';
 
 const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
 
@@ -111,10 +111,6 @@ export function optionsWithDefaults(options: ServerOptions): ServerOptions {
 	};
 }
 
-export function isBinaryOnlyPacket(method: MethodDef) {
-	return typeof method !== 'string' && method[1].binary && hasArrayBuffer(method[1].binary);
-}
-
 export function getBinaryOnlyPackets(client: MethodDef[]) {
 	const result: any = {};
 
@@ -154,10 +150,6 @@ export function createRateLimit(method: MethodDef): RateLimit | undefined {
 			parseRateLimit(method[1].serverRateLimit!, false) :
 			parseRateLimit(method[1].rateLimit!, true)),
 	} : undefined;
-}
-
-export function hasArrayBuffer(def: BinaryDef | Bin): boolean {
-	return Array.isArray(def) ? def.some(hasArrayBuffer) : def === Bin.Buffer;
 }
 
 export function getQuery(url: string | undefined): { [key: string]: string | string[] | undefined; } {

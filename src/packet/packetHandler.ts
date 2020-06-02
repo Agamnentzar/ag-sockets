@@ -1,6 +1,5 @@
 import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSendRecv, Bin, RemoteOptions } from '../interfaces';
-import { checkRateLimit, RateLimits } from '../utils';
-import { isBinaryOnlyPacket } from '../serverUtils';
+import { checkRateLimit, RateLimits, isBinaryOnlyPacket } from '../utils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
 	writeString, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,

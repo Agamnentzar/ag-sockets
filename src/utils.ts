@@ -1,3 +1,5 @@
+import { MethodDef, BinaryDef, Bin } from './interfaces';
+
 export interface RateLimit {
 	limit: number;
 	frame: number;
@@ -121,4 +123,12 @@ export function deferred<T>(): Deferred<T> {
 	});
 
 	return obj;
+}
+
+export function isBinaryOnlyPacket(method: MethodDef) {
+	return typeof method !== 'string' && method[1].binary && hasArrayBuffer(method[1].binary);
+}
+
+export function hasArrayBuffer(def: BinaryDef | Bin): boolean {
+	return Array.isArray(def) ? def.some(hasArrayBuffer) : def === Bin.Buffer;
 }
