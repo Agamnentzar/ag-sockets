@@ -181,7 +181,7 @@ function createInternalServer(
 		tokens: [],
 		totalSent: 0,
 		totalReceived: 0,
-		currentClientId: 1,
+		currentClientId: options.clientBaseId ?? 1,
 		path: options.path ?? '',
 		hash: options.hash ?? 0,
 		debug: !!options.debug,

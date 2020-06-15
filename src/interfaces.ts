@@ -95,6 +95,8 @@ export interface CommonOptions {
 	hash?: number;
 	/** custom request parameters */
 	requestParams?: any;
+	/** first ID to assign to client */
+	clientBaseId?: number;
 }
 
 export interface WriteAnyState {
