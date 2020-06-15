@@ -21,7 +21,7 @@ const defaultErrorHandler: ClientErrorHandler = {
 const pingBuffer = new ArrayBuffer(0);
 
 export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
-	options: ClientOptions,
+	originalOptions: ClientOptions,
 	token?: string | null | undefined,
 	errorHandler: ClientErrorHandler = defaultErrorHandler,
 	apply: (f: () => any) => void = f => f(),
@@ -51,12 +51,13 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		receivedSize: 0,
 		lastPacket: 0,
 		isConnected: false,
+		supportsBinary,
+		options: originalOptions,
 		connect,
 		disconnect,
-		supportsBinary,
 	};
 
-	options.server.forEach((item, id) => {
+	originalOptions.server.forEach((item, id) => {
 		if (typeof item === 'string') {
 			createMethod(item, id, {});
 		} else {
@@ -71,7 +72,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	});
 
 	special['*version'] = (version: number) => {
-		if (version === options.hash) {
+		if (version === clientSocket.options.hash) {
 			versionValidated = true;
 			lastSentId = 0;
 			clientSocket.isConnected = true;
@@ -82,7 +83,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			clientSocket.client.connected?.();
 		} else {
 			disconnect();
-			clientSocket.client.invalidVersion?.(version, options.hash!);
+			clientSocket.client.invalidVersion?.(version, clientSocket.options.hash!);
 		}
 	};
 
@@ -97,6 +98,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	}
 
 	function getWebsocketUrl() {
+		const options = clientSocket.options;
 		const protocol = (options.ssl || location.protocol === 'https:') ? 'wss://' : 'ws://';
 		const host = options.host || location.host;
 		const path = options.path || '/ws';
@@ -110,6 +112,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		if (socket) return;
 
+		const options = clientSocket.options;
 		const theSocket = socket = new WebSocket(getWebsocketUrl());
 		const mockRateLimits: RateLimits = [];
 
@@ -245,7 +248,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	function sendPing() {
 		try {
 			const now = Date.now();
-			const interval = options.pingInterval;
+			const interval = clientSocket.options.pingInterval;
 
 			if (versionValidated && interval && (now - lastPing) > interval && sendPingPacket()) {
 				lastPing = now;
