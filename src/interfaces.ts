@@ -107,7 +107,8 @@ export interface ReadAnyState {
 	strings: string[];
 }
 
-export type OnSendRecv = (id: number, name: string, size: number, binary: boolean) => void;
+export type OnSend = (id: number, name: string, size: number, binary: boolean) => void;
+export type OnRecv = (id: number, name: string, size: number, binary: boolean, data?: DataView) => void;
 
 // TODO: remove
 export interface Packet {
@@ -142,8 +143,8 @@ export interface ServerOptions extends CommonOptions {
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
 	/** send/recv handlers */
-	onSend?: OnSendRecv;
-	onRecv?: OnSendRecv;
+	onSend?: OnSend;
+	onRecv?: OnRecv;
 	client?: MethodDef[];
 	server?: MethodDef[];
 }
@@ -155,8 +156,8 @@ export interface ClientOptions extends CommonOptions {
 
 export interface RemoteOptions {
 	log?: Logger;
-	onSend?: OnSendRecv;
-	onRecv?: OnSendRecv;
+	onSend?: OnSend;
+	onRecv?: OnRecv;
 }
 
 export function getNames(methods: MethodDef[]) {

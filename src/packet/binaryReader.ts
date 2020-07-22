@@ -38,37 +38,37 @@ export function readUint8(reader: BinaryReader) {
 export function readInt16(reader: BinaryReader) {
 	const offset = reader.offset;
 	reader.offset += 2;
-	return reader.view.getInt16(offset);
+	return reader.view.getInt16(offset, true);
 }
 
 export function readUint16(reader: BinaryReader) {
 	const offset = reader.offset;
 	reader.offset += 2;
-	return reader.view.getUint16(offset);
+	return reader.view.getUint16(offset, true);
 }
 
 export function readInt32(reader: BinaryReader) {
 	const offset = reader.offset;
 	reader.offset += 4;
-	return reader.view.getInt32(offset);
+	return reader.view.getInt32(offset, true);
 }
 
 export function readUint32(reader: BinaryReader) {
 	const offset = reader.offset;
 	reader.offset += 4;
-	return reader.view.getUint32(offset);
+	return reader.view.getUint32(offset, true);
 }
 
 export function readFloat32(reader: BinaryReader) {
 	const offset = reader.offset;
 	reader.offset += 4;
-	return reader.view.getFloat32(offset);
+	return reader.view.getFloat32(offset, true);
 }
 
 export function readFloat64(reader: BinaryReader) {
 	const offset = reader.offset;
 	reader.offset += 8;
-	return reader.view.getFloat64(offset);
+	return reader.view.getFloat64(offset, true);
 }
 
 export function readBytes(reader: BinaryReader, length: number) {

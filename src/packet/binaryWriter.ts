@@ -73,7 +73,7 @@ export function writeArray<T>(writer: BinaryWriter, value: T[] | null, writeOne:
 }
 
 function writeNullLength(writer: BinaryWriter) {
-	writeUint16(writer, 0x8000);
+	writeUint16(writer, 0x0080);
 }
 
 export function writeLength(writer: BinaryWriter, value: number) {
@@ -86,19 +86,19 @@ export function writeLength(writer: BinaryWriter, value: number) {
 	} else if ((value & 0xffffc000) === 0) {
 		const a = (value & 0x7f) | 0x80;
 		const b = value >> 7;
-		writeUint16(writer, (a << 8) | b);
+		writeUint16(writer, (b << 8) | a);
 	} else if ((value & 0xffe00000) === 0) {
 		const a = (value & 0x7f) | 0x80;
 		const b = ((value >> 7) & 0x7f) | 0x80;
 		const c = value >> 14;
 		writeUint8(writer, a);
-		writeUint16(writer, (b << 8) | c);
+		writeUint16(writer, (c << 8) | b);
 	} else if ((value & 0xf0000000) === 0) {
 		const a = (value & 0x7f) | 0x80;
 		const b = ((value >> 7) & 0x7f) | 0x80;
 		const c = ((value >> 14) & 0x7f) | 0x80;
 		const d = value >> 21;
-		writeUint32(writer, (a << 24) | (b << 16) | (c << 8) | d);
+		writeUint32(writer, (d << 24) | (c << 16) | (b << 8) | a);
 	} else {
 		const a = (value & 0x7f) | 0x80;
 		const b = ((value >> 7) & 0x7f) | 0x80;
@@ -106,7 +106,7 @@ export function writeLength(writer: BinaryWriter, value: number) {
 		const d = ((value >> 21) & 0x7f) | 0x80;
 		const e = value >> 28;
 		writeUint8(writer, a);
-		writeUint32(writer, (b << 24) | (c << 16) | (d << 8) | e);
+		writeUint32(writer, (e << 24) | (d << 16) | (c << 8) | b);
 	}
 }
 
@@ -135,32 +135,32 @@ export function writeUint8(writer: BinaryWriter, value: number) {
 }
 
 export function writeInt16(writer: BinaryWriter, value: number) {
-	writer.view.setInt16(writer.offset, value | 0);
+	writer.view.setInt16(writer.offset, value | 0, true);
 	writer.offset += 2;
 }
 
 export function writeUint16(writer: BinaryWriter, value: number) {
-	writer.view.setUint16(writer.offset, value | 0);
+	writer.view.setUint16(writer.offset, value | 0, true);
 	writer.offset += 2;
 }
 
 export function writeInt32(writer: BinaryWriter, value: number) {
-	writer.view.setInt32(writer.offset, value | 0);
+	writer.view.setInt32(writer.offset, value | 0, true);
 	writer.offset += 4;
 }
 
 export function writeUint32(writer: BinaryWriter, value: number) {
-	writer.view.setUint32(writer.offset, value | 0);
+	writer.view.setUint32(writer.offset, value | 0, true);
 	writer.offset += 4;
 }
 
 export function writeFloat32(writer: BinaryWriter, value: number) {
-	writer.view.setFloat32(writer.offset, +value);
+	writer.view.setFloat32(writer.offset, +value, true);
 	writer.offset += 4;
 }
 
 export function writeFloat64(writer: BinaryWriter, value: number) {
-	writer.view.setFloat64(writer.offset, +value);
+	writer.view.setFloat64(writer.offset, +value, true);
 	writer.offset += 8;
 }
 

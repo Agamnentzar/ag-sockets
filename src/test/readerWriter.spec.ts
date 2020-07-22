@@ -131,7 +131,7 @@ describe('PacketReader + PacketWriter', () => {
 		const buffer = new Uint8Array([1, 2, 3, 4, 5, 6, 7]).buffer;
 		const writer = createBinaryWriter(new Uint8Array(buffer, 2, 4));
 		writeUint32(writer, 0x11223344);
-		expect(new Uint8Array(buffer)).eql(new Uint8Array([1, 2, 17, 34, 51, 68, 7]));
+		expect(new Uint8Array(buffer)).eql(new Uint8Array([1, 2, 68, 51, 34, 17, 7]));
 	});
 
 	it('returns offset (Writer)', () => {

@@ -1,4 +1,4 @@
-import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSendRecv, Bin, RemoteOptions } from '../interfaces';
+import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSend, OnRecv, Bin, RemoteOptions } from '../interfaces';
 import { checkRateLimit, RateLimits, isBinaryOnlyPacket } from '../utils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
@@ -111,8 +111,8 @@ export interface HandlerOptions {
 	useBuffer?: boolean;
 	debug?: boolean;
 	development?: boolean;
-	onSend?: OnSendRecv;
-	onRecv?: OnSendRecv;
+	onSend?: OnSend;
+	onRecv?: OnRecv;
 }
 
 type CreateRemoteHandler = (
@@ -215,7 +215,7 @@ export function createPacketHandler(
 
 // code generation
 
-function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOptions, onRecv: OnSendRecv): LocalHandler {
+function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOptions, onRecv: OnRecv): LocalHandler {
 	let code = ``;
 	code += `var anyState = { strings: [] };\n`;
 	code += `${Object.keys(readerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n\n`;
@@ -257,7 +257,7 @@ function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOption
 				code += `        console.log('RECV [' + reader.view.byteLength + '] (bin)', '${name}', [${argList}]);\n`;
 			}
 
-			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true);\n`;
+			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true, reader.view);\n`;
 
 			if (options.promise) {
 				code += `        var result = actions.${name}(${argList});\n`;
