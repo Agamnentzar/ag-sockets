@@ -257,7 +257,7 @@ function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOption
 				code += `        console.log('RECV [' + reader.view.byteLength + '] (bin)', '${name}', [${argList}]);\n`;
 			}
 
-			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true, reader.view);\n`;
+			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true, reader.view, actions);\n`;
 
 			if (options.promise) {
 				code += `        var result = actions.${name}(${argList});\n`;

@@ -108,7 +108,7 @@ export interface ReadAnyState {
 }
 
 export type OnSend = (id: number, name: string, size: number, binary: boolean) => void;
-export type OnRecv = (id: number, name: string, size: number, binary: boolean, data?: DataView) => void;
+export type OnRecv = (id: number, name: string, size: number, binary: boolean, data?: DataView, actions?: any) => void;
 
 // TODO: remove
 export interface Packet {
