@@ -61,17 +61,7 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 		verifyClient,
 	});
 
-	wsServer.on('connection', (socket, request) => {
-		try {
-			const originalRequest = createOriginalRequest(socket, request);
-			const query = getQuery(originalRequest.url);
-			const server = getServer(query.id);
-			connectClient(socket, server, originalRequest, errorHandler, log);
-		} catch (e) {
-			socket.terminate();
-			errorHandler.handleError(null, e);
-		}
-	});
+	wsServer.on('connection', connectSocket);
 
 	wsServer.on('error', e => {
 		errorHandler.handleError(null, e);
@@ -86,14 +76,10 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 	}
 
 	function getServer(id: any) {
-		if (servers.length === 1) {
-			return servers[0];
-		}
+		if (servers.length === 1) return servers[0];
 
 		for (const server of servers) {
-			if (server.id === id) {
-				return server;
-			}
+			if (server.id === id) return server;
 		}
 
 		throw new Error(`No server for given id (${id})`);
@@ -155,7 +141,23 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 		return internalServer.server;
 	}
 
-	return { close, socket, socketRaw };
+	function upgrade(request: any, socket: any) {
+		wsServer.handleUpgrade(request, socket, Buffer.alloc(0), socket => connectSocket(socket, request));
+	}
+
+	function connectSocket(socket: ws, request: IncomingMessage) {
+		try {
+			const originalRequest = createOriginalRequest(socket, request);
+			const query = getQuery(originalRequest.url);
+			const server = getServer(query.id);
+			connectClient(socket, server, originalRequest, errorHandler, log);
+		} catch (e) {
+			socket.terminate();
+			errorHandler.handleError(null, e);
+		}
+	}
+
+	return { close, socket, socketRaw, upgrade };
 }
 
 function createInternalServer(

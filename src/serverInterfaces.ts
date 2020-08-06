@@ -44,6 +44,7 @@ export interface ServerHost {
 		options?: ServerOptions,
 	): Server;
 	socketRaw(createServer: CreateServerMethod, options: ServerOptions): Server;
+	upgrade(request: any, socket: any): void;
 }
 
 export interface GlobalConfig {
