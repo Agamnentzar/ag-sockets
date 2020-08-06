@@ -1,4 +1,5 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
+import { Socket } from 'net';
 import * as ws from 'ws';
 import { ServerOptions, ClientOptions, getNames, SocketServer, Logger } from './interfaces';
 import { checkRateLimit, getLength, cloneDeep, removeItem } from './utils';
@@ -143,8 +144,25 @@ export function createServerHost(httpServer: HttpServer | undefined, globalConfi
 		return internalServer.server;
 	}
 
-	function upgrade(request: any, socket: any) {
-		wsServer.handleUpgrade(request, socket, Buffer.alloc(0), socket => connectSocket(socket, request));
+	function upgrade(request: IncomingMessage, socket: Socket) {
+		// have to run verifyClient manually because clusterws/cws doesn't do that
+		verifyClient({ req: request }, (result, code, name) => {
+			if (result) {
+				wsServer.handleUpgrade(request, socket, Buffer.alloc(0), socket => connectSocket(socket, request));
+			} else {
+				if (socket.writable) {
+					socket.write(
+						`HTTP/1.1 ${code} ${name}\r\n` +
+						`Connection: close\r\n` +
+						`Content-Type: text/html\r\n` +
+						`Content-Length: ${Buffer.byteLength(name)}\r\n` +
+						'\r\n\r\n' +
+						name
+					);
+				}
+				socket.destroy();
+			}
+		});
 	}
 
 	function connectSocket(socket: ws, request: IncomingMessage) {
