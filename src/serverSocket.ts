@@ -15,7 +15,7 @@ import {
 import { BinaryReader, createBinaryReaderFromBuffer, getBinaryReaderBuffer } from './packet/binaryReader';
 
 export function createServer<TServer, TClient>(
-	httpServer: HttpServer,
+	httpServer: HttpServer | undefined,
 	serverType: new (...args: any[]) => TServer,
 	clientType: new (...args: any[]) => TClient,
 	createServer: CreateServer<TServer, TClient>,
@@ -27,7 +27,8 @@ export function createServer<TServer, TClient>(
 }
 
 export function createServerRaw(
-	httpServer: HttpServer, createServer: CreateServerMethod, options: ServerOptions, errorHandler?: ErrorHandler, log?: Logger
+	httpServer: HttpServer | undefined, createServer: CreateServerMethod, options: ServerOptions,
+	errorHandler?: ErrorHandler, log?: Logger
 ): Server {
 	const host = createServerHost(httpServer, {
 		path: options.path,
@@ -41,7 +42,7 @@ export function createServerRaw(
 	return socket;
 }
 
-export function createServerHost(httpServer: HttpServer, globalConfig: GlobalConfig): ServerHost {
+export function createServerHost(httpServer: HttpServer | undefined, globalConfig: GlobalConfig): ServerHost {
 	const wsLibrary = (globalConfig.ws || require('ws')) as any as typeof ws;
 	const {
 		path = '/ws',
@@ -56,6 +57,7 @@ export function createServerHost(httpServer: HttpServer, globalConfig: GlobalCon
 
 	const wsServer = new wsLibrary.Server({
 		server: httpServer,
+		noServer: !httpServer,
 		path,
 		perMessageDeflate,
 		verifyClient,
