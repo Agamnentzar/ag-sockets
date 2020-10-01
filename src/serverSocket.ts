@@ -353,7 +353,7 @@ function connectClient(
 				}
 
 				if (force) {
-					close();
+					close(0, 'explicitly disconnected');
 					socket.terminate();
 				} else {
 					socket.close();
@@ -385,9 +385,10 @@ function connectClient(
 		}
 	}
 
-	function handleDisconnected(serverActions: SocketServer) {
+	function handleDisconnected(serverActions: SocketServer, code: number, reason: string) {
 		if (serverActions.disconnected) {
-			callWithErrorHandling(() => serverActions.disconnected!(), () => { }, e => errorHandler.handleError(obj.client, e));
+			callWithErrorHandling(() => serverActions.disconnected!(code, reason), () => { },
+				e => errorHandler.handleError(obj.client, e));
 		}
 	}
 
@@ -493,7 +494,7 @@ function connectClient(
 
 	let closed = false;
 
-	function close() {
+	function close(code: number, reason: string) {
 		if (closed) return;
 
 		try {
@@ -503,7 +504,7 @@ function connectClient(
 
 			if (server.debug) log('client disconnected');
 
-			serverActions && handleDisconnected(serverActions);
+			serverActions && handleDisconnected(serverActions, code, reason);
 
 			if (obj.token) {
 				obj.token.expire = Date.now() + server.tokenLifetime;
