@@ -329,6 +329,7 @@ function connectClient(
 	let transferLimitExceeded = false;
 	let isConnected = true;
 	let serverActions: SocketServer | undefined = undefined;
+	let closeReason: string | undefined = undefined;
 
 	const obj: ClientState = {
 		lastMessageTime: Date.now(),
@@ -352,8 +353,10 @@ function connectClient(
 					obj.token = undefined;
 				}
 
+				closeReason = reason;
+
 				if (force) {
-					close(0, reason || 'explicitly disconnected');
+					close();
 					socket.terminate();
 				} else {
 					socket.close();
@@ -385,9 +388,9 @@ function connectClient(
 		}
 	}
 
-	function handleDisconnected(serverActions: SocketServer, code: number, reason: string) {
+	function handleDisconnected(serverActions: SocketServer) {
 		if (serverActions.disconnected) {
-			callWithErrorHandling(() => serverActions.disconnected!(code, reason), () => { },
+			callWithErrorHandling(() => serverActions.disconnected!(), () => { },
 				e => errorHandler.handleError(obj.client, e));
 		}
 	}
@@ -494,7 +497,7 @@ function connectClient(
 
 	let closed = false;
 
-	function close(code: number, reason: string) {
+	function close() {
 		if (closed) return;
 
 		try {
@@ -504,7 +507,7 @@ function connectClient(
 
 			if (server.debug) log('client disconnected');
 
-			serverActions && handleDisconnected(serverActions, code, reason);
+			serverActions && handleDisconnected(serverActions);
 
 			if (obj.token) {
 				obj.token.expire = Date.now() + server.tokenLifetime;
@@ -515,7 +518,13 @@ function connectClient(
 		}
 	}
 
-	socket.on('close', close);
+	socket.on('close', (code, reason) => {
+		try {
+			serverActions?.disconnectedReason?.(code, closeReason ? `${reason} (${closeReason})` : reason);
+		} catch { }
+
+		close();
+	});
 
 	Promise.resolve(server.createServer(obj.client))
 		.then(actions => {
