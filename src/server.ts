@@ -11,7 +11,7 @@ export interface ClientExtensions {
 	tokenId?: string;
 	tokenData?: any;
 	originalRequest?: OriginalRequest;
-	disconnect(force?: boolean, invalidateToken?: boolean): void;
+	disconnect(force?: boolean, invalidateToken?: boolean, reason?: string): void;
 }
 
 export type SocketServerClient = SocketClient & ClientExtensions;
