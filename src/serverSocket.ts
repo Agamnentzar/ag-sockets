@@ -347,13 +347,13 @@ function connectClient(
 			get isConnected() {
 				return isConnected;
 			},
-			disconnect(force = false, invalidateToken = false) {
+			disconnect(force = false, invalidateToken = false, reason = '') {
 				if (invalidateToken) {
 					obj.token = undefined;
 				}
 
 				if (force) {
-					close(0, 'explicitly disconnected');
+					close(0, reason || 'explicitly disconnected');
 					socket.terminate();
 				} else {
 					socket.close();
