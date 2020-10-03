@@ -7,7 +7,8 @@ export interface OriginalRequest {
 
 export interface ClientExtensions {
 	id: number;
-	isConnected: boolean;
+	readonly isConnected: boolean;
+	readonly lastMessageTime: number;
 	tokenId?: string;
 	tokenData?: any;
 	originalRequest?: OriginalRequest;

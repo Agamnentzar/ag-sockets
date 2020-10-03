@@ -244,7 +244,7 @@ function createInternalServer(
 			server.clients.forEach(c => {
 				try {
 					if ((now - c.lastMessageTime) > options.connectionTimeout!) {
-						c.client.disconnect(true);
+						c.client.disconnect(true, false, 'timeout');
 					} else {
 						c.ping();
 					}
@@ -285,7 +285,7 @@ function createInternalServer(
 
 			server.clients
 				.filter(c => c.token && test(c.token.id, c.token.data))
-				.forEach(c => c.client.disconnect(true, true));
+				.forEach(c => c.client.disconnect(true, true, 'clear tokens'));
 		},
 		info() {
 			const writerBufferSize = packetHandler.writerBufferSize();
@@ -348,6 +348,9 @@ function connectClient(
 			get isConnected() {
 				return isConnected;
 			},
+			get lastMessageTime() {
+				return obj.lastMessageTime;
+			},
 			disconnect(force = false, invalidateToken = false, reason = '') {
 				if (invalidateToken) {
 					obj.token = undefined;
@@ -383,7 +386,7 @@ function connectClient(
 		if (serverActions.connected) {
 			callWithErrorHandling(() => serverActions.connected!(), () => { }, e => {
 				errorHandler.handleError(obj.client, e);
-				obj.client.disconnect();
+				obj.client.disconnect(false, false, 'error on connected()');
 			});
 		}
 	}
@@ -429,7 +432,7 @@ function connectClient(
 
 				if (transferLimit && transferLimit < bytesPerSecond) {
 					transferLimitExceeded = true;
-					obj.client.disconnect(true, true);
+					obj.client.disconnect(true, true, 'transfer limit');
 					errorHandler.handleRecvError(
 						obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${transferLimit} (${diff}ms)`),
 						reader ? getBinaryReaderBuffer(reader) : data!);
@@ -437,7 +440,7 @@ function connectClient(
 				}
 
 				if (server.forceBinary && data !== undefined) {
-					obj.client.disconnect(true, true);
+					obj.client.disconnect(true, true, 'non-binary message');
 					errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`),
 						reader ? getBinaryReaderBuffer(reader) : data!);
 					return;
