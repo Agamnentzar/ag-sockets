@@ -200,7 +200,7 @@ export function createPacketHandler(
 			handleFunction(funcId, funcName, func, funcObj, args);
 		} else {
 			if (debug) log(`invalid message: ${funcName}`, args);
-			if (development) throw new Error('Invalid packet');
+			if (development) throw new Error(`Invalid packet (${funcName})`);
 		}
 
 		onRecv(funcId, funcName, data.length, false);
