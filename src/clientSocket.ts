@@ -314,6 +314,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		special['*resolve:' + name] = (messageId: number, result: any) => {
 			const defer = defers.get(messageId);
+
 			if (defer) {
 				defers.delete(messageId);
 

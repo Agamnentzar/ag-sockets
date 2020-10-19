@@ -189,6 +189,7 @@ function createInternalServer(
 		debug: options.debug,
 		development: options.development,
 		forceBinary: options.forceBinary,
+		forceBinaryPackets: options.forceBinaryPackets,
 		onSend: options.onSend,
 		onRecv: options.onRecv,
 		useBuffer: true,

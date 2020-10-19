@@ -141,6 +141,8 @@ export interface ServerOptions extends CommonOptions {
 	arrayBuffer?: boolean;
 	/** only allow binary packets and binary connections */
 	forceBinary?: boolean;
+	/** only allow binary encoding for packets with binary option */
+	forceBinaryPackets?: boolean;
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
 	/** send/recv handlers */

@@ -108,6 +108,7 @@ export type HandleResult = (funcId: number, funcName: string, result: Promise<an
 
 export interface HandlerOptions {
 	forceBinary?: boolean;
+	forceBinaryPackets?: boolean;
 	useBuffer?: boolean;
 	debug?: boolean;
 	development?: boolean;
@@ -138,13 +139,18 @@ export function createPacketHandler(
 	if (local.length > 250 || remote.length > 250) throw new Error('Too many methods');
 
 	const debug = !!options.debug;
+	const forceBinaryPackets = !!options.forceBinaryPackets;
 	const development = !!options.development;
 	const onSend = options.onSend;
 	const onRecv = options.onRecv ?? (() => { });
 
 	const remoteNames = getNames(remote);
 	const localNames = getNames(local);
-	const ignorePackets = [...getIgnore(remote), ...getIgnore(local)];
+	const localWithBinary = new Set(local
+		.map(x => typeof x === 'string' ? { name: x, binary: false } : { name: x[0], binary: !!x[1].binary })
+		.filter(x => x.binary)
+		.map(x => x.name));
+	const ignorePackets = new Set([...getIgnore(remote), ...getIgnore(local)]);
 	const recvBinary = generateLocalHandlerCode(local, options, onRecv);
 	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
 	const writer = createBinaryWriter();
@@ -154,7 +160,7 @@ export function createPacketHandler(
 			const data = JSON.stringify([id, ...args]);
 			send(data);
 
-			if (debug && ignorePackets.indexOf(name) === -1) {
+			if (debug && ignorePackets.has(name)) {
 				log(`SEND [${data.length}] (str)`, name, [id, ...args]);
 			}
 
@@ -192,8 +198,12 @@ export function createPacketHandler(
 		const funcObj = funcSpecial ? specialFuncList : funcList;
 		const func = funcObj[funcName];
 
-		if (debug && ignorePackets.indexOf(funcName) === -1) {
+		if (debug && ignorePackets.has(funcName)) {
 			log(`RECV [${data.length}] (str)`, funcName, args);
+		}
+
+		if (forceBinaryPackets && localWithBinary.has(funcName)) {
+			throw new Error(`Invalid non-binary packet (${funcName})`);
 		}
 
 		if (func) {
