@@ -98,6 +98,8 @@ export interface CommonOptions {
 	requestParams?: any;
 	/** first ID to assign to client */
 	clientBaseId?: number;
+	/** always send copy of buffer on client side */
+	copySendBuffer?: boolean;
 }
 
 export interface WriteAnyState {

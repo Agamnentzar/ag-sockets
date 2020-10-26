@@ -33,6 +33,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	const rateLimits: RateLimits = [];
 	const convertToArrayBuffer = typeof navigator !== 'undefined' && /MSIE 10|Trident\/7/.test(navigator.userAgent);
 	const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
+	const copySendBuffer = originalOptions.copySendBuffer;
 	let supportsBinary = isSupportingBinary();
 	let socket: WebSocket | null = null;
 	let connecting = false;
@@ -236,6 +237,10 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				const view = new Uint8Array(buffer);
 				view.set(data);
 				data = buffer;
+			}
+
+			if (copySendBuffer && data instanceof Uint8Array) {
+				data = data.slice();
 			}
 
 			socket.send(data);

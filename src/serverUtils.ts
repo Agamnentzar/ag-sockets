@@ -137,6 +137,7 @@ export function toClientOptions(options: ServerOptions): ClientOptions {
 		debug: options.debug,
 		hash: options.hash,
 		requestParams: options.requestParams,
+		copySendBuffer: options.copySendBuffer,
 		client: options.client!,
 		server: options.server!.map(x => typeof x === 'string' ? x : clearMethodOptions(x)),
 	};
