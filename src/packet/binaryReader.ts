@@ -113,8 +113,8 @@ export function readString(reader: BinaryReader) {
 	return length === -1 ? null : decodeString(readBytes(reader, length));
 }
 
-export function readObject(reader: BinaryReader) {
-	return readAny(reader, { strings: [] });
+export function readObject(reader: BinaryReader, cloneTypedArrays = false) {
+	return readAny(reader, { strings: [], cloneTypedArrays });
 }
 
 export function readLength(reader: BinaryReader) {
@@ -158,7 +158,11 @@ export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 				case Special.Null: return null;
 				case Special.True: return true;
 				case Special.False: return false;
-				case Special.Uint8Array: return readUint8Array(reader);
+				case Special.Uint8Array: {
+					const value = readUint8Array(reader);
+					if (value && state.cloneTypedArrays) return value.slice();
+					return value;
+				}
 				default: throw new Error(`Incorrect value (${value}, ${byte})`);
 			}
 		case Type.Number:

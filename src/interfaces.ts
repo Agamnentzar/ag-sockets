@@ -108,6 +108,7 @@ export interface WriteAnyState {
 
 export interface ReadAnyState {
 	strings: string[];
+	cloneTypedArrays?: boolean;
 }
 
 export type OnSend = (id: number, name: string, size: number, binary: boolean) => void;
