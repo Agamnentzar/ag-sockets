@@ -39,38 +39,34 @@ export function createToken(server: InternalServer, data?: any): Token {
 		data,
 		expire: Date.now() + server.tokenLifetime!,
 	};
-	server.tokens.push(token);
+	server.freeTokens.set(token.id, token);
 	return token;
 }
 
-export function getToken(server: InternalServer, id: any): Token | null {
-	for (let i = 0; i < server.tokens.length; i++) {
-		const token = server.tokens[i];
+export function getToken(server: InternalServer, id: string): Token | null {
+	const token = server.freeTokens.get(id);
 
-		if (token.id === id) {
-			server.tokens.splice(i, 1);
-			return token.expire < Date.now() ? null : token;
-		}
+	if (token) {
+		server.freeTokens.delete(id);
+		if (token.expire > Date.now()) return token;
 	}
 
 	return null;
 }
 
-export function getTokenFromClient(server: InternalServer, id: any): Token | undefined {
-	const index = server.clients.findIndex(c => !!c.token && c.token.id === id);
+export function getTokenFromClient(server: InternalServer, id: string): Token | undefined {
+	const client = server.clientsByToken.get(id);
+	if (!client) return undefined;
 
-	if (index !== -1) {
-		const { client, token } = server.clients[index];
-		client.disconnect(true);
-		return token;
-	} else {
-		return undefined;
-	}
+	const token = client.token;
+	client.client.disconnect(true);
+	server.clientsByToken.delete(id);
+	client.token = undefined;
+	return token;
 }
 
 export function hasToken(server: InternalServer, id: any) {
-	return server.tokens.some(t => t.id === id) ||
-		server.clients.some(c => !!(c.token && c.token.id === id));
+	return server.freeTokens.has(id) || server.clientsByToken.has(id);
 }
 
 export function createOriginalRequest(

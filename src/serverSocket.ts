@@ -201,7 +201,8 @@ function createInternalServer(
 	const server: InternalServer = {
 		id: options.id ?? 'socket',
 		clients: [],
-		tokens: [],
+		freeTokens: new Map(),
+		clientsByToken: new Map(),
 		totalSent: 0,
 		totalReceived: 0,
 		currentClientId: options.clientBaseId ?? 1,
@@ -257,7 +258,17 @@ function createInternalServer(
 	if (options.connectionTokens) {
 		server.tokenInterval = setInterval(() => {
 			const now = Date.now();
-			server.tokens = server.tokens.filter(t => t.expire > now);
+			const ids: string[] = [];
+
+			server.freeTokens.forEach(token => {
+				if (token.expire < now) {
+					ids.push(token.id);
+				}
+			});
+
+			for (const id of ids) {
+				server.freeTokens.delete(id);
+			}
 		}, 10000);
 	}
 
@@ -272,21 +283,30 @@ function createInternalServer(
 			return cloneDeep(clientOptions);
 		},
 		token(data?: any) {
-			if (!options.connectionTokens)
-				throw new Error('Option connectionTokens not set');
-
 			return createToken(server, data).id;
 		},
+		clearToken(id: string) {
+			server.freeTokens.delete(id);
+			server.clientsByToken.get(id)?.client.disconnect(true, true, 'clear tokens');
+		},
 		clearTokens(test: (id: string, data?: any) => boolean) {
-			if (!options.connectionTokens)
-				throw new Error('Option connectionTokens not set');
+			const ids: string[] = [];
 
-			server.tokens = server.tokens
-				.filter(t => !test(t.id, t.data));
+			server.freeTokens.forEach(token => {
+				if (test(token.id, token.data)) {
+					ids.push(token.id);
+				}
+			});
 
-			server.clients
-				.filter(c => c.token && test(c.token.id, c.token.data))
-				.forEach(c => c.client.disconnect(true, true, 'clear tokens'));
+			server.clientsByToken.forEach(({ token }) => {
+				if (token && test(token.id, token.data)) {
+					ids.push(token.id);
+				}
+			});
+
+			for (const id of ids) {
+				this.clearToken(id);
+			}
 		},
 		info() {
 			const writerBufferSize = packetHandler.writerBufferSize();
@@ -313,7 +333,7 @@ function connectClient(
 	socket: ws, server: InternalServer, originalRequest: OriginalRequest, errorHandler: ErrorHandler, log: Logger
 ) {
 	const query = getQuery(originalRequest.url);
-	const t = query.t || '';
+	const t = (query.t || '') as string;
 	const token = server.connectionTokens ? getToken(server, t) || getTokenFromClient(server, t) : undefined;
 
 	if (server.connectionTokens && !token) {
@@ -368,6 +388,8 @@ function connectClient(
 			},
 		},
 	};
+
+	if (obj.token) server.clientsByToken.set(obj.token.id, obj);
 
 	// TODO: remove Uint8Array from here
 	function send(data: string | Uint8Array | Buffer) {
@@ -508,6 +530,7 @@ function connectClient(
 			closed = true;
 			isConnected = false;
 			removeItem(server.clients, obj);
+			if (obj.token) server.clientsByToken.delete(obj.token.id);
 
 			if (server.debug) log('client disconnected');
 
@@ -515,7 +538,7 @@ function connectClient(
 
 			if (obj.token) {
 				obj.token.expire = Date.now() + server.tokenLifetime;
-				server.tokens.push(obj.token);
+				server.freeTokens.set(obj.token.id, obj.token);
 			}
 		} catch (e) {
 			errorHandler.handleError(obj.client, e);

@@ -28,6 +28,7 @@ export interface Server {
 	close(): void;
 	options(): ClientOptions;
 	token(data?: any): string;
+	clearToken(id: string): void;
 	clearTokens(test: (id: string, data?: any) => boolean): void;
 	info(): ServerInfo;
 }
@@ -61,7 +62,8 @@ export interface GlobalConfig {
 export interface InternalServer {
 	// state
 	clients: ClientState[];
-	tokens: Token[];
+	freeTokens: Map<string, Token>;
+	clientsByToken: Map<string, ClientState>;
 	currentClientId: number;
 	pingInterval: any;
 	tokenInterval: any;

@@ -220,12 +220,6 @@ describe('serverSocket', () => {
 
 				expect(server1!.client.tokenData).equal(data);
 			});
-
-			it('throws if connection tokens are turned off', () => {
-				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
-
-				expect(() => socketServer.token()).throw('Option connectionTokens not set');
-			});
 		});
 
 		describe('.clearTokens()', () => {
@@ -268,12 +262,6 @@ describe('serverSocket', () => {
 				socketServer.clearTokens((_, data) => data.remove);
 
 				assert.calledOnce(terminate);
-			});
-
-			it('throws if connection tokens are turned off', () => {
-				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws });
-
-				expect(() => socketServer.clearTokens(() => true)).throw('Option connectionTokens not set');
 			});
 		});
 
