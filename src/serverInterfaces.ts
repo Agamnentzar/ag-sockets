@@ -12,6 +12,7 @@ export interface Token {
 export interface ClientState {
 	lastMessageTime: number;
 	lastMessageId: number;
+	lastSendTime: number;
 	sentSize: number;
 	token: Token | undefined;
 	ping(): void;

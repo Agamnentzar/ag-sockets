@@ -239,20 +239,26 @@ function createInternalServer(
 		}
 	}
 
-	if (options.pingInterval) {
+	const pingInterval = options.pingInterval;
+
+	if (pingInterval) {
 		server.pingInterval = setInterval(() => {
 			const now = Date.now();
+			const threshold = now - pingInterval;
+			const timeoutThreshold = now - options.connectionTimeout!;
 
-			server.clients.forEach(c => {
+			for (let i = 0; i < server.clients.length; i++) {
+				const c = server.clients[i];
+
 				try {
-					if ((now - c.lastMessageTime) > options.connectionTimeout!) {
+					if (c.lastMessageTime < timeoutThreshold) {
 						c.client.disconnect(true, false, 'timeout');
-					} else {
+					} else if (c.lastSendTime < threshold) {
 						c.ping();
 					}
 				} catch { }
-			});
-		}, options.pingInterval);
+			}
+		}, pingInterval);
 	}
 
 	if (options.connectionTokens) {
@@ -355,6 +361,7 @@ function connectClient(
 	const obj: ClientState = {
 		lastMessageTime: Date.now(),
 		lastMessageId: 0,
+		lastSendTime: Date.now(),
 		sentSize: 0,
 		supportsBinary: !!server.forceBinary || !!(query && query.bin === 'true'),
 		token,
@@ -403,6 +410,8 @@ function connectClient(
 			server.totalSent += data.length;
 			socket.send(data);
 		}
+
+		obj.lastSendTime = Date.now();
 	}
 
 	function handleConnected(serverActions: SocketServer) {
