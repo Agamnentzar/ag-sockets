@@ -2,7 +2,7 @@ import { Server as HttpServer, IncomingMessage } from 'http';
 import { Socket } from 'net';
 import * as ws from 'ws';
 import { ServerOptions, ClientOptions, getNames, SocketServer, Logger } from './interfaces';
-import { checkRateLimit, getLength, cloneDeep, removeItem } from './utils';
+import { checkRateLimit, getLength, cloneDeep } from './utils';
 import { ErrorHandler, OriginalRequest } from './server';
 import { MessageType, Send, createPacketHandler, HandleResult, HandlerOptions } from './packet/packetHandler';
 import {
@@ -119,7 +119,8 @@ export function createServerHost(httpServer: HttpServer | undefined, globalConfi
 
 	function closeAndRemoveServer(server: InternalServer) {
 		closeServer(server);
-		removeItem(servers, server);
+		const index = servers.indexOf(server);
+		if (index !== -1) servers.splice(index, 1);
 	}
 
 	function socket<TServer, TClient>(
@@ -538,7 +539,14 @@ function connectClient(
 		try {
 			closed = true;
 			isConnected = false;
-			removeItem(server.clients, obj);
+
+			// remove client
+			const index = server.clients.indexOf(obj);
+			if (index !== -1) {
+				server.clients[index] = server.clients[server.clients.length - 1];
+				server.clients.pop();
+			}
+
 			if (obj.token) server.clientsByToken.delete(obj.token.id);
 
 			if (server.debug) log('client disconnected');

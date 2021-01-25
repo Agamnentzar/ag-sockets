@@ -193,7 +193,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				}, options.reconnectTimeout);
 			}
 
-			defers.forEach(d => d.reject(new Error('Disconnected')));
+			defers.forEach(d => d.reject(new Error(`Disconnected (${(d as any).name})`)));
 			defers.clear();
 
 			Object.keys(inProgressFields).forEach(key => inProgressFields[key] = 0);
@@ -310,6 +310,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			remote[name].apply(null, args);
 			const messageId = ++lastSentId;
 			const defer = deferred<any>();
+			(defer as any).name = name;
 			defers.set(messageId, defer);
 
 			if (inProgressField) inProgressFields[inProgressField]++;
