@@ -40,7 +40,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	let reconnectTimeout: any;
 	let pingInterval: any;
 	let lastPing = 0;
-	let lastSend = 0;
+	// let lastSend = 0;
 	let packet: PacketHandler | undefined = undefined;
 	let remote: { [key: string]: Function; } | undefined = undefined;
 	let lastSentId = 0;
@@ -244,7 +244,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			}
 
 			socket.send(data);
-			lastSend = Date.now();
+			// lastSend = Date.now();
 			return true;
 		} else {
 			return false;
