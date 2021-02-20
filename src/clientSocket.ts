@@ -148,6 +148,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				} catch (e) {
 					errorHandler.handleRecvError(e, typeof data === 'string' ? data : new Uint8Array(data));
 				}
+			} else {
+				sendPing(); // need to send ping here because setInterval in unreliable on some browsers when the tab is in the background
 			}
 		};
 
