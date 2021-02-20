@@ -163,9 +163,9 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 			if (options.pingInterval) {
 				pingInterval = setInterval(() => {
-					if ((Date.now() - lastSend) > options.pingInterval!) {
-						sendPing();
-					}
+					// if ((Date.now() - lastSend) > options.pingInterval!) {
+					sendPing();
+					// }
 				}, options.pingInterval);
 			}
 		};

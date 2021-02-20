@@ -245,7 +245,7 @@ function createInternalServer(
 	if (pingInterval) {
 		server.pingInterval = setInterval(() => {
 			const now = Date.now();
-			const threshold = now - pingInterval;
+			// const threshold = now - pingInterval;
 			const timeoutThreshold = now - options.connectionTimeout!;
 
 			for (let i = 0; i < server.clients.length; i++) {
@@ -254,7 +254,7 @@ function createInternalServer(
 				try {
 					if (c.lastMessageTime < timeoutThreshold) {
 						c.client.disconnect(true, false, 'timeout');
-					} else if (c.lastSendTime < threshold) {
+					} else { // if (c.lastSendTime < threshold) {
 						c.ping();
 					}
 				} catch { }
@@ -547,14 +547,13 @@ function connectClient(
 				server.clients.pop();
 			}
 
-			if (obj.token) server.clientsByToken.delete(obj.token.id);
-
 			if (server.debug) log('client disconnected');
 
 			serverActions && handleDisconnected(serverActions);
 
 			if (obj.token) {
 				obj.token.expire = Date.now() + server.tokenLifetime;
+				server.clientsByToken.delete(obj.token.id);
 				server.freeTokens.set(obj.token.id, obj.token);
 			}
 		} catch (e) {
