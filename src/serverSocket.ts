@@ -317,7 +317,9 @@ function createInternalServer(
 		},
 		info() {
 			const writerBufferSize = packetHandler.writerBufferSize();
-			return { writerBufferSize };
+			const freeTokens = server.freeTokens.size;
+			const clientsByToken = server.clientsByToken.size;
+			return { writerBufferSize, freeTokens, clientsByToken };
 		},
 	};
 

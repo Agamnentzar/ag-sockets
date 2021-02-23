@@ -22,6 +22,8 @@ export interface ClientState {
 
 export interface ServerInfo {
 	writerBufferSize: number;
+	freeTokens: number;
+	clientsByToken: number;
 }
 
 export interface Server {
