@@ -186,12 +186,13 @@ function createInternalServer(
 ): InternalServer {
 	options = optionsWithDefaults(options);
 
+	const onSend = options.onSend;
 	const handlerOptions: HandlerOptions = {
 		debug: options.debug,
 		development: options.development,
 		forceBinary: options.forceBinary,
 		forceBinaryPackets: options.forceBinaryPackets,
-		onSend: options.onSend,
+		onSend,
 		onRecv: options.onRecv,
 		useBuffer: true,
 	};
@@ -245,7 +246,7 @@ function createInternalServer(
 	if (pingInterval) {
 		server.pingInterval = setInterval(() => {
 			const now = Date.now();
-			// const threshold = now - pingInterval;
+			const threshold = now - pingInterval;
 			const timeoutThreshold = now - options.connectionTimeout!;
 
 			for (let i = 0; i < server.clients.length; i++) {
@@ -254,9 +255,9 @@ function createInternalServer(
 				try {
 					if (c.lastMessageTime < timeoutThreshold) {
 						c.client.disconnect(true, false, 'timeout');
-					} else { // if (c.lastSendTime < threshold) {
+					} else if (c.lastSendTime < threshold) {
 						c.ping();
-						if (handlerOptions.onSend) handlerOptions.onSend(-1, 'PING', 0, false);
+						if (onSend) onSend(-1, 'PING', 0, false);
 					}
 				} catch { }
 			}

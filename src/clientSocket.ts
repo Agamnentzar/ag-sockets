@@ -39,8 +39,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	let connecting = false;
 	let reconnectTimeout: any;
 	let pingInterval: any;
-	let lastPing = 0;
-	// let lastSend = 0;
+	let lastSend = 0;
 	let packet: PacketHandler | undefined = undefined;
 	let remote: { [key: string]: Function; } | undefined = undefined;
 	let lastSentId = 0;
@@ -148,9 +147,9 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 				} catch (e) {
 					errorHandler.handleRecvError(e, typeof data === 'string' ? data : new Uint8Array(data));
 				}
-			} else {
-				sendPing(); // need to send ping here because setInterval in unreliable on some browsers when the tab is in the background
 			}
+
+			sendPing(); // need to send ping here because setInterval in unreliable on some browsers when the tab is in the background
 		};
 
 		theSocket.onopen = () => {
@@ -164,11 +163,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			if (options.debug) log('socket opened');
 
 			if (options.pingInterval) {
-				pingInterval = setInterval(() => {
-					// if ((Date.now() - lastSend) > options.pingInterval!) {
-					sendPing();
-					// }
-				}, options.pingInterval);
+				pingInterval = setInterval(sendPing, options.pingInterval);
 			}
 		};
 
@@ -246,7 +241,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			}
 
 			socket.send(data);
-			// lastSend = Date.now();
+			lastSend = Date.now();
 			return true;
 		} else {
 			return false;
@@ -258,8 +253,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			const now = Date.now();
 			const interval = clientSocket.options.pingInterval;
 
-			if (versionValidated && interval && (now - lastPing) > interval && send(supportsBinary ? pingBuffer : '')) {
-				lastPing = now;
+			if (versionValidated && interval && (now - lastSend) > interval) {
+				send(supportsBinary ? pingBuffer : '');
 			}
 		} catch { }
 	}
