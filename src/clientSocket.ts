@@ -258,14 +258,10 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			const now = Date.now();
 			const interval = clientSocket.options.pingInterval;
 
-			if (versionValidated && interval && (now - lastPing) > interval && sendPingPacket()) {
+			if (versionValidated && interval && (now - lastPing) > interval && send(supportsBinary ? pingBuffer : '')) {
 				lastPing = now;
 			}
 		} catch { }
-	}
-
-	function sendPingPacket() {
-		return send(supportsBinary ? pingBuffer : '');
 	}
 
 	function createMethod(name: string, id: number, options: MethodOptions) {

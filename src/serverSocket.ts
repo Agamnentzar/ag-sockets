@@ -256,6 +256,7 @@ function createInternalServer(
 						c.client.disconnect(true, false, 'timeout');
 					} else { // if (c.lastSendTime < threshold) {
 						c.ping();
+						if (handlerOptions.onSend) handlerOptions.onSend(-1, 'PING', 0, false);
 					}
 				} catch { }
 			}
