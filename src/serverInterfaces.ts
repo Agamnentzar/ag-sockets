@@ -86,6 +86,7 @@ export interface InternalServer {
 	serverMethods: MethodDef[];
 	clientMethods: string[];
 	verifyClient: (req: IncomingMessage) => boolean;
+	createClient?: (client: SocketServerClient) => SocketServerClient;
 	// methods
 	createServer: CreateServerMethod;
 	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) => void;

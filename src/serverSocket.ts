@@ -354,7 +354,7 @@ function connectClient(
 	}
 
 	const rates = server.serverMethods.map(createRateLimit);
-	const { handleResult } = server;
+	const { handleResult, createClient = x => x } = server;
 
 	let bytesReset = Date.now();
 	let bytesReceived = 0;
@@ -373,15 +373,15 @@ function connectClient(
 		ping() {
 			socket.send('');
 		},
-		client: {
+		client: createClient({
 			id: server.currentClientId++,
 			tokenId: token ? token.id : undefined,
 			tokenData: token ? token.data : undefined,
 			originalRequest: server.keepOriginalRequest ? originalRequest : undefined,
-			get isConnected() {
+			isConnected() {
 				return isConnected;
 			},
-			get lastMessageTime() {
+			lastMessageTime() {
 				return obj.lastMessageTime;
 			},
 			disconnect(force = false, invalidateToken = false, reason = '') {
@@ -398,7 +398,7 @@ function connectClient(
 					socket.close();
 				}
 			},
-		},
+		}),
 	};
 
 	if (obj.token) server.clientsByToken.set(obj.token.id, obj);

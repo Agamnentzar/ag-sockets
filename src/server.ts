@@ -7,11 +7,11 @@ export interface OriginalRequest {
 
 export interface ClientExtensions {
 	id: number;
-	readonly isConnected: boolean;
-	readonly lastMessageTime: number;
 	tokenId?: string;
 	tokenData?: any;
 	originalRequest?: OriginalRequest;
+	isConnected(): boolean;
+	lastMessageTime(): number;
 	disconnect(force?: boolean, invalidateToken?: boolean, reason?: string): void;
 }
 
