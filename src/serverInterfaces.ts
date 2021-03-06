@@ -1,4 +1,4 @@
-import { ClientOptions, SocketServer, ServerOptions, Logger, MethodDef } from './interfaces';
+import { ClientOptions, SocketServer, Logger, MethodDef, CommonOptions, OnSend, OnRecv } from './interfaces';
 import { SocketServerClient, ErrorHandler } from './server';
 import { IncomingMessage } from 'http';
 import { Send, PacketHandler } from './packet/packetHandler';
@@ -92,4 +92,38 @@ export interface InternalServer {
 	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) => void;
 	packetHandler: PacketHandler;
 	server: Server;
+}
+
+export interface ServerOptions extends CommonOptions {
+	/** time after after last message from client when server assumes client is not responding (in milliseconds) */
+	connectionTimeout?: number;
+	/** limit connections to one per generated token */
+	connectionTokens?: boolean;
+	/** lifetime of connection token */
+	tokenLifetime?: number;
+	/** maximum number of connected clients */
+	clientLimit?: number;
+	/** per message deflate compression switch */
+	perMessageDeflate?: boolean;
+	/** transfer limit (bytes per second) */
+	transferLimit?: number;
+	/** custom client verification method */
+	verifyClient?: (req: IncomingMessage) => boolean;
+	/** allows to modify client object */
+	createClient?: (client: SocketServerClient) => SocketServerClient;
+	/** ws library or alternative */
+	ws?: any;
+	/** use ArrayBuffer instead of Buffer on server side */
+	arrayBuffer?: boolean;
+	/** only allow binary packets and binary connections */
+	forceBinary?: boolean;
+	/** only allow binary encoding for packets with binary option */
+	forceBinaryPackets?: boolean;
+	/** keep original request info in client.originalRequest field */
+	keepOriginalRequest?: boolean;
+	/** send/recv handlers */
+	onSend?: OnSend;
+	onRecv?: OnRecv;
+	client?: MethodDef[];
+	server?: MethodDef[];
 }

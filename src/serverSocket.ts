@@ -1,12 +1,12 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
 import { Socket } from 'net';
 import * as ws from 'ws';
-import { ServerOptions, ClientOptions, getNames, SocketServer, Logger } from './interfaces';
+import { ClientOptions, getNames, SocketServer, Logger } from './interfaces';
 import { checkRateLimit, getLength, cloneDeep } from './utils';
 import { ErrorHandler, OriginalRequest } from './server';
 import { MessageType, Send, createPacketHandler, HandleResult, HandlerOptions } from './packet/packetHandler';
 import {
-	Server, ClientState, InternalServer, GlobalConfig, ServerHost, CreateServerMethod, CreateServer
+	Server, ClientState, InternalServer, GlobalConfig, ServerHost, CreateServerMethod, CreateServer, ServerOptions
 } from './serverInterfaces';
 import {
 	hasToken, createToken, getToken, getTokenFromClient, returnTrue, createOriginalRequest, defaultErrorHandler,
@@ -218,6 +218,7 @@ function createInternalServer(
 		clientLimit: options.clientLimit ?? 0,
 		transferLimit: options.transferLimit ?? 0,
 		verifyClient: options.verifyClient ?? returnTrue,
+		createClient: options.createClient,
 		serverMethods: options.server!,
 		clientMethods,
 		handleResult,

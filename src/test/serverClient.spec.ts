@@ -4,12 +4,12 @@ import * as WebSocket from 'ws';
 import { WebSocketServer as ClusterWsServer } from '@clusterws/cws';
 import { expect } from 'chai';
 import { assert, stub, spy, SinonSpy } from 'sinon';
-import { Bin, ServerOptions, ClientOptions, SocketService } from '../interfaces';
+import { Bin, ClientOptions, SocketService } from '../interfaces';
 import {
 	Socket, Method, ClientExtensions, Server as ServerController,
 	SocketClient, SocketServer, ErrorHandler, createClientSocket
 } from '../index';
-import { ServerHost } from '../serverInterfaces';
+import { ServerHost, ServerOptions } from '../serverInterfaces';
 import { createServerHost } from '../serverSocket';
 
 const apply = (f: () => void) => f();

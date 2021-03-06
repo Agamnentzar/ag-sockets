@@ -1,7 +1,9 @@
 import './common';
 import { expect } from 'chai';
-import { MethodMetadata, ServerOptions, Bin } from '../interfaces';
-import { Socket, Method, getSocketMetadata, getMethodMetadata } from '../method';
+import { MethodMetadata, Bin } from '../interfaces';
+import { Method, getMethodMetadata } from '../method';
+import { getSocketMetadata, Socket } from '../serverMethod';
+import { ServerOptions } from '../serverInterfaces';
 
 @Socket({ path: '/api', ssl: true, connectionTimeout: 500 })
 class ExampleServer {

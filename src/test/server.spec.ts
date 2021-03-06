@@ -4,13 +4,14 @@ import * as http from 'http';
 import { expect } from 'chai';
 import { assert, stub, spy, match, SinonStub, useFakeTimers, SinonFakeTimers } from 'sinon';
 import {
-	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer, ServerOptions,
+	createServer, createServerRaw, ErrorHandler, Method, Socket, Server as TheServer,
 	SocketClient, ClientExtensions, Bin, createClientOptions, ServerHost,
 } from '../index';
 import { MessageType } from '../packet/packetHandler';
 import { MockWebSocket, MockWebSocketServer, getLastServer } from './wsMock';
 import { createServerHost } from '../serverSocket';
 import { randomString } from '../serverUtils';
+import { ServerOptions } from '../serverInterfaces';
 
 @Socket()
 class Server1 {
