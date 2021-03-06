@@ -56,6 +56,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		options: originalOptions,
 		connect,
 		disconnect,
+		socket: () => socket,
 	};
 
 	originalOptions.server.forEach((item, id) => {

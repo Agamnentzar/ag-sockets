@@ -31,6 +31,7 @@ export interface SocketService<TClient extends SocketClient, TServer extends Soc
 	options: ClientOptions;
 	connect(): void;
 	disconnect(): void;
+	socket(): WebSocket | null;
 }
 
 export enum Bin {
