@@ -347,7 +347,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += createWriteFunction(packetId, options.binary, `${indent}      `);
 			code += `${indent}      var buffer = ${bufferCtor}(writer.bytes.buffer, writer.bytes.byteOffset, writer.offset);\n`;
 			code += `${indent}      send(buffer);\n`;
-			code += `${indent}      remoteState.sentSize += buffer.${bufferLength};\n`;
+			code += `${indent}      remoteState.sentSize += buffer.${bufferLength};\n`; // TODO: move from here, just count in send function
 			code += `${indent}      onSend(${packetId}, '${name}', buffer.${bufferLength}, true);\n`;
 
 			if (handlerOptions.debug && !options.ignore) {
@@ -380,7 +380,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}  for (var i = 0; i < arguments.length; i++) args.push(arguments[i]);\n`;
 			code += `${indent}  var json = JSON.stringify(args);\n`;
 			code += `${indent}  send(json);\n`;
-			code += `${indent}  remoteState.sentSize += json.length;\n`;
+			code += `${indent}  remoteState.sentSize += json.length;\n`; // TODO: move from here, just count in send function
 			code += `${indent}  onSend(${packetId}, '${name}', json.length, false);\n`;
 
 			if (handlerOptions.debug && !options.ignore) {

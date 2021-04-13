@@ -18,7 +18,6 @@ const defaultErrorHandler: ClientErrorHandler = {
 	}
 };
 
-const pingBuffer = new ArrayBuffer(0);
 
 export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
 	originalOptions: ClientOptions,
@@ -34,6 +33,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	const convertToArrayBuffer = typeof navigator !== 'undefined' && /MSIE 10|Trident\/7/.test(navigator.userAgent);
 	const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
 	const copySendBuffer = originalOptions.copySendBuffer;
+	const pingBuffer = new ArrayBuffer(0);
 	let supportsBinary = isSupportingBinary();
 	let socket: WebSocket | null = null;
 	let connecting = false;
@@ -50,6 +50,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		server: {} as any as TServer,
 		sentSize: 0,
 		receivedSize: 0,
+		sentPackets: 0,
+		receivedPackets: 0,
 		lastPacket: 0,
 		isConnected: false,
 		supportsBinary,
@@ -132,6 +134,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			if (socket !== theSocket) return;
 
 			clientSocket.lastPacket = now();
+			clientSocket.receivedPackets++;
 
 			const data: string | ArrayBuffer | undefined = message.data;
 
@@ -242,6 +245,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			}
 
 			socket.send(data);
+			clientSocket.sentPackets++;
 			lastSend = Date.now();
 			return true;
 		} else {
