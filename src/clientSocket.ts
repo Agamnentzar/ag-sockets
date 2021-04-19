@@ -1,5 +1,5 @@
 import {
-	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, Logger, CallsList, RateLimitDef
+	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, Logger, RateLimitDef
 } from './interfaces';
 import { supportsBinary as isSupportingBinary, Deferred, deferred, queryString, parseRateLimit, checkRateLimit2 } from './utils';
 import { PacketHandler, createPacketHandler } from './packet/packetHandler';
@@ -29,7 +29,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	const convertToArrayBuffer = typeof navigator !== 'undefined' && /MSIE 10|Trident\/7/.test(navigator.userAgent);
 	const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
 	const copySendBuffer = originalOptions.copySendBuffer;
-	const callsLists: CallsList = [];
+	const callsLists: number[] = [];
 	const rateLimits: (RateLimitDef | undefined)[] = originalOptions.server.map(() => undefined);
 	const pingBuffer = new ArrayBuffer(0);
 	let supportsBinary = isSupportingBinary();
@@ -114,7 +114,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		const options = clientSocket.options;
 		const theSocket = socket = new WebSocket(getWebsocketUrl());
-		const mockCallsList: CallsList = [];
+		const mockCallsList: number[] = [];
 
 		window.addEventListener('beforeunload', beforeunload);
 

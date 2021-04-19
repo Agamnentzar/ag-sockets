@@ -1,4 +1,4 @@
-import { MethodDef, BinaryDef, Bin, RateLimitDef, CallsList } from './interfaces';
+import { MethodDef, BinaryDef, Bin, RateLimitDef } from './interfaces';
 
 export function getLength(message: any): number {
 	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
@@ -38,30 +38,30 @@ export function parseRateLimit(value: string, extended: boolean) {
 	return { limit, frame };
 }
 
-export function checkRateLimit3(funcId: number, callsList: CallsList, limit: number, frame: number) {
-	while (callsList.length <= funcId) callsList.push(undefined);
-	let calls = callsList[funcId];
-	if (!calls) callsList[funcId] = calls = [];
+export function checkRateLimit3(funcId: number, callsList: number[], limit: number, frame: number) {
+	const index = funcId << 1;
 
-	const now = Date.now();
-	const min = now - frame;
+	while (callsList.length <= (index + 1)) callsList.push(0);
 
-	for (let i = calls.length - 1; i >= 0; i--) {
-		if (calls[i] < min) {
-			calls.splice(i, 1);
+	const bucketTime = callsList[index];
+	const bucketCount = callsList[index + 1];
+	const time = (Date.now() / frame) | 0;
+
+	if (bucketTime === time) {
+		if (bucketCount >= limit) {
+			return false;
+		} else {
+			callsList[index + 1] = bucketCount + 1;
 		}
-	}
-
-	if (calls.length >= limit) {
-		return false;
 	} else {
-		calls.push(now);
+		callsList[index] = time;
+		callsList[index + 1] = 1;
 	}
 
 	return true;
 }
 
-export function checkRateLimit2(funcId: number, callsList: CallsList, rates: (RateLimitDef | undefined)[]) {
+export function checkRateLimit2(funcId: number, callsList: number[], rates: (RateLimitDef | undefined)[]) {
 	const rate = rates[funcId];
 	if (!rate) return true;
 

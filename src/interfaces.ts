@@ -159,4 +159,3 @@ export interface RateLimit {
 }
 
 export type RateLimits = (RateLimit | undefined)[];
-export type CallsList = (number[] | undefined)[];

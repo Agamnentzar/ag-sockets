@@ -1,7 +1,7 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
 import { Socket } from 'net';
 import * as ws from 'ws';
-import { ClientOptions, getNames, SocketServer, Logger, CallsList } from './interfaces';
+import { ClientOptions, getNames, SocketServer, Logger } from './interfaces';
 import { getLength, cloneDeep, checkRateLimit2 } from './utils';
 import { ErrorHandler, OriginalRequest } from './server';
 import { MessageType, Send, createPacketHandler, HandleResult, HandlerOptions } from './packet/packetHandler';
@@ -354,7 +354,7 @@ function connectClient(
 		return;
 	}
 
-	const callsList: CallsList = [];
+	const callsList: number[] = [];
 	const { handleResult, createClient = x => x } = server;
 
 	let bytesReset = Date.now();

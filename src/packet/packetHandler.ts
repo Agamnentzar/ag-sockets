@@ -1,4 +1,4 @@
-import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSend, OnRecv, Bin, RemoteOptions, CallsList } from '../interfaces';
+import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSend, OnRecv, Bin, RemoteOptions } from '../interfaces';
 import { isBinaryOnlyPacket, parseRateLimit, checkRateLimit3 } from '../utils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
@@ -121,14 +121,14 @@ type CreateRemoteHandler = (
 ) => any;
 
 type LocalHandler = (
-	actions: any, reader: BinaryReader, callsList: CallsList, messageId: number, handleResult?: HandleResult
+	actions: any, reader: BinaryReader, callsList: number[], messageId: number, handleResult?: HandleResult
 ) => void;
 
 export interface PacketHandler {
 	sendString(send: Send, name: string, id: number, args: any[]): number;
 	createRemote(remote: any, send: Send, state: RemoteState): void;
 	recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction?: FunctionHandler): void;
-	recvBinary(actions: any, reader: BinaryReader, callsList: CallsList, messageId: number, handleResult?: HandleResult): void;
+	recvBinary(actions: any, reader: BinaryReader, callsList: number[], messageId: number, handleResult?: HandleResult): void;
 	writerBufferSize(): number;
 }
 
