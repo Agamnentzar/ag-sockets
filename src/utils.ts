@@ -1,13 +1,4 @@
-import { MethodDef, BinaryDef, Bin } from './interfaces';
-
-export interface RateLimit {
-	limit: number;
-	frame: number;
-	calls: number[];
-	promise?: boolean;
-}
-
-export type RateLimits = (RateLimit | undefined)[];
+import { MethodDef, BinaryDef, Bin, RateLimitDef, CallsList } from './interfaces';
 
 export function getLength(message: any): number {
 	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
@@ -34,10 +25,7 @@ const times: { [key: string]: number; } = {
 
 export function parseRateLimit(value: string, extended: boolean) {
 	const m = /^(\d+)\/(\d+)?([smh])$/.exec(value);
-
-	if (!m) {
-		throw new Error('Invalid rate limit value');
-	}
+	if (!m) throw new Error('Invalid rate limit value');
 
 	let limit = +m[1];
 	let frame = +(m[2] || '1') * times[m[3]];
@@ -50,27 +38,34 @@ export function parseRateLimit(value: string, extended: boolean) {
 	return { limit, frame };
 }
 
-export function checkRateLimit(funcId: number, rates: RateLimits) {
-	const rate = rates[funcId];
+export function checkRateLimit3(funcId: number, callsList: CallsList, limit: number, frame: number) {
+	while (callsList.length <= funcId) callsList.push(undefined);
+	let calls = callsList[funcId];
+	if (!calls) callsList[funcId] = calls = [];
 
-	if (rate) {
-		const now = Date.now();
-		const min = now - rate.frame;
+	const now = Date.now();
+	const min = now - frame;
 
-		for (let i = rate.calls.length - 1; i >= 0; i--) {
-			if (rate.calls[i] < min) {
-				rate.calls.splice(i, 1);
-			}
-		}
-
-		if (rate.calls.length >= rate.limit) {
-			return false;
-		} else {
-			rate.calls.push(now);
+	for (let i = calls.length - 1; i >= 0; i--) {
+		if (calls[i] < min) {
+			calls.splice(i, 1);
 		}
 	}
 
+	if (calls.length >= limit) {
+		return false;
+	} else {
+		calls.push(now);
+	}
+
 	return true;
+}
+
+export function checkRateLimit2(funcId: number, callsList: CallsList, rates: (RateLimitDef | undefined)[]) {
+	const rate = rates[funcId];
+	if (!rate) return true;
+
+	return checkRateLimit3(funcId, callsList, rate.limit, rate.frame);
 }
 
 let supportsBinaryValue: boolean | undefined;

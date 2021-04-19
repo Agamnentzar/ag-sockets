@@ -1,6 +1,7 @@
 import './common';
 import { expect } from 'chai';
-import { parseRateLimit, checkRateLimit, getLength, queryString } from '../utils';
+import { parseRateLimit, getLength, queryString, checkRateLimit2 } from '../utils';
+import { CallsList, RateLimitDef } from '../interfaces';
 
 describe('getLength()', () => {
 	it('returns 0 for null or undefined', () => {
@@ -108,23 +109,24 @@ describe('parseRateLimit()', () => {
 
 describe('checkRateLimit()', () => {
 	it('returns true for no rate limit entry', () => {
-		expect(checkRateLimit(1, [])).true;
+		expect(checkRateLimit2(1, [], [])).true;
 	});
 
 	it('return true for passing rate limit', () => {
-		expect(checkRateLimit(0, [{ limit: 2, frame: 1000, calls: [Date.now() - 500] }])).true;
+		expect(checkRateLimit2(0, [[Date.now() - 500]], [{ limit: 2, frame: 1000, promise: false }])).true;
 	});
 
 	it('returns false for not passing rate limit', () => {
-		expect(checkRateLimit(0, [{ limit: 2, frame: 1000, calls: [Date.now() - 500, Date.now() - 200] }])).false;
+		expect(checkRateLimit2(0, [[Date.now() - 500, Date.now() - 200]], [{ limit: 2, frame: 1000, promise: false }])).false;
 	});
 
 	it('updates rate limit if passing', () => {
 		const now = Date.now();
-		const rateLimit = { limit: 5, frame: 1000, calls: [now - 500] };
+		const rateLimits: RateLimitDef[] = [{ limit: 5, frame: 1000, promise: false }];
+		const callsList: CallsList = [[now - 500]];
 
-		checkRateLimit(0, [rateLimit]);
+		checkRateLimit2(0, callsList, rateLimits);
 
-		expect(rateLimit.calls.length).equals(2);
+		expect(callsList[0]!.length).equals(2);
 	});
 });

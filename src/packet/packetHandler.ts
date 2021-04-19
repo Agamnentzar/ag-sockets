@@ -1,5 +1,5 @@
-import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSend, OnRecv, Bin, RemoteOptions } from '../interfaces';
-import { checkRateLimit, RateLimits, isBinaryOnlyPacket } from '../utils';
+import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSend, OnRecv, Bin, RemoteOptions, CallsList } from '../interfaces';
+import { isBinaryOnlyPacket, parseRateLimit, checkRateLimit3 } from '../utils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
 	writeString, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,
@@ -121,14 +121,14 @@ type CreateRemoteHandler = (
 ) => any;
 
 type LocalHandler = (
-	actions: any, reader: BinaryReader, rates: RateLimits, messageId: number, handleResult?: HandleResult
+	actions: any, reader: BinaryReader, callsList: CallsList, messageId: number, handleResult?: HandleResult
 ) => void;
 
 export interface PacketHandler {
 	sendString(send: Send, name: string, id: number, args: any[]): number;
 	createRemote(remote: any, send: Send, state: RemoteState): void;
 	recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction?: FunctionHandler): void;
-	recvBinary(actions: any, reader: BinaryReader, rates: RateLimits, messageId: number, handleResult?: HandleResult): void;
+	recvBinary(actions: any, reader: BinaryReader, callsList: CallsList, messageId: number, handleResult?: HandleResult): void;
 	writerBufferSize(): number;
 }
 
@@ -229,7 +229,7 @@ function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOption
 	let code = ``;
 	code += `var anyState = { strings: [] };\n`;
 	code += `${Object.keys(readerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n\n`;
-	code += `  return function (actions, reader, rates, messageId, handleResult) {\n`;
+	code += `  return function (actions, reader, callsList, messageId, handleResult) {\n`;
 	code += `    anyState.strings.length = 0;\n`;
 	code += `    var packetId = readUint8(reader);\n`;
 	code += `    switch (packetId) {\n`;
@@ -245,7 +245,9 @@ function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOption
 
 		if (options.binary) {
 			if (options.rateLimit || options.serverRateLimit) {
-				code += `        if (!checkRateLimit(${packetId}, rates)) `;
+				const { limit, frame } = options.serverRateLimit ? parseRateLimit(options.serverRateLimit, false) : parseRateLimit(options.rateLimit!, true);
+
+				code += `        if (!checkRateLimit(${packetId}, callsList, ${limit}, ${frame})) `;
 
 				if (options.promise) {
 					code += `handleResult(${packetId}, '${name}', Promise.reject(new Error('Rate limit exceeded')), messageId);\n`;
@@ -299,7 +301,7 @@ function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOption
 	code += `  };\n`;
 
 	// console.log(`\n\nfunction createMethods(methods, checkRateLimit) {\n${code}}\n`);
-	return new Function('methods', 'checkRateLimit', 'onRecv', code)(readerMethods, checkRateLimit, onRecv) as any;
+	return new Function('methods', 'checkRateLimit', 'onRecv', code)(readerMethods, checkRateLimit3, onRecv) as any;
 }
 
 function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: HandlerOptions): CreateRemoteHandler {

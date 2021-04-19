@@ -1,10 +1,7 @@
 import {
-	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, Logger
+	SocketService, SocketServer, SocketClient, ClientOptions, FuncList, MethodOptions, Logger, CallsList, RateLimitDef
 } from './interfaces';
-import {
-	checkRateLimit, parseRateLimit, supportsBinary as isSupportingBinary, Deferred,
-	deferred, queryString, RateLimits
-} from './utils';
+import { supportsBinary as isSupportingBinary, Deferred, deferred, queryString, parseRateLimit, checkRateLimit2 } from './utils';
 import { PacketHandler, createPacketHandler } from './packet/packetHandler';
 import { createBinaryReaderFromBuffer } from './packet/binaryReader';
 
@@ -29,10 +26,11 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	const special: FuncList = {};
 	const defers = new Map<number, Deferred<any>>();
 	const inProgressFields: { [key: string]: number } = {};
-	const rateLimits: RateLimits = [];
 	const convertToArrayBuffer = typeof navigator !== 'undefined' && /MSIE 10|Trident\/7/.test(navigator.userAgent);
 	const now = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
 	const copySendBuffer = originalOptions.copySendBuffer;
+	const callsLists: CallsList = [];
+	const rateLimits: (RateLimitDef | undefined)[] = originalOptions.server.map(() => undefined);
 	const pingBuffer = new ArrayBuffer(0);
 	let supportsBinary = isSupportingBinary();
 	let socket: WebSocket | null = null;
@@ -67,10 +65,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		} else {
 			createMethod(item[0], id, item[1]);
 
-			const rateLimit = item[1].rateLimit;
-
-			if (rateLimit) {
-				rateLimits[id] = { calls: [], ...parseRateLimit(rateLimit, false) };
+			if (item[1].rateLimit) {
+				rateLimits[id] = { promise: false, ...parseRateLimit(item[1].rateLimit, false) };
 			}
 		}
 	});
@@ -118,7 +114,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 		const options = clientSocket.options;
 		const theSocket = socket = new WebSocket(getWebsocketUrl());
-		const mockRateLimits: RateLimits = [];
+		const mockCallsList: CallsList = [];
 
 		window.addEventListener('beforeunload', beforeunload);
 
@@ -146,7 +142,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 					} else {
 						clientSocket.receivedSize += data.byteLength;
 						const reader = createBinaryReaderFromBuffer(data, 0, data.byteLength);
-						packet.recvBinary(clientSocket.client, reader, mockRateLimits, 0);
+						packet.recvBinary(clientSocket.client, reader, mockCallsList, 0);
 					}
 				} catch (e) {
 					errorHandler.handleRecvError(e, typeof data === 'string' ? data : new Uint8Array(data));
@@ -276,7 +272,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 	function createSimpleMethod(name: string, id: number) {
 		(clientSocket.server as any)[name] = (...args: any[]) => {
-			if (checkRateLimit(id, rateLimits) && packet && remote) {
+			if (checkRateLimit2(id, callsLists, rateLimits) && packet && remote) {
 				remote[name].apply(null, args);
 				lastSentId++;
 				return true;
@@ -299,7 +295,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			if (!clientSocket.isConnected)
 				return Promise.reject(new Error('Not connected'));
 
-			if (!checkRateLimit(id, rateLimits))
+			if (!checkRateLimit2(id, callsLists, rateLimits))
 				return Promise.reject(new Error('Rate limit exceeded'));
 
 			if (!packet || !remote)

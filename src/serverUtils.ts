@@ -2,10 +2,10 @@ import { IncomingMessage } from 'http';
 import { parse as parseUrl } from 'url';
 import * as ws from 'ws';
 import { InternalServer, ServerOptions, Token } from './serverInterfaces';
-import { parseRateLimit, RateLimit, isBinaryOnlyPacket } from './utils';
+import { parseRateLimit, isBinaryOnlyPacket } from './utils';
 import { OriginalRequest, ErrorHandler } from './server';
 import { getMethods } from './method';
-import { MethodDef, MethodOptions, ClientOptions } from './interfaces';
+import { MethodDef, MethodOptions, ClientOptions, RateLimitDef, RateLimit } from './interfaces';
 import { getSocketMetadata } from './serverMethod';
 
 const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
@@ -140,13 +140,31 @@ export function toClientOptions(options: ServerOptions): ClientOptions {
 	};
 }
 
-export function createRateLimit(method: MethodDef): RateLimit | undefined {
+export function parseRateLimitDefOptions(method: MethodDef): RateLimitDef | undefined {
 	return Array.isArray(method) && method[1].rateLimit ? {
-		calls: [],
 		promise: !!method[1].promise,
 		...(method[1].serverRateLimit ?
 			parseRateLimit(method[1].serverRateLimit!, false) :
 			parseRateLimit(method[1].rateLimit!, true)),
+	} : undefined;
+}
+
+export function parseRateLimitDef(method: MethodDef): RateLimitDef | undefined {
+	return Array.isArray(method) && method[1].rateLimit ? {
+		promise: !!method[1].promise,
+		...(method[1].serverRateLimit ?
+			parseRateLimit(method[1].serverRateLimit!, false) :
+			parseRateLimit(method[1].rateLimit!, true)),
+	} : undefined;
+}
+
+// TODO: remove
+export function createRateLimit(def: RateLimitDef | undefined): RateLimit | undefined {
+	return def ? {
+		calls: [],
+		promise: def.promise,
+		limit: def.limit,
+		frame: def.frame,
 	} : undefined;
 }
 

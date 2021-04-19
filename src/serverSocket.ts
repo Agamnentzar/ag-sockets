@@ -1,8 +1,8 @@
 import { Server as HttpServer, IncomingMessage } from 'http';
 import { Socket } from 'net';
 import * as ws from 'ws';
-import { ClientOptions, getNames, SocketServer, Logger } from './interfaces';
-import { checkRateLimit, getLength, cloneDeep } from './utils';
+import { ClientOptions, getNames, SocketServer, Logger, CallsList } from './interfaces';
+import { getLength, cloneDeep, checkRateLimit2 } from './utils';
 import { ErrorHandler, OriginalRequest } from './server';
 import { MessageType, Send, createPacketHandler, HandleResult, HandlerOptions } from './packet/packetHandler';
 import {
@@ -10,8 +10,7 @@ import {
 } from './serverInterfaces';
 import {
 	hasToken, createToken, getToken, getTokenFromClient, returnTrue, createOriginalRequest, defaultErrorHandler,
-	createServerOptions, optionsWithDefaults, toClientOptions, createRateLimit, getQuery,
-	callWithErrorHandling,
+	createServerOptions, optionsWithDefaults, toClientOptions, getQuery, callWithErrorHandling, parseRateLimitDef,
 } from './serverUtils';
 import { BinaryReader, createBinaryReaderFromBuffer, getBinaryReaderBuffer } from './packet/binaryReader';
 
@@ -221,6 +220,7 @@ function createInternalServer(
 		createClient: options.createClient,
 		serverMethods: options.server!,
 		clientMethods,
+		rateLimits: options.server!.map(parseRateLimitDef),
 		handleResult,
 		createServer,
 		packetHandler,
@@ -354,7 +354,7 @@ function connectClient(
 		return;
 	}
 
-	const rates = server.serverMethods.map(createRateLimit);
+	const callsList: CallsList = [];
 	const { handleResult, createClient = x => x } = server;
 
 	let bytesReset = Date.now();
@@ -494,10 +494,10 @@ function connectClient(
 					try {
 						if (data !== undefined) {
 							server.packetHandler.recvString(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
-								const rate = rates[funcId];
+								const rate = server.rateLimits[funcId];
 
 								// TODO: move rate limits to packet handler
-								if (checkRateLimit(funcId, rates)) {
+								if (checkRateLimit2(funcId, callsList, server.rateLimits)) {
 									handleResult(send, obj, funcId, funcName, func.apply(funcObj, args), messageId);
 								} else if (rate && rate.promise) {
 									handleResult(send, obj, funcId, funcName, Promise.reject(new Error('Rate limit exceeded')), messageId);
@@ -506,7 +506,7 @@ function connectClient(
 								}
 							});
 						} else {
-							server.packetHandler.recvBinary(serverActions, reader!, rates, messageId, handleResult2);
+							server.packetHandler.recvBinary(serverActions, reader!, callsList, messageId, handleResult2);
 						}
 					} catch (e) {
 						errorHandler.handleRecvError(obj.client, e, reader ? getBinaryReaderBuffer(reader) : data!);

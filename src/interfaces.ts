@@ -142,3 +142,21 @@ export function getNames(methods: MethodDef[]) {
 export function getIgnore(methods: MethodDef[]) {
 	return methods.map(i => (typeof i !== 'string' && i[1].ignore) ? i[0] : null).filter(x => !!x) as string[];
 }
+
+// rate limiting
+
+export interface RateLimitDef {
+	promise: boolean;
+	limit: number;
+	frame: number;
+}
+
+export interface RateLimit {
+	limit: number;
+	frame: number;
+	calls: number[];
+	promise?: boolean;
+}
+
+export type RateLimits = (RateLimit | undefined)[];
+export type CallsList = (number[] | undefined)[];

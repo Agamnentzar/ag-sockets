@@ -1,4 +1,4 @@
-import { ClientOptions, SocketServer, Logger, MethodDef, CommonOptions, OnSend, OnRecv } from './interfaces';
+import { ClientOptions, SocketServer, Logger, MethodDef, CommonOptions, OnSend, OnRecv, RateLimitDef } from './interfaces';
 import { SocketServerClient, ErrorHandler } from './server';
 import { IncomingMessage } from 'http';
 import { Send, PacketHandler } from './packet/packetHandler';
@@ -85,6 +85,7 @@ export interface InternalServer {
 	transferLimit: number;
 	serverMethods: MethodDef[];
 	clientMethods: string[];
+	rateLimits: (RateLimitDef | undefined)[];
 	verifyClient: (req: IncomingMessage) => boolean;
 	createClient?: (client: SocketServerClient) => SocketServerClient;
 	// methods
