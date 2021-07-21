@@ -21,7 +21,7 @@ class MockWebSocket {
 	onmessage(_message: any) { }
 	onopen() { }
 	onerror() { }
-	onclose() { }
+	onclose(_event: any) { }
 	close() { }
 	send() { }
 }
@@ -198,7 +198,7 @@ describe('ClientSocket', () => {
 			let close = stub(lastWebSocket, 'close');
 
 			addEventListener.args[0][1]();
-			lastWebSocket.onclose();
+			lastWebSocket.onclose({});
 
 			assert.calledOnce(close);
 		});
@@ -208,7 +208,7 @@ describe('ClientSocket', () => {
 			service.connect();
 			const close = stub(lastWebSocket, 'close');
 
-			lastWebSocket.onclose();
+			lastWebSocket.onclose({});
 			addEventListener.args[0][1]();
 
 			assert.notCalled(close);
@@ -361,7 +361,7 @@ describe('ClientSocket', () => {
 			it('sets isConnected to false', () => {
 				connectLastWebSocket();
 
-				lastWebSocket.onclose();
+				lastWebSocket.onclose({});
 
 				expect(service.isConnected).false;
 			});
@@ -371,16 +371,17 @@ describe('ClientSocket', () => {
 				service.client.disconnected = disconnected;
 				connectLastWebSocket();
 
-				lastWebSocket.onclose();
+				lastWebSocket.onclose({ code: 1, reason: 'foo' });
 
 				assert.calledOnce(disconnected);
+				assert.calledWith(disconnected, 1, 'foo');
 			});
 
 			it('does not call client.disconnected if not connected', () => {
 				const disconnected = spy();
 				service.client.disconnected = disconnected;
 
-				lastWebSocket.onclose();
+				lastWebSocket.onclose({});
 
 				assert.notCalled(disconnected);
 			});
@@ -390,7 +391,7 @@ describe('ClientSocket', () => {
 
 				const promise = service.server.foo();
 
-				lastWebSocket.onclose();
+				lastWebSocket.onclose({});
 
 				await expect(promise).rejectedWith('Disconnected');
 			});

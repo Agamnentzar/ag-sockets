@@ -180,7 +180,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 			if (clientSocket.isConnected) {
 				clientSocket.isConnected = false;
-				clientSocket.client.disconnected?.();
+				clientSocket.client.disconnected?.(e.code, e.reason);
 			}
 
 			if (connecting) {
