@@ -103,15 +103,6 @@ export interface CommonOptions {
 	copySendBuffer?: boolean;
 }
 
-export interface WriteAnyState {
-	strings: Map<string, number>;
-}
-
-export interface ReadAnyState {
-	strings: string[];
-	cloneTypedArrays?: boolean;
-}
-
 export type OnSend = (id: number, name: string, size: number, binary: boolean) => void;
 export type OnRecv = (id: number, name: string, size: number, binary: boolean, data?: DataView, actions?: any) => void;
 

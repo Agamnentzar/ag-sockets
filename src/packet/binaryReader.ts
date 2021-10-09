@@ -1,6 +1,5 @@
 import { decodeString } from '../utf8';
 import { Special, Type, NumberType } from './packetCommon';
-import { ReadAnyState } from '../interfaces';
 
 export interface BinaryReader {
 	view: DataView;
@@ -114,22 +113,21 @@ export function readString(reader: BinaryReader) {
 }
 
 export function readObject(reader: BinaryReader, cloneTypedArrays = false) {
-	return readAny(reader, { strings: [], cloneTypedArrays });
+	return readAny(reader, [], cloneTypedArrays);
 }
 
 export function readLength(reader: BinaryReader) {
 	let length = 0;
 	let shift = 0;
-	let bytes = 0;
+	let b = 0;
 
 	do {
-		var a = readUint8(reader);
-		length = length | ((a & 0x7f) << shift);
+		b = readUint8(reader);
+		length = length | ((b & 0x7f) << shift);
 		shift += 7;
-		bytes++;
-	} while (a & 0x80);
+	} while (b & 0x80);
 
-	return (bytes === 2 && length === 0) ? -1 : length;
+	return length - 1;
 }
 
 export function readUint8Array(reader: BinaryReader) {
@@ -146,7 +144,7 @@ function readShortLength(reader: BinaryReader, length: number) {
 	return length === 0x1f ? readLength(reader) : length;
 }
 
-export function readAny(reader: BinaryReader, state: ReadAnyState): any {
+export function readAny(reader: BinaryReader, strings: string[], cloneTypedArrays: boolean): any {
 	const byte = readUint8(reader);
 	const type = byte & 0xe0;
 	const value = byte & 0x1f;
@@ -160,7 +158,7 @@ export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 				case Special.False: return false;
 				case Special.Uint8Array: {
 					const value = readUint8Array(reader);
-					if (value && state.cloneTypedArrays) return value.slice();
+					if (value && cloneTypedArrays) return value.slice();
 					return value;
 				}
 				default: throw new Error(`Incorrect value (${value}, ${byte})`);
@@ -184,23 +182,19 @@ export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 		case Type.String: {
 			const length = readShortLength(reader, value);
 			const result = decodeString(readBytes(reader, length));
-
-			if (result) {
-				state.strings.push(result);
-			}
-
+			if (result) strings.push(result);
 			return result;
 		}
 		case Type.StringRef: {
 			const index = readShortLength(reader, value);
-			return state.strings[index];
+			return strings[index];
 		}
 		case Type.Array: {
 			const length = readShortLength(reader, value);
 			const array = [];
 
 			for (let i = 0; i < length; i++) {
-				array.push(readAny(reader, state));
+				array.push(readAny(reader, strings, cloneTypedArrays));
 			}
 
 			return array;
@@ -211,16 +205,17 @@ export function readAny(reader: BinaryReader, state: ReadAnyState): any {
 
 			for (let i = 0; i < length; i++) {
 				const length = readLength(reader);
+				let key;
 
 				if (length) {
-					const key = decodeString(readBytes(reader, length))!;
-					state.strings.push(key);
-					obj[key] = readAny(reader, state);
+					key = decodeString(readBytes(reader, length))!;
+					strings.push(key);
 				} else {
 					const index = readLength(reader);
-					const key = state.strings[index];
-					obj[key] = readAny(reader, state);
+					key = strings[index];
 				}
+
+				obj[key] = readAny(reader, strings, cloneTypedArrays);
 			}
 
 			return obj;

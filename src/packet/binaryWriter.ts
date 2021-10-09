@@ -1,6 +1,5 @@
 import { encodeStringTo, stringLengthInBytes } from '../utf8';
 import { Type, Special, NumberType } from './packetCommon';
-import { WriteAnyState } from '../interfaces';
 
 export interface BinaryWriter {
 	bytes: Uint8Array;
@@ -29,7 +28,7 @@ export function writeString(writer: BinaryWriter, value: string | null) {
 }
 
 export function writeObject(writer: BinaryWriter, value: any) {
-	writeAny(writer, value, { strings: new Map<string, number>() });
+	writeAny(writer, value, new Map<string, number>());
 }
 
 export function writeUint8Array(writer: BinaryWriter, value: Uint8Array | null) {
@@ -73,13 +72,15 @@ export function writeArray<T>(writer: BinaryWriter, value: T[] | null, writeOne:
 }
 
 function writeNullLength(writer: BinaryWriter) {
-	writeUint16(writer, 0x0080);
+	writeUint8(writer, 0);
 }
 
 export function writeLength(writer: BinaryWriter, value: number) {
-	if (value < -1 || value > 0x7fffffff) throw new Error('Invalid length value');
+	if (value < -1 || value > 0x7ffffffe) throw new Error('Invalid length value');
 
-	if (value === -1) {
+	value++;
+
+	if (value === 0) {
 		writeNullLength(writer);
 	} else if ((value & 0xffffff80) === 0) {
 		writeUint8(writer, value);
@@ -168,8 +169,9 @@ export function writeBytesRange(writer: BinaryWriter, value: Uint8Array, offset:
 	writeLength(writer, length);
 	const bytes = writer.bytes;
 
-	if ((writer.offset + length) > bytes.byteLength)
+	if ((writer.offset + length) > bytes.byteLength) {
 		throw new Error('Exceeded DataView size');
+	}
 
 	if (length <= 64) {
 		let dst = writer.offset;
@@ -186,8 +188,9 @@ export function writeBytesRange(writer: BinaryWriter, value: Uint8Array, offset:
 }
 
 export function writeBytes(writer: BinaryWriter, value: Uint8Array) {
-	if ((writer.offset + value.byteLength) > writer.bytes.byteLength)
+	if ((writer.offset + value.byteLength) > writer.bytes.byteLength) {
 		throw new Error('Exceeded DataView size');
+	}
 
 	writer.bytes.set(value, writer.offset);
 	writer.offset += value.byteLength;
@@ -214,7 +217,7 @@ function writeShortLength(writer: BinaryWriter, type: Type, length: number) {
 	}
 }
 
-export function writeAny(writer: BinaryWriter, value: any, state: WriteAnyState) {
+export function writeAny(writer: BinaryWriter, value: any, strings: Map<string, number>) {
 	if (value === undefined) {
 		writeUint8(writer, Type.Special | Special.Undefined);
 	} else if (value === null) {
@@ -266,7 +269,7 @@ export function writeAny(writer: BinaryWriter, value: any, state: WriteAnyState)
 			}
 		}
 	} else if (typeof value === 'string') {
-		const index = state.strings.get(value);
+		const index = strings.get(value);
 
 		if (index !== undefined) {
 			writeShortLength(writer, Type.StringRef, index);
@@ -276,7 +279,7 @@ export function writeAny(writer: BinaryWriter, value: any, state: WriteAnyState)
 			writeStringValue(writer, value);
 
 			if (value) {
-				state.strings.set(value, state.strings.size);
+				strings.set(value, strings.size);
 			}
 		}
 	} else if (Array.isArray(value)) {
@@ -284,7 +287,7 @@ export function writeAny(writer: BinaryWriter, value: any, state: WriteAnyState)
 		writeShortLength(writer, Type.Array, length);
 
 		for (let i = 0; i < length; i++) {
-			writeAny(writer, value[i], state);
+			writeAny(writer, value[i], strings);
 		}
 	} else if (typeof value === 'object') {
 		if (value instanceof Uint8Array) {
@@ -296,24 +299,49 @@ export function writeAny(writer: BinaryWriter, value: any, state: WriteAnyState)
 
 			for (let i = 0; i < keys.length; i++) {
 				const key = keys[i];
-				const index = state.strings.get(key);
+				const index = strings.get(key);
 
 				if (index === undefined) {
 					writeLength(writer, stringLengthInBytes(key));
 					writeStringValue(writer, key);
 
 					if (key) {
-						state.strings.set(key, state.strings.size);
+						strings.set(key, strings.size);
 					}
 				} else {
 					writeLength(writer, 0);
 					writeLength(writer, index);
 				}
 
-				writeAny(writer, value[key], state);
+				writeAny(writer, value[key], strings);
 			}
 		}
 	} else {
 		throw new Error(`Invalid type: ${value}`);
+	}
+}
+
+declare const IndexSizeError: any;
+
+export function isSizeError(e: Error) {
+	if (typeof RangeError !== 'undefined' && e instanceof RangeError) return true;
+	if (typeof TypeError !== 'undefined' && e instanceof TypeError) return true;
+	if (typeof IndexSizeError !== 'undefined' && e instanceof IndexSizeError) return true;
+	if (/DataView/.test(e.message)) return true;
+	return false;
+}
+
+export function writeWithResize(writer: BinaryWriter, write: () => void) {
+	while (true) {
+		try {
+			write();
+			break;
+		} catch (e) {
+			if (isSizeError(e)) {
+				resizeWriter(writer);
+			} else {
+				throw e;
+			}
+		}
 	}
 }
