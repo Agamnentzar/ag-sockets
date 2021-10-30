@@ -104,6 +104,7 @@ export interface HandlerOptions {
 	useBuffer?: boolean;
 	debug?: boolean;
 	development?: boolean;
+	printGeneratedCode?: boolean;
 	onSend?: OnSend;
 	onRecv?: OnRecv;
 }
@@ -217,7 +218,9 @@ export function createPacketHandler(
 
 // code generation
 
-function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOptions, onRecv: OnRecv): LocalHandler {
+function generateLocalHandlerCode(
+	methods: MethodDef[], { debug, printGeneratedCode }: HandlerOptions, onRecv: OnRecv
+): LocalHandler {
 	let code = ``;
 	code += `var strings = [];\n`;
 	code += `${Object.keys(readerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n\n`;
@@ -294,7 +297,10 @@ function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOption
 	code += `    };\n`;
 	code += `  };\n`;
 
-	// console.log(`\n\nfunction createMethods(methods, checkRateLimit) {\n${code}}\n`);
+	if (printGeneratedCode) {
+		console.log(`\n\nfunction createRecvHandler(methods, checkRateLimit, onRecv) {\n${code}}\n`);
+	}
+
 	return new Function('methods', 'checkRateLimit', 'onRecv', code)(readerMethods, checkRateLimit3, onRecv) as any;
 }
 
@@ -399,7 +405,10 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 		packetId++;
 	}
 
-	// console.log(`\n\nfunction createMethods(send, state, methods) {\n${code}}\n`);
+	if (handlerOptions.printGeneratedCode) {
+		console.log(`\n\nfunction createSendHandler(remote, send, removeState, remoteOptions, methods, writer) {\n${code}}\n`);
+	}
+
 	return new Function('remote', 'send', 'remoteState', 'remoteOptions', 'methods', 'writer', code) as any;
 }
 

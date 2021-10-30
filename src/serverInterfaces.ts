@@ -123,6 +123,7 @@ export interface ServerOptions extends CommonOptions {
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
 	/** send/recv handlers */
+	printGeneratedCode?: boolean;
 	onSend?: OnSend;
 	onRecv?: OnRecv;
 	client?: MethodDef[];
