@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import {
 	createBinaryWriter, writeInt8, writeUint8, writeInt16, writeUint16, writeInt32, writeUint32,
 	writeFloat32, writeFloat64, writeBoolean, writeBytes, writeLength, writeString, writeObject,
-	writeArray, writeArrayBuffer, writeUint8Array, getWriterBuffer, resetWriter, writeStringValue
+	writeArray, writeArrayBuffer, writeUint8Array, getWriterBuffer, resetWriter, writeStringValue, BinaryWriter
 } from '../packet/binaryWriter';
 import {
 	createBinaryReader, readInt8, readUint8, readInt16, readUint16, readInt32, readUint32,
@@ -13,10 +13,14 @@ import {
 
 type Foo = [any, number[]];
 
+function writerToReader(writer: BinaryWriter) {
+	return createBinaryReader(new Uint8Array(writer.view.buffer, writer.view.byteOffset, writer.view.byteLength));
+}
+
 describe('PacketReader + PacketWriter', () => {
 	it('read write length (random)', () => {
 		const writer = createBinaryWriter(34);
-		const reader = createBinaryReader(writer.bytes);
+		const reader = writerToReader(writer);
 
 		for (let i = 0; i < 1000; i++) {
 			const length = (Math.random() * 0x7fffffff) >>> 0;
@@ -26,7 +30,7 @@ describe('PacketReader + PacketWriter', () => {
 			const actual = readLength(reader);
 
 			if (actual !== length) {
-				console.error('Different values', actual, length, writer.bytes);
+				console.error('Different values', actual, length, getWriterBuffer(writer));
 			}
 		}
 	});
@@ -35,7 +39,7 @@ describe('PacketReader + PacketWriter', () => {
 		0, 1, 2, 16, 0x7f, 0x80, 0x3fff, 0xc000, 0x70000000,
 	].forEach(length => it(`read write length (${length})`, () => {
 		const writer = createBinaryWriter(34);
-		const reader = createBinaryReader(writer.bytes);
+		const reader = writerToReader(writer);
 		writer.offset = 0;
 		reader.offset = 0;
 		writeLength(writer, length);
@@ -152,7 +156,7 @@ describe('PacketReader + PacketWriter', () => {
 	it('throws when writing string too large for the buffer', () => {
 		const writer = createBinaryWriter(16);
 		expect(() => writeStringValue(writer, 'some long string that is larger than the buffer'))
-			.throw('Exceeded DataView size');
+			.throw('Offset is outside the bounds of the DataView');
 	});
 
 	describe('binary object encoding', () => {

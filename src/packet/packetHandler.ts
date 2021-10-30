@@ -207,7 +207,7 @@ export function createPacketHandler(
 	}
 
 	function writerBufferSize() {
-		return writer.bytes.byteLength;
+		return writer.view.byteLength;
 	}
 
 	return { sendString, createRemote, recvString, recvBinary, writerBufferSize };
@@ -337,7 +337,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}      strings.clear();\n`;
 			code += `${indent}      writer.offset = 0;\n`;
 			code += createWriteFunction(packetId, options.binary, `${indent}      `);
-			code += `${indent}      var buffer = ${bufferCtor}(writer.bytes.buffer, writer.bytes.byteOffset, writer.offset);\n`;
+			code += `${indent}      var buffer = ${bufferCtor}(writer.view.buffer, writer.view.byteOffset, writer.offset);\n`;
 			code += `${indent}      send(buffer);\n`;
 			code += `${indent}      remoteState.sentSize += buffer.${bufferLength};\n`; // TODO: move from here, just count in send function
 			code += `${indent}      onSend(${packetId}, '${name}', buffer.${bufferLength}, true);\n`;

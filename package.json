@@ -1,6 +1,6 @@
 {
   "name": "ag-sockets",
-  "version": "7.5.0",
+  "version": "7.6.0",
   "description": "Library for communication via WebSockets",
   "main": "dist/index.js",
   "browser": "dist/browser.js",
@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@clusterws/cws": "^3.0.0",
+    "@encharm/cws": "^4.1.0",
     "@types/express": "^4.17.12",
     "@types/mocha": "^8.2.2",
     "@types/node": "^14.17.4",

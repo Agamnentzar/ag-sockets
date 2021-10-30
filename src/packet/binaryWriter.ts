@@ -2,16 +2,14 @@ import { encodeStringTo, stringLengthInBytes } from '../utf8';
 import { Type, Special, NumberType } from './packetCommon';
 
 export interface BinaryWriter {
-	bytes: Uint8Array;
 	view: DataView;
 	offset: number;
 }
 
-export function createBinaryWriter(bufferOrSize: Uint8Array | number = 32): BinaryWriter {
-	const bytes = typeof bufferOrSize === 'number' ? new Uint8Array(bufferOrSize) : bufferOrSize;
-	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-	const offset = 0;
-	return { bytes, view, offset };
+export function createBinaryWriter(bufferOrSize: ArrayBuffer | Uint8Array | number = 32): BinaryWriter {
+	const buf = typeof bufferOrSize === 'number' ? new ArrayBuffer(bufferOrSize) : bufferOrSize;
+	const view = buf instanceof Uint8Array ? new DataView(buf.buffer, buf.byteOffset, buf.byteLength) : new DataView(buf);
+	return { view, offset: 0 };
 }
 
 export function writeBoolean(writer: BinaryWriter, value: boolean) {
@@ -111,8 +109,8 @@ export function writeLength(writer: BinaryWriter, value: number) {
 	}
 }
 
-export function getWriterBuffer({ bytes, offset }: BinaryWriter) {
-	return new Uint8Array(bytes.buffer, bytes.byteOffset, offset);
+export function getWriterBuffer({ view, offset }: BinaryWriter) {
+	return new Uint8Array(view.buffer, view.byteOffset, offset);
 }
 
 export function resetWriter(writer: BinaryWriter) {
@@ -120,9 +118,8 @@ export function resetWriter(writer: BinaryWriter) {
 }
 
 export function resizeWriter(writer: BinaryWriter) {
+	writer.view = new DataView(new ArrayBuffer(writer.view.byteLength * 2));
 	writer.offset = 0;
-	writer.bytes = new Uint8Array(writer.bytes.byteLength * 2);
-	writer.view = new DataView(writer.bytes.buffer);
 }
 
 export function writeInt8(writer: BinaryWriter, value: number) {
@@ -167,39 +164,40 @@ export function writeFloat64(writer: BinaryWriter, value: number) {
 
 export function writeBytesRange(writer: BinaryWriter, value: Uint8Array, offset: number, length: number) {
 	writeLength(writer, length);
-	const bytes = writer.bytes;
+	const view = writer.view;
 
-	if ((writer.offset + length) > bytes.byteLength) {
+	if ((writer.offset + length) > view.byteLength) {
 		throw new Error('Exceeded DataView size');
 	}
 
-	if (length <= 64) {
-		let dst = writer.offset;
-		let src = offset;
+	let dst = writer.offset;
+	let src = offset;
 
-		for (const dstEnd = dst + length; dst < dstEnd; dst++, src++) {
-			bytes[dst] = value[src];
-		}
-	} else {
-		bytes.set(value.subarray(offset, offset + length), writer.offset);
+	for (const dstEnd = dst + length; dst < dstEnd; dst++, src++) {
+		view.setUint8(dst, value[src]);
 	}
 
 	writer.offset += length;
 }
 
 export function writeBytes(writer: BinaryWriter, value: Uint8Array) {
-	if ((writer.offset + value.byteLength) > writer.bytes.byteLength) {
+	if ((writer.offset + value.byteLength) > writer.view.byteLength) {
 		throw new Error('Exceeded DataView size');
 	}
 
-	writer.bytes.set(value, writer.offset);
+	const view = writer.view;
+
+	for (let src = 0, length = value.length, dst = writer.offset; src < length; src++, dst++) {
+		view.setUint8(dst, value[src]);
+	}
+
 	writer.offset += value.byteLength;
 }
 
 export function writeStringValue(writer: BinaryWriter, value: string) {
-	writer.offset = encodeStringTo(writer.bytes, writer.offset, value);
+	writer.offset = encodeStringTo(writer.view, writer.offset, value);
 
-	if (writer.offset > writer.bytes.byteLength) {
+	if (writer.offset > writer.view.byteLength) {
 		throw new Error('Exceeded DataView size');
 	}
 }

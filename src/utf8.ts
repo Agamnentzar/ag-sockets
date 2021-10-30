@@ -35,34 +35,34 @@ export function stringLengthInBytes(value: string): number {
 	return result;
 }
 
-function writeCharacter(buffer: Uint8Array | Buffer, offset: number, code: number): number {
+function writeCharacter(buffer: DataView, offset: number, code: number): number {
 	const length = charLengthInBytes(code);
 
 	switch (length) {
 		case 1:
-			buffer[offset] = code;
+			buffer.setUint8(offset, code);
 			break;
 		case 2:
-			buffer[offset] = ((code >> 6) & 0x1f) | 0xc0;
-			buffer[offset + 1] = (code & 0x3f) | 0x80;
+			buffer.setUint8(offset, ((code >> 6) & 0x1f) | 0xc0);
+			buffer.setUint8(offset + 1, (code & 0x3f) | 0x80);
 			break;
 		case 3:
-			buffer[offset] = ((code >> 12) & 0x0f) | 0xe0;
-			buffer[offset + 1] = ((code >> 6) & 0x3f) | 0x80;
-			buffer[offset + 2] = (code & 0x3f) | 0x80;
+			buffer.setUint8(offset, ((code >> 12) & 0x0f) | 0xe0);
+			buffer.setUint8(offset + 1, ((code >> 6) & 0x3f) | 0x80);
+			buffer.setUint8(offset + 2, (code & 0x3f) | 0x80);
 			break;
 		default:
-			buffer[offset] = ((code >> 18) & 0x07) | 0xf0;
-			buffer[offset + 1] = ((code >> 12) & 0x3f) | 0x80;
-			buffer[offset + 2] = ((code >> 6) & 0x3f) | 0x80;
-			buffer[offset + 3] = (code & 0x3f) | 0x80;
+			buffer.setUint8(offset, ((code >> 18) & 0x07) | 0xf0);
+			buffer.setUint8(offset + 1, ((code >> 12) & 0x3f) | 0x80);
+			buffer.setUint8(offset + 2, ((code >> 6) & 0x3f) | 0x80);
+			buffer.setUint8(offset + 3, (code & 0x3f) | 0x80);
 			break;
 	}
 
 	return length;
 }
 
-export function encodeStringTo(buffer: Uint8Array | Buffer, offset: number, value: string): number {
+export function encodeStringTo(buffer: DataView, offset: number, value: string): number {
 	for (let i = 0; i < value.length; i++) {
 		const code = value.charCodeAt(i);
 
@@ -86,21 +86,10 @@ export function encodeStringTo(buffer: Uint8Array | Buffer, offset: number, valu
 	return offset;
 }
 
-export function encodeString(value: string | null): Uint8Array | null {
-	if (value == null)
-		return null;
+function continuationByte(buffer: DataView, index: number, end: number): number {
+	if (index >= end) throw Error('Invalid byte index');
 
-	const buffer = new Uint8Array(stringLengthInBytes(value));
-	encodeStringTo(buffer, 0, value);
-	return buffer;
-}
-
-function continuationByte(buffer: Uint8Array, index: number): number {
-	if (index >= buffer.length) {
-		throw Error('Invalid byte index');
-	}
-
-	const continuationByte = buffer[index];
+	const continuationByte = buffer.getUint8(index);
 
 	if ((continuationByte & 0xC0) === 0x80) {
 		return continuationByte & 0x3F;
@@ -109,28 +98,28 @@ function continuationByte(buffer: Uint8Array, index: number): number {
 	}
 }
 
-export function decodeString(value: Uint8Array | null): string | null {
-	if (value == null)
-		return null;
+export function decodeString(value: DataView | null, offset: number, length: number): string | null {
+	if (value == null) return null;
 
 	let result = '';
+	const end = offset + length;
 
-	for (let i = 0; i < value.length;) {
-		const byte1 = value[i++];
+	for (let i = offset; i < end;) {
+		const byte1 = value.getUint8(i++);
 		let code: number;
 
 		if ((byte1 & 0x80) === 0) {
 			code = byte1;
 		} else if ((byte1 & 0xe0) === 0xc0) {
-			const byte2 = continuationByte(value, i++);
+			const byte2 = continuationByte(value, i++, end);
 			code = ((byte1 & 0x1f) << 6) | byte2;
 
 			if (code < 0x80) {
 				throw Error('Invalid continuation byte');
 			}
 		} else if ((byte1 & 0xf0) === 0xe0) {
-			const byte2 = continuationByte(value, i++);
-			const byte3 = continuationByte(value, i++);
+			const byte2 = continuationByte(value, i++, end);
+			const byte3 = continuationByte(value, i++, end);
 			code = ((byte1 & 0x0f) << 12) | (byte2 << 6) | byte3;
 
 			if (code < 0x0800) {
@@ -141,9 +130,9 @@ export function decodeString(value: Uint8Array | null): string | null {
 				throw Error(`Lone surrogate U+${code.toString(16).toUpperCase()} is not a scalar value`);
 			}
 		} else if ((byte1 & 0xf8) === 0xf0) {
-			const byte2 = continuationByte(value, i++);
-			const byte3 = continuationByte(value, i++);
-			const byte4 = continuationByte(value, i++);
+			const byte2 = continuationByte(value, i++, end);
+			const byte3 = continuationByte(value, i++, end);
+			const byte4 = continuationByte(value, i++, end);
 			code = ((byte1 & 0x0f) << 0x12) | (byte2 << 0x0c) | (byte3 << 0x06) | byte4;
 
 			if (code < 0x010000 || code > 0x10ffff) {

@@ -1,15 +1,15 @@
 import './common';
 import { expect } from 'chai';
-import { encodeString, encodeStringTo, decodeString } from '../utf8';
+import { encodeStringTo, decodeString, stringLengthInBytes } from '../utf8';
 
 describe('utf8', () => {
 	describe('encodeString()', () => {
 		it('should return null for null input', () => {
-			expect(encodeString(null)).null;
+			expect(encodeStringToUint8Array(null)).null;
 		});
 
 		it('should remove lone surrogate at the end', () => {
-			const buffer = encodeString('abc\ud83c')!;
+			const buffer = encodeStringToUint8Array('abc\ud83c')!;
 
 			expect(buffer[0]).equal('a'.charCodeAt(0));
 			expect(buffer[1]).equal('b'.charCodeAt(0));
@@ -17,7 +17,7 @@ describe('utf8', () => {
 		});
 
 		it('should remove lone surrogate in the middle', () => {
-			const buffer = encodeString('abc\ud83cd')!;
+			const buffer = encodeStringToUint8Array('abc\ud83cd')!;
 
 			expect(buffer[0]).equal('a'.charCodeAt(0));
 			expect(buffer[1]).equal('b'.charCodeAt(0));
@@ -28,55 +28,46 @@ describe('utf8', () => {
 
 	describe('encodeStringTo()', () => {
 		it('should write string to Uint8Array at specified offset', () => {
-			const buffer = new Uint8Array(10);
+			const buffer = new DataView(new ArrayBuffer(10));
 			encodeStringTo(buffer, 5, 'abc');
 
-			expect(buffer[5]).equal('a'.charCodeAt(0));
-			expect(buffer[6]).equal('b'.charCodeAt(0));
-			expect(buffer[7]).equal('c'.charCodeAt(0));
-		});
-
-		it('should write string to Buffer at specified offset', () => {
-			const buffer = Buffer.alloc(10);
-			encodeStringTo(buffer, 5, 'abc');
-
-			expect(buffer[5]).equal('a'.charCodeAt(0));
-			expect(buffer[6]).equal('b'.charCodeAt(0));
-			expect(buffer[7]).equal('c'.charCodeAt(0));
+			expect(buffer.getUint8(5)).equal('a'.charCodeAt(0));
+			expect(buffer.getUint8(6)).equal('b'.charCodeAt(0));
+			expect(buffer.getUint8(7)).equal('c'.charCodeAt(0));
 		});
 	});
 
 	describe('decodeString()', () => {
 		it('should return null for null input', () => {
-			expect(decodeString(null)).null;
+			expect(decodeStringFromUint8Array(null)).null;
 		});
 
 		it('should throw on ivalid continuation byte (missing byte)', () => {
-			expect(() => decodeString(new Uint8Array([0xc0]))).throw('Invalid byte index');
+			expect(() => decodeStringFromUint8Array(new Uint8Array([0xc0]))).throw('Invalid byte index');
 		});
 
 		it('should throw on ivalid continuation byte (0x00)', () => {
-			expect(() => decodeString(new Uint8Array([0xc0, 0x00]))).throw('Invalid continuation byte');
+			expect(() => decodeStringFromUint8Array(new Uint8Array([0xc0, 0x00]))).throw('Invalid continuation byte');
 		});
 
 		it('should throw on ivalid continuation byte (2-byte)', () => {
-			expect(() => decodeString(new Uint8Array([0xc0, 0x80]))).throw('Invalid continuation byte');
+			expect(() => decodeStringFromUint8Array(new Uint8Array([0xc0, 0x80]))).throw('Invalid continuation byte');
 		});
 
 		it('should throw on ivalid continuation byte (3-byte)', () => {
-			expect(() => decodeString(new Uint8Array([0xe0, 0x80, 0x80]))).throw('Invalid continuation byte');
+			expect(() => decodeStringFromUint8Array(new Uint8Array([0xe0, 0x80, 0x80]))).throw('Invalid continuation byte');
 		});
 
 		it('should throw on ivalid continuation byte (4-byte)', () => {
-			expect(() => decodeString(new Uint8Array([0xf0, 0x80, 0x80, 0x80]))).throw('Invalid continuation byte');
+			expect(() => decodeStringFromUint8Array(new Uint8Array([0xf0, 0x80, 0x80, 0x80]))).throw('Invalid continuation byte');
 		});
 
 		it('should throw on invalid UTF-8', () => {
-			expect(() => decodeString(new Uint8Array([0xff]))).throw('Invalid UTF-8 detected');
+			expect(() => decodeStringFromUint8Array(new Uint8Array([0xff]))).throw('Invalid UTF-8 detected');
 		});
 
 		it('should throw on lone surrogate', () => {
-			expect(() => decodeString(new Uint8Array([0xed, 0xa3, 0xbf]))).throw('Lone surrogate U+D8FF is not a scalar value');
+			expect(() => decodeStringFromUint8Array(new Uint8Array([0xed, 0xa3, 0xbf]))).throw('Lone surrogate U+D8FF is not a scalar value');
 		});
 	});
 
@@ -92,8 +83,23 @@ describe('utf8', () => {
 
 		tests.forEach(t => {
 			it(`should work for: ${t}`, () => {
-				expect(decodeString(encodeString(t))).equal(t);
+				expect(decodeStringFromUint8Array(encodeStringToUint8Array(t))).equal(t);
 			});
 		});
 	});
 });
+
+// only for testing
+function encodeStringToUint8Array(value: string | null): Uint8Array | null {
+	if (value == null) return null;
+
+	const buffer = new Uint8Array(stringLengthInBytes(value));
+	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+	encodeStringTo(view, 0, value);
+	return buffer;
+}
+
+function decodeStringFromUint8Array(value: Uint8Array | null) {
+	const view = value ? new DataView(value.buffer, value.byteOffset, value.byteLength) : null;
+	return decodeString(view, 0, view ? view.byteLength : 0);
+}

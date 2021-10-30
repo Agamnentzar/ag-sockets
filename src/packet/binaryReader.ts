@@ -78,14 +78,11 @@ export function readBytes(reader: BinaryReader, length: number) {
 
 export function readArrayBuffer(reader: BinaryReader) {
 	const length = readLength(reader);
+	if (length === -1) return null;
 
-	if (length === -1) {
-		return null;
-	} else {
-		const offset = reader.offset;
-		reader.offset += length;
-		return reader.view.buffer.slice(reader.view.byteOffset + offset, offset + length);
-	}
+	const offset = reader.offset;
+	reader.offset += length;
+	return reader.view.buffer.slice(reader.view.byteOffset + offset, offset + length);
 }
 
 export function readBoolean(reader: BinaryReader) {
@@ -95,8 +92,7 @@ export function readBoolean(reader: BinaryReader) {
 export function readArray<T>(reader: BinaryReader, readOne: (reader: BinaryReader) => T): T[] | null {
 	const length = readLength(reader);
 
-	if (length === -1)
-		return null;
+	if (length === -1) return null;
 
 	const result: T[] = [];
 
@@ -109,7 +105,10 @@ export function readArray<T>(reader: BinaryReader, readOne: (reader: BinaryReade
 
 export function readString(reader: BinaryReader) {
 	const length = readLength(reader);
-	return length === -1 ? null : decodeString(readBytes(reader, length));
+	if (length === -1) return null;
+	const result = decodeString(reader.view, reader.offset, length);
+	reader.offset += length;
+	return result;
 }
 
 export function readObject(reader: BinaryReader, cloneTypedArrays = false) {
@@ -132,12 +131,8 @@ export function readLength(reader: BinaryReader) {
 
 export function readUint8Array(reader: BinaryReader) {
 	const length = readLength(reader);
-
-	if (length === -1) {
-		return null;
-	} else {
-		return readBytes(reader, length);
-	}
+	if (length === -1) return null;
+	return readBytes(reader, length);
 }
 
 function readShortLength(reader: BinaryReader, length: number) {
@@ -181,8 +176,9 @@ export function readAny(reader: BinaryReader, strings: string[], cloneTypedArray
 			return -(value + 1);
 		case Type.String: {
 			const length = readShortLength(reader, value);
-			const result = decodeString(readBytes(reader, length));
-			if (result) strings.push(result);
+			const result = decodeString(reader.view, reader.offset, length)!;
+			reader.offset += length;
+			strings.push(result);
 			return result;
 		}
 		case Type.StringRef: {
@@ -208,7 +204,8 @@ export function readAny(reader: BinaryReader, strings: string[], cloneTypedArray
 				let key;
 
 				if (length) {
-					key = decodeString(readBytes(reader, length))!;
+					key = decodeString(reader.view, reader.offset, length)!;
+					reader.offset += length;
 					strings.push(key);
 				} else {
 					const index = readLength(reader);
