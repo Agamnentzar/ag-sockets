@@ -19,6 +19,8 @@ describe('binary encoding', () => {
 		['raw', { binary: [Bin.Raw] }],
 		['raw2', { binary: [Bin.U16, Bin.Raw] }],
 		['mix', { binary: [[Bin.U8, Bin.U16, Bin.F64, Bin.F64, Bin.F64, Bin.F64, Bin.Bool, Bin.Obj, [Bin.I16], Bin.U8Array]] }],
+		['u8_off_len', { binary: [Bin.U8ArrayOffsetLength] }],
+		['view_off_len', { binary: [Bin.DataViewOffsetLength] }],
 	];
 
 	const server: MethodDef[] = [
@@ -176,4 +178,37 @@ describe('binary encoding', () => {
 
 		assert.calledWithMatch(actions.mix, data);
 	}));
+
+	it.only('uint8array + offset + length', () => {
+		actions.u8_off_len = (buffer: Uint8Array, offset: number, length: number) => {
+			expect(buffer).instanceOf(Uint8Array);
+			expect(offset).equal(0);
+			expect(length).equal(3);
+			expect(buffer[offset]).equal(2);
+			expect(buffer[offset + 1]).equal(3);
+			expect(buffer[offset + 2]).equal(4);
+		};
+
+		const buffer = new ArrayBuffer(5);
+		const data = new Uint8Array(buffer);
+		data.set([1, 2, 3, 4, 5]);
+		remote.u8_off_len(data, 1, 3);
+	});
+
+	it('data view + offset + length', () => {
+		actions.view_off_len = (view: DataView, offset: number, length: number) => {
+			expect(view).instanceOf(DataView);
+			expect(offset).equal(2);
+			expect(length).equal(3);
+			expect(view.getUint8(offset)).equal(2);
+			expect(view.getUint8(offset + 1)).equal(3);
+			expect(view.getUint8(offset + 2)).equal(4);
+		};
+
+		const buffer = new ArrayBuffer(5);
+		const data = new Uint8Array(buffer);
+		data.set([1, 2, 3, 4, 5]);
+		const view = new DataView(buffer);
+		remote.view_off_len(view, 1, 3);
+	});
 });

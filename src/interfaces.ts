@@ -52,6 +52,7 @@ export enum Bin {
 	U8Array,
 	Raw,
 	U8ArrayOffsetLength,
+	DataViewOffsetLength,
 }
 
 export type BinaryDef = (Bin | (Bin | (Bin | any[]))[])[];

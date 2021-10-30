@@ -180,6 +180,24 @@ export function writeBytesRange(writer: BinaryWriter, value: Uint8Array, offset:
 	writer.offset += length;
 }
 
+export function writeBytesRangeView(writer: BinaryWriter, value: DataView, offset: number, length: number) {
+	writeLength(writer, length);
+	const view = writer.view;
+
+	if ((writer.offset + length) > view.byteLength) {
+		throw new Error('Exceeded DataView size');
+	}
+
+	let dst = writer.offset;
+	let src = offset;
+
+	for (const dstEnd = dst + length; dst < dstEnd; dst++, src++) {
+		view.setUint8(dst, value.getUint8(src));
+	}
+
+	writer.offset += length;
+}
+
 export function writeBytes(writer: BinaryWriter, value: Uint8Array) {
 	if ((writer.offset + value.byteLength) > writer.view.byteLength) {
 		throw new Error('Exceeded DataView size');

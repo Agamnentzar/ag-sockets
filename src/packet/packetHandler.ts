@@ -3,11 +3,11 @@ import { isBinaryOnlyPacket, parseRateLimit, checkRateLimit3 } from '../utils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
 	writeString, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,
-	writeBytes, resizeWriter, createBinaryWriter, writeBytesRange, writeAny, BinaryWriter, isSizeError,
+	writeBytes, resizeWriter, createBinaryWriter, writeBytesRange, writeAny, BinaryWriter, isSizeError, writeBytesRangeView,
 } from './binaryWriter';
 import {
 	readInt8, readUint8, readUint16, readInt16, readUint32, readInt32, readFloat32, readFloat64, readBoolean,
-	readString, readArrayBuffer, readUint8Array, readArray, readBytes, BinaryReader, readAny
+	readString, readArrayBuffer, readUint8Array, readArray, readBytes, BinaryReader, readAny, readLength
 } from './binaryReader';
 
 const binaryNames: string[] = [];
@@ -47,6 +47,7 @@ const readerMethods = {
 	readUint8Array,
 	readArray,
 	readBytes: readBytesRaw,
+	readLength,
 };
 
 const writerMethods = {
@@ -69,6 +70,7 @@ const writerMethods = {
 	writeArray,
 	writeBytes,
 	writeBytesRange,
+	writeBytesRangeView,
 	isSizeError,
 };
 
@@ -249,7 +251,9 @@ function generateLocalHandlerCode(methods: MethodDef[], { debug }: HandlerOption
 			code += createReadFunction(options.binary, '        ');
 
 			for (let i = 0, j = 0; i < options.binary.length; i++, j++) {
-				if (options.binary[i] === Bin.U8ArrayOffsetLength) args.push(j++, j++);
+				if (options.binary[i] === Bin.U8ArrayOffsetLength || options.binary[i] === Bin.DataViewOffsetLength) {
+					args.push(j++, j++);
+				}
 				args.push(j);
 			}
 
@@ -312,7 +316,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 		if (options.binary) {
 			for (let i = 0, j = 0; i < options.binary.length; i++) {
-				if (options.binary[i] === Bin.U8ArrayOffsetLength) {
+				if (options.binary[i] === Bin.U8ArrayOffsetLength || options.binary[i] === Bin.DataViewOffsetLength) {
 					args.push(`a${j++}`, `a${j++}`);
 				}
 
@@ -437,6 +441,9 @@ function createWriteFunction(id: number, fields: any[], indent: string) {
 		if (fields[i] === Bin.U8ArrayOffsetLength) {
 			code += `${indent}writeBytesRange(writer, a${j}, a${j + 1}, a${j + 2});\n`;
 			j += 2;
+		} else if (fields[i] === Bin.DataViewOffsetLength) {
+			code += `${indent}writeBytesRangeView(writer, a${j}, a${j + 1}, a${j + 2});\n`;
+			j += 2;
 		} else {
 			code += writeField(fields[i], `a${j}`, indent);
 		}
@@ -473,8 +480,18 @@ function createReadFunction(fields: any[], indent: string) {
 	for (let i = 0, j = 0; i < fields.length; i++, j++) {
 		if (fields[i] === Bin.U8ArrayOffsetLength) {
 			code += `${indent}var a${j} = readUint8Array(reader);\n`;
-			code += `${indent}var a${j + 1} = a${j}.byteOffset;\n`;
+			code += `${indent}var a${j + 1} = 0;\n`;
 			code += `${indent}var a${j + 2} = a${j}.byteLength;\n`;
+			j += 2;
+		} else if (fields[i] === Bin.DataViewOffsetLength) {
+			code += `${indent}var a${j} = null, a${j + 1} = 0, a${j + 2} = 0;\n`;
+			code += `${indent}var a${j}_len = readLength(reader);\n`;
+			code += `${indent}if (a${j}_len !== -1) {\n`;
+			code += `${indent}  a${j} = reader.view;\n`;
+			code += `${indent}  a${j + 1} = reader.offset;\n`;
+			code += `${indent}  a${j + 2} = a${j}_len;\n`;
+			code += `${indent}  reader.offset += a${j}_len;\n`;
+			code += `${indent}};\n`;
 			j += 2;
 		} else {
 			code += `${indent}var a${j} = ${readField(fields[i], indent)};\n`;

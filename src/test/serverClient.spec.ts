@@ -49,6 +49,9 @@ class Server implements SocketServer {
 	@Method({ binary: [Bin.U8ArrayOffsetLength] })
 	partialBuffer(_buffer: Uint8Array, _offset: number, _length: number) {
 	}
+	@Method({ binary: [Bin.DataViewOffsetLength] })
+	partialDataView(_buffer: DataView, _offset: number, _length: number) {
+	}
 	connected() { }
 	disconnected() { }
 }

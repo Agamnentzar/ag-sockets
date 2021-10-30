@@ -3,12 +3,12 @@ import { expect } from 'chai';
 import {
 	createBinaryWriter, writeInt8, writeUint8, writeInt16, writeUint16, writeInt32, writeUint32,
 	writeFloat32, writeFloat64, writeBoolean, writeBytes, writeLength, writeString, writeObject,
-	writeArray, writeArrayBuffer, writeUint8Array, getWriterBuffer, resetWriter, writeStringValue, BinaryWriter
+	writeArray, writeArrayBuffer, writeUint8Array, getWriterBuffer, resetWriter, writeStringValue, BinaryWriter, writeBytesRange, writeBytesRangeView
 } from '../packet/binaryWriter';
 import {
 	createBinaryReader, readInt8, readUint8, readInt16, readUint16, readInt32, readUint32,
 	readFloat32, readFloat64, readBoolean, readBytes, readLength, readString, readObject,
-	readArray, readArrayBuffer, readUint8Array
+	readArray, readArrayBuffer, readUint8Array, BinaryReader
 } from '../packet/binaryReader';
 
 type Foo = [any, number[]];
@@ -60,6 +60,9 @@ describe('PacketReader + PacketWriter', () => {
 		writeBoolean(writer, true);
 		writeBoolean(writer, false);
 		writeBytes(writer, new Uint8Array([1, 2, 3, 4, 5]));
+		writeBytesRange(writer, new Uint8Array([1, 2, 3, 4, 5]), 1, 3);
+		const buf = new Uint8Array([1, 2, 3, 4, 5]);
+		writeBytesRangeView(writer, new DataView(buf.buffer, buf.byteOffset, buf.byteLength), 1, 3);
 		writeLength(writer, 5);
 		writeLength(writer, 200);
 		writeLength(writer, 60000);
@@ -84,6 +87,11 @@ describe('PacketReader + PacketWriter', () => {
 		writeUint8Array(writer, null);
 		writeUint8Array(writer, new Uint8Array([1, 2, 3]));
 
+		function readBytesRange(reader: BinaryReader) {
+			const length = readLength(reader);
+			return readBytes(reader, length);
+		}
+
 		const reader = createBinaryReader(getWriterBuffer(writer));
 		expect(readInt8(reader)).equal(-123, 'readInt8');
 		expect(readUint8(reader)).equal(123, 'readUint8');
@@ -96,6 +104,8 @@ describe('PacketReader + PacketWriter', () => {
 		expect(readBoolean(reader)).equal(true, 'readBoolean');
 		expect(readBoolean(reader)).equal(false, 'readBoolean');
 		expect(readBytes(reader, 5)).eql(new Uint8Array([1, 2, 3, 4, 5]), 'readBytes');
+		expect(readBytesRange(reader)).eql(new Uint8Array([2, 3, 4]), 'readBytesRange');
+		expect(readBytesRange(reader)).eql(new Uint8Array([2, 3, 4]), 'readBytesRange (view)');
 		expect(readLength(reader)).equal(5, 'readLength 1');
 		expect(readLength(reader)).equal(200, 'readLength 2');
 		expect(readLength(reader)).equal(60000, 'readLength 3');
