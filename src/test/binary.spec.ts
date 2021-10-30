@@ -179,7 +179,7 @@ describe('binary encoding', () => {
 		assert.calledWithMatch(actions.mix, data);
 	}));
 
-	it.only('uint8array + offset + length', () => {
+	it('uint8array + offset + length', () => {
 		actions.u8_off_len = (buffer: Uint8Array, offset: number, length: number) => {
 			expect(buffer).instanceOf(Uint8Array);
 			expect(offset).equal(0);
