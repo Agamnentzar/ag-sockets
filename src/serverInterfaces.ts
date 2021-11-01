@@ -87,7 +87,7 @@ export interface InternalServer {
 	clientMethods: string[];
 	rateLimits: (RateLimitDef | undefined)[];
 	verifyClient: (req: IncomingMessage) => boolean;
-	createClient?: (client: SocketServerClient) => SocketServerClient;
+	createClient?: (client: SocketServerClient, send: (data: string | Uint8Array | Buffer) => void) => SocketServerClient;
 	// methods
 	createServer: CreateServerMethod;
 	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) => void;
@@ -122,8 +122,9 @@ export interface ServerOptions extends CommonOptions {
 	forceBinaryPackets?: boolean;
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
-	/** send/recv handlers */
+	/** prints to console generated packet handler code */
 	printGeneratedCode?: boolean;
+	/** send/recv handlers */
 	onSend?: OnSend;
 	onRecv?: OnRecv;
 	client?: MethodDef[];

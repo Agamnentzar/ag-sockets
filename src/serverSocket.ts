@@ -401,7 +401,7 @@ function connectClient(
 					socket.close();
 				}
 			},
-		}),
+		}, send),
 	};
 
 	if (obj.token) server.clientsByToken.set(obj.token.id, obj);
