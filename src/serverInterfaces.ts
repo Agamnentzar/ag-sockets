@@ -111,7 +111,7 @@ export interface ServerOptions extends CommonOptions {
 	/** custom client verification method */
 	verifyClient?: (req: IncomingMessage) => boolean;
 	/** allows to modify client object */
-	createClient?: (client: SocketServerClient) => SocketServerClient;
+	createClient?: (client: SocketServerClient, send: (data: string | Uint8Array | Buffer) => void) => SocketServerClient;
 	/** ws library or alternative */
 	ws?: any;
 	/** use ArrayBuffer instead of Buffer on server side */
