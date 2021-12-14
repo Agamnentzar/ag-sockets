@@ -274,6 +274,44 @@ describe('PacketReader + PacketWriter', () => {
 			]);
 		});
 
+		it('reads and writes nested object', () => {
+			readWriteObjectTest({
+				worldState: {
+					time: 1639509127003,
+					holiday: 0,
+					flags: 9,
+					gameSpeed: 1,
+					streamUrls: [],
+					fallbackStreamUrl: ''
+				},
+				info: {
+					type: 0,
+					flags: 603979856,
+					defaultTile: 2,
+					cameraMargins: {
+						x: 0,
+						y: 0,
+						w: 0,
+						h: 0
+					},
+					season: 4,
+					baseId: 65535,
+					mapId: 'main',
+					waypointPaths: [
+						{
+							parentEntityId: 97824,
+							path: [
+								{
+									x: 5361,
+									y: 138
+								}
+							]
+						}
+					]
+				}
+			});
+		});
+
 		it.skip('reads and writes objects with empty string keys', () => {
 			readWriteObjectTest([
 				{ '': 'bar' },

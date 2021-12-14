@@ -293,10 +293,7 @@ export function writeAny(writer: BinaryWriter, value: any, strings: Map<string, 
 			const length = stringLengthInBytes(value);
 			writeShortLength(writer, Type.String, length);
 			writeStringValue(writer, value);
-
-			if (value) {
-				strings.set(value, strings.size);
-			}
+			strings.set(value, strings.size);
 		}
 	} else if (Array.isArray(value)) {
 		const length = value.length;
