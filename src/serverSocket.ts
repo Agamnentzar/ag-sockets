@@ -380,6 +380,7 @@ function connectClient(
 			tokenId: token ? token.id : undefined,
 			tokenData: token ? token.data : undefined,
 			originalRequest: server.keepOriginalRequest ? originalRequest : undefined,
+			transferLimit: server.transferLimit,
 			isConnected() {
 				return isConnected;
 			},
@@ -468,7 +469,7 @@ function connectClient(
 				const now = Date.now();
 				const diff = now - bytesReset;
 				const bytesPerSecond = bytesReceived * 1000 / Math.max(1000, diff);
-				const transferLimit = server.transferLimit;
+				const transferLimit = obj.client.transferLimit;
 
 				if (transferLimit && transferLimit < bytesPerSecond) {
 					transferLimitExceeded = true;
@@ -494,6 +495,8 @@ function connectClient(
 					const messageId = obj.lastMessageId;
 
 					try {
+						// TODO: options.onPacket?.(obj.client)
+
 						if (data !== undefined) {
 							server.packetHandler.recvString(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
 								const rate = server.rateLimits[funcId];

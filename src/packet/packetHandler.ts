@@ -206,7 +206,7 @@ export function createPacketHandler(
 			if (development) throw new Error(`Invalid packet (${funcName})`);
 		}
 
-		onRecv(funcId, funcName, data.length, false);
+		onRecv(funcId, funcName, data.length, false, undefined, funcList);
 	}
 
 	function writerBufferSize() {

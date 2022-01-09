@@ -10,6 +10,7 @@ export interface ClientExtensions {
 	tokenId?: string;
 	tokenData?: any;
 	originalRequest?: OriginalRequest;
+	transferLimit: number;
 	isConnected(): boolean;
 	lastMessageTime(): number;
 	disconnect(force?: boolean, invalidateToken?: boolean, reason?: string): void;
