@@ -59,6 +59,7 @@ const CLIENT_OPTIONS = {
 		['rate', { rateLimit: '1/s' }],
 		['ratePromise', { rateLimit: '1/s', promise: true }]
 	],
+	tokenLifetime: 3600000,
 };
 
 function bufferToArray(buffer: Buffer) {

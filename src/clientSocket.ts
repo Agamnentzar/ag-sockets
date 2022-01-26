@@ -42,6 +42,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	let remote: { [key: string]: Function; } | undefined = undefined;
 	let lastSentId = 0;
 	let versionValidated = false;
+	let lastTokenRefresh = Date.now();
 
 	const clientSocket: SocketService<TClient, TServer> = {
 		client: {} as any as TClient,
@@ -179,15 +180,20 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			versionValidated = false;
 
 			if (clientSocket.isConnected) {
+				lastTokenRefresh = Date.now();
 				clientSocket.isConnected = false;
 				clientSocket.client.disconnected?.(e.code, e.reason);
 			}
 
 			if (connecting) {
-				reconnectTimeout = setTimeout(() => {
-					connect();
-					reconnectTimeout = null;
-				}, options.reconnectTimeout);
+				if (options.tokenLifetime && (lastTokenRefresh + options.tokenLifetime) < Date.now()) {
+					disconnect();
+				} else {
+					reconnectTimeout = setTimeout(() => {
+						connect();
+						reconnectTimeout = null;
+					}, options.reconnectTimeout);
+				}
 			}
 
 			defers.forEach(d => d.reject(new Error(`Disconnected (${(d as any).name})`)));

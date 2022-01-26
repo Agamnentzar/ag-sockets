@@ -119,6 +119,7 @@ export interface Packet {
 export interface ClientOptions extends CommonOptions {
 	client: MethodDef[];
 	server: MethodDef[];
+	tokenLifetime?: number;
 }
 
 export interface RemoteOptions {
