@@ -209,7 +209,7 @@ function createInternalServer(
 		totalReceived: 0,
 		currentClientId: options.clientBaseId ?? 1,
 		path: options.path ?? '',
-		hash: options.hash ?? 0,
+		hash: options.hash ?? '',
 		debug: !!options.debug,
 		forceBinary: !!options.forceBinary,
 		connectionTokens: !!options.connectionTokens,
@@ -535,6 +535,10 @@ function connectClient(
 		server.clients.push(obj);
 
 		handleConnected(serverActions);
+
+		if (server.hash && query.hash !== server.hash) {
+			close();
+		}
 	}
 
 	socket.on('error', e => {

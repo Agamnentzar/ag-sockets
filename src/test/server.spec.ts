@@ -139,12 +139,12 @@ describe('serverSocket', () => {
 
 		it('passes request info to client if keepOriginalRequest option is true', async () => {
 			let server1: Server1;
-			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, keepOriginalRequest: true });
+			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, keepOriginalRequest: true, hash: '123' });
 			await getLastServer().connectClient();
 
 			await delay(50);
 
-			expect(server1!.client.originalRequest).eql({ url: 'ws://test/?bin=false', headers: { foo: 'bar' } });
+			expect(server1!.client.originalRequest).eql({ url: 'ws://test/?bin=false&hash=123', headers: { foo: 'bar' } });
 		});
 
 		it('does not pass request info to client if keepOriginalRequest option is not true', async () => {
@@ -182,7 +182,7 @@ describe('serverSocket', () => {
 
 			beforeEach(() => {
 				createServer(
-					{} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true },
+					{} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true, hash: '123' },
 					errorHandler = emptyErrorHandler());
 				webSocket = new MockWebSocket();
 				webSocket.upgradeReq.url = '?t=foobar';
@@ -207,7 +207,7 @@ describe('serverSocket', () => {
 
 		describe('.token()', () => {
 			it('returns new token string', () => {
-				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true, hash: '123' });
 
 				expect(socketServer.token()).a('string');
 			});
@@ -215,7 +215,7 @@ describe('serverSocket', () => {
 			it('passes custom token data to client', async () => {
 				let server1: Server1;
 				const data = {};
-				const socketServer = createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, connectionTokens: true });
+				const socketServer = createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, connectionTokens: true, hash: '123' });
 				await getLastServer().connectClient(false, socketServer.token(data));
 
 				await delay(50);
@@ -226,13 +226,13 @@ describe('serverSocket', () => {
 
 		describe('.clearTokens()', () => {
 			it('does nothing for no tokens and no clients', () => {
-				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true, hash: '123' });
 
 				socketServer.clearTokens(() => true);
 			});
 
 			it('clears marked token', () => {
-				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true, hash: '123' });
 				const token = socketServer.token({ remove: true });
 
 				socketServer.clearTokens((_, data) => data.remove);
@@ -244,7 +244,7 @@ describe('serverSocket', () => {
 			});
 
 			it('does not clear not marked token', () => {
-				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true, hash: '123' });
 				const token = socketServer.token({ remove: false });
 
 				socketServer.clearTokens((_, data) => data.remove);
@@ -256,7 +256,7 @@ describe('serverSocket', () => {
 			});
 
 			it('disconnects client using marked token', async () => {
-				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true });
+				const socketServer = createServer({} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true, hash: '123' });
 				const token = socketServer.token({ remove: true });
 				const client = await getLastServer().connectClient(false, token);
 				const terminate = stub(client, 'terminate');
@@ -275,7 +275,7 @@ describe('serverSocket', () => {
 			beforeEach(() => {
 				clock = undefined;
 				errorHandler = emptyErrorHandler();
-				createServer({} as any, Server1, Client1, c => server = new Server1(c), { ws, transferLimit: 1000 }, errorHandler);
+				createServer({} as any, Server1, Client1, c => server = new Server1(c), { ws, transferLimit: 1000, hash: '123' }, errorHandler);
 			});
 
 			afterEach(() => {
@@ -380,7 +380,7 @@ describe('serverSocket', () => {
 				const s = new Server1(client);
 				onServer(s);
 				return s;
-			}, { ws, path: '/foo', perMessageDeflate: false, onSend, onRecv, development: true });
+			}, { ws, path: '/foo', perMessageDeflate: false, onSend, onRecv, development: true, hash: '123' });
 			server = getLastServer();
 		});
 
@@ -624,7 +624,7 @@ describe('serverSocket', () => {
 		const ws = MockWebSocket as any;
 
 		function create(options: ServerOptions, errorHandler?: ErrorHandler) {
-			createServer({} as any, Server1, Client1, c => new Server1(c), options, errorHandler);
+			createServer({} as any, Server1, Client1, c => new Server1(c), { hash: '123', ...options }, errorHandler);
 			return getLastServer();
 		}
 

@@ -75,7 +75,7 @@ export interface InternalServer {
 	// options
 	id: string;
 	path: string;
-	hash: number;
+	hash: string;
 	debug: boolean;
 	forceBinary: boolean;
 	connectionTokens: boolean;

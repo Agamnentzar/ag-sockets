@@ -17,7 +17,7 @@ export interface SocketClient {
 	[name: string]: any;
 	connected?(): void;
 	disconnected?(code: number, reason: string): void;
-	invalidVersion?(expected: number, actual: number): void;
+	invalidVersion?(expected: string, actual: string): void;
 }
 
 export interface SocketService<TClient extends SocketClient, TServer extends SocketServer> {
@@ -95,7 +95,7 @@ export interface CommonOptions {
 	/** log additional errors to console */
 	development?: boolean;
 	/** version hash */
-	hash?: number;
+	hash?: string;
 	/** custom request parameters */
 	requestParams?: any;
 	/** first ID to assign to client */

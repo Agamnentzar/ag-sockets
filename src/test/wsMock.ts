@@ -25,7 +25,7 @@ export class MockWebSocketServer extends MockEventEmitter {
 	// mock helpers
 	async connectClient(bin = false, t?: string) {
 		const client = new MockWebSocket();
-		client.upgradeReq.url = `ws://test/${queryString({ bin, t })}`;
+		client.upgradeReq.url = `ws://test/${queryString({ bin, t, hash: '123' })}`;
 		this.invoke('connection', client);
 		await delay(1);
 		return client;

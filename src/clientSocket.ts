@@ -15,7 +15,6 @@ const defaultErrorHandler: ClientErrorHandler = {
 	}
 };
 
-
 export function createClientSocket<TClient extends SocketClient, TServer extends SocketServer>(
 	originalOptions: ClientOptions,
 	token?: string | null | undefined,
@@ -72,7 +71,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		}
 	});
 
-	special['*version'] = (version: number) => {
+	special['*version'] = (version: string) => {
 		if (version === clientSocket.options.hash) {
 			versionValidated = true;
 			lastSentId = 0;
@@ -104,7 +103,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		const host = options.host || location.host;
 		const path = options.path || '/ws';
 		const id = options.id || 'socket';
-		const query = queryString({ ...options.requestParams, id, t: token, bin: supportsBinary });
+		const query = queryString({ ...options.requestParams, id, t: token, bin: supportsBinary, hash: options.hash });
 		return `${protocol}${host}${path}${query}`;
 	}
 
@@ -278,6 +277,9 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 	function createSimpleMethod(name: string, id: number) {
 		(clientSocket.server as any)[name] = (...args: any[]) => {
+			if (!clientSocket.isConnected)
+				throw new Error('Not connected');
+
 			if (checkRateLimit2(id, callsLists, rateLimits) && packet && remote) {
 				remote[name].apply(null, args);
 				lastSentId++;

@@ -98,7 +98,7 @@ export function createServerOptions(serverType: Function, clientType: Function, 
 
 export function optionsWithDefaults(options: ServerOptions): ServerOptions {
 	return {
-		hash: Date.now(),
+		hash: `${Date.now()}`,
 		path: '/ws',
 		tokenLifetime: 3600 * 1000, // 1 hour
 		reconnectTimeout: 500, // 0.5 sec
