@@ -149,7 +149,7 @@ describe('serverSocket', () => {
 
 		it('does not pass request info to client if keepOriginalRequest option is not true', async () => {
 			let server1: Server1;
-			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws });
+			createServer({} as any, Server1, Client1, c => server1 = new Server1(c), { ws, hash: '123' });
 			await getLastServer().connectClient();
 
 			await delay(50);
@@ -159,7 +159,7 @@ describe('serverSocket', () => {
 
 		it('handles async creation of server actions', async () => {
 			let server1: Server1;
-			createServer({} as any, Server1, Client1, c => Promise.resolve().then(() => server1 = new Server1(c)), { ws });
+			createServer({} as any, Server1, Client1, c => Promise.resolve().then(() => server1 = new Server1(c)), { ws, hash: '123' });
 			await getLastServer().connectClient();
 
 			await delay(50);
@@ -168,7 +168,7 @@ describe('serverSocket', () => {
 		});
 
 		it('closes connection if connected() handler threw an error', async () => {
-			createServer({} as any, Server1, Client1, c => new ServerThrowingOnConnected(c) as any, { ws });
+			createServer({} as any, Server1, Client1, c => new ServerThrowingOnConnected(c) as any, { ws, hash: '123' });
 
 			const socket = await getLastServer().connectClient();
 
@@ -185,7 +185,7 @@ describe('serverSocket', () => {
 					{} as any, Server1, Client1, c => new Server1(c), { ws, connectionTokens: true, hash: '123' },
 					errorHandler = emptyErrorHandler());
 				webSocket = new MockWebSocket();
-				webSocket.upgradeReq.url = '?t=foobar';
+				webSocket.upgradeReq.url = '?t=foobar&hash=123';
 			});
 
 			it('terminates connection', async () => {

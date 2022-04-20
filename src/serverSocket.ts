@@ -349,6 +349,13 @@ function connectClient(
 	const t = (query.t || '') as string;
 	const token = server.connectionTokens ? getToken(server, t) || getTokenFromClient(server, t) : undefined;
 
+	if (server.hash && query.hash !== server.hash) {
+		if (server.debug) log('client disconnected (hash mismatch)');
+		socket.send(JSON.stringify([MessageType.Version, server.hash]));
+		socket.terminate();
+		return;
+	}
+
 	if (server.connectionTokens && !token) {
 		errorHandler.handleError({ originalRequest } as any, new Error(`Invalid token: ${t}`));
 		socket.terminate();
@@ -535,10 +542,6 @@ function connectClient(
 		server.clients.push(obj);
 
 		handleConnected(serverActions);
-
-		if (server.hash && query.hash !== server.hash) {
-			close();
-		}
 	}
 
 	socket.on('error', e => {
