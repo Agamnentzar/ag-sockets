@@ -370,6 +370,7 @@ function connectClient(
 	let transferLimitExceeded = false;
 	let isConnected = true;
 	let serverActions: SocketServer | undefined = undefined;
+	let closeReason: string | undefined = undefined;
 
 	const obj: ClientState = {
 		lastMessageTime: Date.now(),
@@ -403,6 +404,7 @@ function connectClient(
 					close(0, reason);
 					socket.terminate();
 				} else {
+					closeReason = reason;
 					socket.close();
 				}
 			},
@@ -549,7 +551,7 @@ function connectClient(
 			if (server.debug) log('client disconnected');
 
 			if (serverActions?.disconnected) {
-				callWithErrorHandling(() => serverActions!.disconnected!(code, reason), () => { },
+				callWithErrorHandling(() => serverActions!.disconnected!(code, closeReason || reason), () => { },
 					e => errorHandler.handleError(obj.client, e));
 			}
 
