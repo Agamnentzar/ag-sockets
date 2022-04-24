@@ -9,8 +9,7 @@ export interface FuncList {
 export interface SocketServer {
 	[name: string]: any;
 	connected?(): void;
-	disconnected?(): void;
-	disconnectedReason?(code: number, reason: string): void;
+	disconnected?(code: number, reason: string): void;
 }
 
 export interface SocketClient {

@@ -370,7 +370,6 @@ function connectClient(
 	let transferLimitExceeded = false;
 	let isConnected = true;
 	let serverActions: SocketServer | undefined = undefined;
-	let closeReason: string | undefined = undefined;
 
 	const obj: ClientState = {
 		lastMessageTime: Date.now(),
@@ -400,10 +399,8 @@ function connectClient(
 					obj.token = undefined;
 				}
 
-				closeReason = reason;
-
 				if (force) {
-					close();
+					close(0, reason);
 					socket.terminate();
 				} else {
 					socket.close();
@@ -428,22 +425,6 @@ function connectClient(
 		}
 
 		obj.lastSendTime = Date.now();
-	}
-
-	function handleConnected(serverActions: SocketServer) {
-		if (serverActions.connected) {
-			callWithErrorHandling(() => serverActions.connected!(), () => { }, e => {
-				errorHandler.handleError(obj.client, e);
-				obj.client.disconnect(false, false, 'error on connected()');
-			});
-		}
-	}
-
-	function handleDisconnected(serverActions: SocketServer) {
-		if (serverActions.disconnected) {
-			callWithErrorHandling(() => serverActions.disconnected!(), () => { },
-				e => errorHandler.handleError(obj.client, e));
-		}
 	}
 
 	const handleResult2: HandleResult = (funcId, fundName, result, messageId) => {
@@ -541,16 +522,17 @@ function connectClient(
 		server.packetHandler.sendString(send, '*version', MessageType.Version, [server.hash]);
 		server.clients.push(obj);
 
-		handleConnected(serverActions);
+		if (serverActions.connected) {
+			callWithErrorHandling(() => serverActions.connected!(), () => { }, e => {
+				errorHandler.handleError(obj.client, e);
+				obj.client.disconnect(false, false, 'error on connected()');
+			});
+		}
 	}
-
-	socket.on('error', e => {
-		errorHandler.handleError(obj.client, e);
-	});
 
 	let closed = false;
 
-	function close() {
+	function close(code: number, reason: string) {
 		if (closed) return;
 
 		try {
@@ -566,7 +548,10 @@ function connectClient(
 
 			if (server.debug) log('client disconnected');
 
-			serverActions && handleDisconnected(serverActions);
+			if (serverActions?.disconnected) {
+				callWithErrorHandling(() => serverActions!.disconnected!(code, reason), () => { },
+					e => errorHandler.handleError(obj.client, e));
+			}
 
 			if (obj.token) {
 				obj.token.expire = Date.now() + server.tokenLifetime;
@@ -578,13 +563,8 @@ function connectClient(
 		}
 	}
 
-	socket.on('close', (code, reason) => {
-		try {
-			serverActions?.disconnectedReason?.(code, closeReason ? `${reason} (${closeReason})` : reason);
-		} catch { }
-
-		close();
-	});
+	socket.on('error', e => errorHandler.handleError(obj.client, e));
+	socket.on('close', close);
 
 	Promise.resolve(server.createServer(obj.client))
 		.then(actions => {
