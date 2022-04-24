@@ -395,6 +395,8 @@ function connectClient(
 				return obj.lastMessageTime;
 			},
 			disconnect(force = false, invalidateToken = false, reason = '') {
+				isConnected = false;
+
 				if (invalidateToken && obj.token) {
 					server.clientsByToken.delete(obj.token.id);
 					obj.token = undefined;
