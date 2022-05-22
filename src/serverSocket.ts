@@ -572,9 +572,8 @@ function connectClient(
 
 	Promise.resolve(server.createServer(obj.client))
 		.then(actions => {
-			serverActions = actions;
-
 			if (isConnected) {
+				serverActions = actions;
 				serverActionsCreated(serverActions);
 			}
 		})
