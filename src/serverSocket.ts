@@ -423,7 +423,7 @@ function connectClient(
 	// TODO: remove Uint8Array from here
 	function send(data: string | Uint8Array | Buffer) {
 		if (server.errorIfNotConnected && !isConnected) {
-			throw new Error('Not connected');
+			errorHandler.handleError(obj.client, new Error('Not Connected'));
 		}
 
 		if (data instanceof Buffer) {
