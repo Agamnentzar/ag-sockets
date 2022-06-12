@@ -80,6 +80,7 @@ export interface InternalServer {
 	forceBinary: boolean;
 	connectionTokens: boolean;
 	keepOriginalRequest: boolean;
+	errorIfNotConnected: boolean;
 	tokenLifetime: number;
 	clientLimit: number;
 	transferLimit: number;
@@ -122,6 +123,8 @@ export interface ServerOptions extends CommonOptions {
 	forceBinaryPackets?: boolean;
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
+	/** throws error if server tries to send message to disconnected client */
+	errorIfNotConnected?: boolean;
 	/** prints to console generated packet handler code */
 	printGeneratedCode?: boolean;
 	/** send/recv handlers */

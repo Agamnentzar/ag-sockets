@@ -214,6 +214,7 @@ function createInternalServer(
 		forceBinary: !!options.forceBinary,
 		connectionTokens: !!options.connectionTokens,
 		keepOriginalRequest: !!options.keepOriginalRequest,
+		errorIfNotConnected: !!options.errorIfNotConnected,
 		tokenLifetime: options.tokenLifetime ?? 0,
 		clientLimit: options.clientLimit ?? 0,
 		transferLimit: options.transferLimit ?? 0,
@@ -398,7 +399,9 @@ function connectClient(
 				isConnected = false;
 
 				if (invalidateToken && obj.token) {
-					server.clientsByToken.delete(obj.token.id);
+					if (server.clientsByToken.get(obj.token.id) === obj) {
+						server.clientsByToken.delete(obj.token.id);
+					}
 					obj.token = undefined;
 				}
 
@@ -413,10 +416,16 @@ function connectClient(
 		}, send),
 	};
 
-	if (obj.token) server.clientsByToken.set(obj.token.id, obj);
+	if (obj.token) {
+		server.clientsByToken.set(obj.token.id, obj);
+	}
 
 	// TODO: remove Uint8Array from here
 	function send(data: string | Uint8Array | Buffer) {
+		if (server.errorIfNotConnected && !isConnected) {
+			throw new Error('Not connected');
+		}
+
 		if (data instanceof Buffer) {
 			server.totalSent += data.byteLength;
 			socket.send(data);
@@ -559,8 +568,11 @@ function connectClient(
 
 			if (obj.token) {
 				obj.token.expire = Date.now() + server.tokenLifetime;
-				server.clientsByToken.delete(obj.token.id);
-				server.freeTokens.set(obj.token.id, obj.token);
+
+				if (server.clientsByToken.get(obj.token.id) === obj) {
+					server.clientsByToken.delete(obj.token.id);
+					server.freeTokens.set(obj.token.id, obj.token);
+				}
 			}
 		} catch (e) {
 			errorHandler.handleError(obj.client, e);
