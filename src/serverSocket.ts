@@ -234,12 +234,14 @@ function createInternalServer(
 	function handleResult(send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) {
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
-				packetHandler.sendString(
-					send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result]);
+				if (obj.client.isConnected()) {
+					packetHandler.sendString(send, `*resolve:${funcName}`, MessageType.Resolved, [funcId, messageId, result]);
+				}
 			}, (e: Error) => {
 				e = errorHandler.handleRejection(obj.client, e) || e;
-				packetHandler.sendString(
-					send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error']);
+				if (obj.client.isConnected()) {
+					packetHandler.sendString(send, `*reject:${funcName}`, MessageType.Rejected, [funcId, messageId, e ? e.message : 'error']);
+				}
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
 	}
