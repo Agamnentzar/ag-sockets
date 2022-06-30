@@ -90,11 +90,11 @@ describe('ClientSocket + Server', () => {
 	// let version: SinonStub;
 
 	function setupClient(options: ClientOptions, token?: string) {
-		return new Promise(resolve => {
+		return new Promise<void>(resolve => {
 			clientSocket = createClientSocket<Client, Server>(options, token, undefined, apply, log);
 			// version = stub((<any>clientSocket).special, '*version');
 			clientSocket.client = new Client();
-			clientSocket.client.connected = resolve;
+			clientSocket.client.connected = () => resolve();
 			clientSocket.connect();
 		});
 	}
@@ -128,8 +128,8 @@ describe('ClientSocket + Server', () => {
 	}
 
 	function startListening() {
-		return new Promise(resolve => {
-			httpServer.listen(12345, resolve);
+		return new Promise<void>(resolve => {
+			httpServer.listen(12345, () => resolve());
 		});
 	}
 

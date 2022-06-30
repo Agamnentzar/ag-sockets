@@ -97,7 +97,7 @@ export function supportsBinary() {
 
 export interface Deferred<T> {
 	promise: Promise<T>;
-	resolve(result?: T): void;
+	resolve(result: T): void;
 	reject(error?: Error): void;
 }
 
