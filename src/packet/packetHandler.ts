@@ -354,6 +354,10 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}    try {\n`;
 			code += `${indent}      strings.clear();\n`;
 			code += `${indent}      writer.offset = 0;\n`;
+			if (!options.binary) {
+				code += `${indent}      var a0 = [];\n`;
+				code += `${indent}      for (var i = 0; i < arguments.length; i++) a0.push(arguments[i]);\n`;
+			}
 			code += createWriteFunction(packetId, options.binary ?? [Bin.Obj], `${indent}      `);
 			code += `${indent}      var buffer = ${bufferCtor}(writer.view.buffer, writer.view.byteOffset, writer.offset);\n`;
 			code += `${indent}      send(buffer);\n`;
