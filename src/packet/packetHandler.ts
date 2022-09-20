@@ -402,7 +402,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			}
 		}
 
-		if (options.binary) {
+		if (options.binary || handlerOptions.useBinaryByDefault) {
 			code += `${indent}}\n`;
 		}
 

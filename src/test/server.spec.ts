@@ -13,7 +13,7 @@ import { createServerHost } from '../serverSocket';
 import { randomString } from '../serverUtils';
 import { ServerOptions } from '../serverInterfaces';
 
-@Socket()
+@Socket({})
 class Server1 {
 	constructor(public client: Client1 & SocketClient & ClientExtensions) { }
 	connected() { }
