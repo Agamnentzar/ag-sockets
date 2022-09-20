@@ -191,6 +191,7 @@ function createInternalServer(
 		development: options.development,
 		forceBinary: options.forceBinary,
 		forceBinaryPackets: options.forceBinaryPackets,
+		useBinaryByDefault: options.useBinaryByDefault,
 		printGeneratedCode: options.printGeneratedCode,
 		onSend,
 		onRecv: options.onRecv,

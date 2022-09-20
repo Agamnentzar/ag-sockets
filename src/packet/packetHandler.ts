@@ -101,6 +101,7 @@ export type HandleResult = (funcId: number, funcName: string, result: Promise<an
 export interface HandlerOptions {
 	forceBinary?: boolean;
 	forceBinaryPackets?: boolean;
+	useBinaryByDefault?: boolean;
 	useBuffer?: boolean;
 	debug?: boolean;
 	development?: boolean;
@@ -219,7 +220,7 @@ export function createPacketHandler(
 // code generation
 
 function generateLocalHandlerCode(
-	methods: MethodDef[], { debug, printGeneratedCode }: HandlerOptions, onRecv: OnRecv
+	methods: MethodDef[], { debug, printGeneratedCode, useBinaryByDefault }: HandlerOptions, onRecv: OnRecv
 ): LocalHandler {
 	let code = ``;
 	code += `var strings = [];\n`;
@@ -238,7 +239,7 @@ function generateLocalHandlerCode(
 
 		code += `      case ${packetId}: {\n`;
 
-		if (options.binary) {
+		if (options.binary || useBinaryByDefault) {
 			if (options.rateLimit || options.serverRateLimit) {
 				const { limit, frame } = options.serverRateLimit ? parseRateLimit(options.serverRateLimit, false) : parseRateLimit(options.rateLimit!, true);
 
@@ -251,13 +252,18 @@ function generateLocalHandlerCode(
 				}
 			}
 
-			code += createReadFunction(options.binary, '        ');
+			if (options.binary) {
+				code += createReadFunction(options.binary, '        ');
 
-			for (let i = 0, j = 0; i < options.binary.length; i++, j++) {
-				if (options.binary[i] === Bin.U8ArrayOffsetLength || options.binary[i] === Bin.DataViewOffsetLength) {
-					args.push(j++, j++);
+				for (let i = 0, j = 0; i < options.binary.length; i++, j++) {
+					if (options.binary[i] === Bin.U8ArrayOffsetLength || options.binary[i] === Bin.DataViewOffsetLength) {
+						args.push(j++, j++);
+					}
+					args.push(j);
 				}
-				args.push(j);
+			} else {
+				code += createReadFunction([Bin.Obj], '        ');
+				args.push(0);
 			}
 
 			const argList = args.map(i => `a${i}`).join(', ');
@@ -268,11 +274,13 @@ function generateLocalHandlerCode(
 
 			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true, reader.view, actions);\n`;
 
+			const call = options.binary ? `actions.${name}(${argList})` : `actions.${name}.apply(null, ${argList})`;
+
 			if (options.promise) {
-				code += `        var result = actions.${name}(${argList});\n`;
+				code += `        var result = ${call};\n`;
 				code += `        handleResult(${packetId}, '${name}', result, messageId);\n`;
 			} else {
-				code += `        actions.${name}(${argList});\n`;
+				code += `        ${call};\n`;
 			}
 
 			code += `        break;\n`;
@@ -340,13 +348,13 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 		const indent = options.binary ? `      ` : `    `;
 
-		if (options.binary) {
+		if (options.binary || handlerOptions.useBinaryByDefault) {
 			code += `${indent}if (remoteState.supportsBinary) {\n`;
 			code += `${indent}  while (true) {\n`;
 			code += `${indent}    try {\n`;
 			code += `${indent}      strings.clear();\n`;
 			code += `${indent}      writer.offset = 0;\n`;
-			code += createWriteFunction(packetId, options.binary, `${indent}      `);
+			code += createWriteFunction(packetId, options.binary ?? [Bin.Obj], `${indent}      `);
 			code += `${indent}      var buffer = ${bufferCtor}(writer.view.buffer, writer.view.byteOffset, writer.offset);\n`;
 			code += `${indent}      send(buffer);\n`;
 			code += `${indent}      remoteState.sentSize += buffer.${bufferLength};\n`; // TODO: move from here, just count in send function
@@ -374,7 +382,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}} else {\n`;
 		}
 
-		if (handlerOptions.forceBinary || isBinaryOnlyPacket(method)) {
+		if (handlerOptions.useBinaryByDefault || handlerOptions.forceBinary || isBinaryOnlyPacket(method)) {
 			code += `${indent}  console.error('Only binary protocol supported');\n`;
 			code += `${indent}  return false;\n`;
 		} else {

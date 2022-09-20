@@ -121,6 +121,8 @@ export interface ServerOptions extends CommonOptions {
 	forceBinary?: boolean;
 	/** only allow binary encoding for packets with binary option */
 	forceBinaryPackets?: boolean;
+	/** use binary encoding for packets without encoding specified */
+	useBinaryByDefault?: boolean;
 	/** keep original request info in client.originalRequest field */
 	keepOriginalRequest?: boolean;
 	/** throws error if server tries to send message to disconnected client */

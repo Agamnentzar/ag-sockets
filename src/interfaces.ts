@@ -101,6 +101,7 @@ export interface CommonOptions {
 	clientBaseId?: number;
 	/** always send copy of buffer on client side */
 	copySendBuffer?: boolean;
+	useBinaryByDefault?: boolean;
 }
 
 export type OnSend = (id: number, name: string, size: number, binary: boolean) => void;

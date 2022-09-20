@@ -138,6 +138,7 @@ export function toClientOptions(options: ServerOptions): ClientOptions {
 		client: options.client!,
 		server: options.server!.map(x => typeof x === 'string' ? x : clearMethodOptions(x)),
 		tokenLifetime: options.tokenLifetime,
+		useBinaryByDefault: options.useBinaryByDefault,
 	};
 }
 
