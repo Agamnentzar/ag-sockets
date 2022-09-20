@@ -274,7 +274,7 @@ function generateLocalHandlerCode(
 
 			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true, reader.view, actions);\n`;
 
-			const call = options.binary ? `actions.${name}(${argList})` : `actions.${name}.apply(null, ${argList})`;
+			const call = options.binary ? `actions.${name}(${argList})` : `actions.${name}.apply(actions, ${argList})`;
 
 			if (options.promise) {
 				code += `        var result = ${call};\n`;
