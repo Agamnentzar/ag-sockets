@@ -26,6 +26,10 @@ class Server1 {
 	rate() { }
 	@Method({ rateLimit: '1/s', promise: true })
 	ratePromise() { return Promise.resolve(0); }
+	@Method({ promise: true, binaryResult: true })
+	binaryPromise() {
+		return Promise.resolve(new Uint8Array([1, 2, 3, 4, 5]));
+	}
 }
 
 @Socket()
@@ -57,7 +61,8 @@ const CLIENT_OPTIONS = {
 		'hello',
 		['login', { promise: true }],
 		['rate', { rateLimit: '1/s' }],
-		['ratePromise', { rateLimit: '1/s', promise: true }]
+		['ratePromise', { rateLimit: '1/s', promise: true }],
+		['binaryPromise', { promise: true, binaryResult: true }],
 	],
 	tokenLifetime: 3600000,
 };
@@ -516,6 +521,17 @@ describe('serverSocket', () => {
 			await delay(10);
 
 			assert.calledWith(send, JSON.stringify([MessageType.Resolved, 1, 1, { foo: 'bar' }]));
+		});
+
+		it('sends promise result back to client as binary', async () => {
+			const client = await server.connectClient();
+			const send = stub(client, 'send');
+
+			client.invoke('message', '[4]');
+
+			await delay(10);
+
+			assert.calledWith(send, Buffer.from([0xfe, 0x04, 0x01, 0x00, 0x00, 0x00, 0x04, 0x06, 0x01, 0x02, 0x03, 0x04, 0x05]));
 		});
 
 		it('sends message to client (JSON)', async () => {

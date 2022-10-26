@@ -87,11 +87,12 @@ export interface InternalServer {
 	serverMethods: MethodDef[];
 	clientMethods: string[];
 	rateLimits: (RateLimitDef | undefined)[];
+	resultBinary: boolean[];
 	verifyClient: (req: IncomingMessage) => boolean;
 	createClient?: (client: SocketServerClient, send: (data: string | Uint8Array | Buffer) => void) => SocketServerClient;
 	// methods
 	createServer: CreateServerMethod;
-	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, result: Promise<any>, messageId: number) => void;
+	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, funcBinary: boolean, result: Promise<any>, messageId: number) => void;
 	packetHandler: PacketHandler;
 	server: Server;
 }

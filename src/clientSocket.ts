@@ -142,7 +142,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 					} else {
 						clientSocket.receivedSize += data.byteLength;
 						const reader = createBinaryReaderFromBuffer(data, 0, data.byteLength);
-						packet.recvBinary(clientSocket.client, reader, mockCallsList, 0);
+						packet.recvBinary(reader, clientSocket.client, special, mockCallsList, 0);
 					}
 				} catch (e) {
 					errorHandler.handleRecvError(e, typeof data === 'string' ? data : new Uint8Array(data));

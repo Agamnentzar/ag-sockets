@@ -67,7 +67,7 @@ describe('ClientSocket', () => {
 
 	function connectLastWebSocket() {
 		lastWebSocket.onopen();
-		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, '123']) });
+		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '123']) });
 	}
 
 	before(() => {
@@ -93,7 +93,7 @@ describe('ClientSocket', () => {
 			const invalidVersion = stub(service.client, 'invalidVersion');
 			service.connect();
 
-			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, '123']) });
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '123']) });
 
 			assert.notCalled(invalidVersion);
 		});
@@ -103,7 +103,7 @@ describe('ClientSocket', () => {
 			const invalidVersion = stub(service.client, 'invalidVersion');
 			service.connect();
 
-			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, '321']) });
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '321']) });
 
 			assert.calledOnce(invalidVersion);
 		});
@@ -112,7 +112,7 @@ describe('ClientSocket', () => {
 			service.client.invalidVersion = undefined;
 			service.connect();
 
-			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, '321']) });
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '321']) });
 		});
 	});
 
@@ -120,7 +120,7 @@ describe('ClientSocket', () => {
 	// 	it('should respond to empty message with ping', () => {
 	// 		service.connect();
 	// 		const send = stub(lastWebSocket, 'send');
-	// 		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, '123']) });
+	// 		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '123']) });
 
 	// 		lastWebSocket.onmessage({ data: '' });
 
@@ -130,7 +130,7 @@ describe('ClientSocket', () => {
 	// 	it('should not send ping if connection is not open', () => {
 	// 		service.connect();
 	// 		const send = stub(lastWebSocket, 'send');
-	// 		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, '123']) });
+	// 		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '123']) });
 	// 		lastWebSocket.readyState = WebSocket.CLOSED;
 
 	// 		lastWebSocket.onmessage({ data: '' });
@@ -141,7 +141,7 @@ describe('ClientSocket', () => {
 	// 	it('should not respond to empty message with ping', () => {
 	// 		service.connect();
 	// 		const send = stub(lastWebSocket, 'send');
-	// 		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, '123']) });
+	// 		lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '123']) });
 
 	// 		lastWebSocket.onmessage({ data: '' });
 	// 		lastWebSocket.onmessage({ data: '' });
@@ -229,7 +229,7 @@ describe('ClientSocket', () => {
 			service.connect();
 			const close = stub(lastWebSocket, 'close');
 			lastWebSocket.onopen();
-			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, '123']) });
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '123']) });
 
 			service.disconnect();
 

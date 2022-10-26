@@ -70,6 +70,8 @@ export interface MethodOptions {
 	rateLimit?: string;
 	/** rate limit for the server */
 	serverRateLimit?: string;
+	/** if true the result will be sent in binary format, if false the result will be sent in json format */
+	binaryResult?: boolean;
 }
 
 export interface MethodMetadata {
@@ -101,20 +103,14 @@ export interface CommonOptions {
 	clientBaseId?: number;
 	/** always send copy of buffer on client side */
 	copySendBuffer?: boolean;
+	/** encoded all packets in binary format by default */
 	useBinaryByDefault?: boolean;
+	/** encoded all response packets in binary format by default */
+	useBinaryResultByDefault?: boolean;
 }
 
 export type OnSend = (id: number, name: string, size: number, binary: boolean) => void;
 export type OnRecv = (id: number, name: string, size: number, binary: boolean, data?: DataView, actions?: any) => void;
-
-// TODO: remove
-export interface Packet {
-	id: number;
-	name: string;
-	args: any[];
-	binary?: Uint8Array;
-	json?: string;
-}
 
 export interface ClientOptions extends CommonOptions {
 	client: MethodDef[];
@@ -150,5 +146,3 @@ export interface RateLimit {
 	calls: number[];
 	promise?: boolean;
 }
-
-export type RateLimits = (RateLimit | undefined)[];

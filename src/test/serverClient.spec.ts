@@ -14,7 +14,7 @@ import { createServerHost } from '../serverSocket';
 
 const apply = (f: () => void) => f();
 
-@Socket({ path: '/ws/test', pingInterval: 100, debug: false, clientLimit: 2 })
+@Socket({ path: '/ws/test', pingInterval: 100, debug: false, clientLimit: 2, development: true })
 class Server implements SocketServer {
 	constructor(public client: Client & ClientExtensions) { }
 	@Method({ binary: [Bin.Str], ignore: true })
@@ -56,7 +56,7 @@ class Server implements SocketServer {
 	disconnected() { }
 }
 
-@Socket({ path: '/ws/omg' })
+@Socket({ path: '/ws/omg', development: true })
 class Server2 implements SocketServer {
 	constructor(public client: Client & ClientExtensions) { }
 	@Method({ ignore: true })

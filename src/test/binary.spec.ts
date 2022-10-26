@@ -40,7 +40,7 @@ describe('binary encoding', () => {
 			if (typeof buffer === 'string') throw new Error('buffer is string');
 			// console.log(buffer.byteLength);
 			const reader = createBinaryReader(buffer);
-			receiver.recvBinary(actions, reader, [], 0);
+			receiver.recvBinary(reader, actions, {}, [], 0);
 		};
 		sender.createRemote(remote, send, { supportsBinary: true, sentSize: 0 });
 	});
