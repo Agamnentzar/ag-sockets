@@ -106,6 +106,7 @@ export interface HandlerOptions {
 	debug?: boolean;
 	development?: boolean;
 	printGeneratedCode?: boolean;
+	useBinaryResultByDefault?: boolean;
 	onSend?: OnSend;
 	onRecv?: OnRecv;
 }
@@ -229,7 +230,7 @@ export function createPacketHandler(
 		const funcObj = funcSpecial ? specialFuncList : funcList;
 		const func = funcObj[funcName];
 
-		if (debug && ignorePackets.has(funcName)) {
+		if (debug && !ignorePackets.has(funcName)) {
 			log(`RECV [${data.length}] (str)`, funcName, args);
 		}
 
@@ -257,7 +258,7 @@ export function createPacketHandler(
 // code generation
 
 function generateLocalHandlerCode(
-	methods: MethodDef[], remoteNames: string[], { debug, printGeneratedCode, useBinaryByDefault }: HandlerOptions, onRecv: OnRecv
+	methods: MethodDef[], remoteNames: string[], { debug, printGeneratedCode, useBinaryByDefault, useBinaryResultByDefault }: HandlerOptions, onRecv: OnRecv
 ): LocalHandler {
 	let code = ``;
 	code += `var strings = [];\n`;
@@ -283,7 +284,7 @@ function generateLocalHandlerCode(
 				code += `        if (!checkRateLimit(${packetId}, callsList, ${limit}, ${frame})) `;
 
 				if (options.promise) {
-					code += `handleResult(${packetId}, '${name}', Promise.reject(new Error('Rate limit exceeded')), messageId);\n`;
+					code += `handleResult(${packetId}, '${name}', ${(options.binaryResult || useBinaryResultByDefault) ? 'true' : 'false'}, Promise.reject(new Error('Rate limit exceeded')), messageId);\n`;
 				} else {
 					code += `throw new Error('Rate limit exceeded (${name})');\n`;
 				}

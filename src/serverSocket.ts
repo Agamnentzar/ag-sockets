@@ -193,6 +193,7 @@ function createInternalServer(
 		forceBinaryPackets: options.forceBinaryPackets,
 		useBinaryByDefault: options.useBinaryByDefault,
 		printGeneratedCode: options.printGeneratedCode,
+		useBinaryResultByDefault: options.useBinaryResultByDefault,
 		onSend,
 		onRecv: options.onRecv,
 		useBuffer: true,
@@ -246,6 +247,7 @@ function createInternalServer(
 				}
 			}, (e: Error) => {
 				e = errorHandler.handleRejection(obj.client, e) || e;
+
 				if (!obj.client.isConnected()) return;
 
 				if (funcBinary) {
@@ -253,7 +255,6 @@ function createInternalServer(
 				} else {
 					packetHandler.sendString(send, `*reject:${funcName}`, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
 				}
-
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
 	}
