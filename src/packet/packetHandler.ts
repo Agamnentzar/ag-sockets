@@ -273,6 +273,7 @@ function generateLocalHandlerCode(
 	for (const method of methods) {
 		const name = typeof method === 'string' ? method : method[0];
 		const options = typeof method === 'string' ? {} : method[1];
+		const binaryResult = options.binaryResult || useBinaryResultByDefault;
 		const args = [];
 
 		code += `      case ${packetId}: {\n`;
@@ -284,7 +285,7 @@ function generateLocalHandlerCode(
 				code += `        if (!checkRateLimit(${packetId}, callsList, ${limit}, ${frame})) `;
 
 				if (options.promise) {
-					code += `handleResult(${packetId}, '${name}', ${(options.binaryResult || useBinaryResultByDefault) ? 'true' : 'false'}, Promise.reject(new Error('Rate limit exceeded')), messageId);\n`;
+					code += `handleResult(${packetId}, '${name}', ${binaryResult ? 'true' : 'false'}, Promise.reject(new Error('Rate limit exceeded')), messageId);\n`;
 				} else {
 					code += `throw new Error('Rate limit exceeded (${name})');\n`;
 				}
@@ -316,7 +317,7 @@ function generateLocalHandlerCode(
 
 			if (options.promise) {
 				code += `        var result = ${call};\n`;
-				code += `        handleResult(${packetId}, '${name}', result, messageId);\n`;
+				code += `        handleResult(${packetId}, '${name}', ${binaryResult ? 'true' : 'false'}, result, messageId);\n`;
 			} else {
 				code += `        ${call};\n`;
 			}
