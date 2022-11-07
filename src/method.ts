@@ -16,7 +16,7 @@ export function getMethodMetadata(ctor: Function): MethodMetadata[] | undefined 
 
 function generateMethodMetadata(prototype: any) {
 	return Object.keys(prototype)
-		.filter(k => k !== 'connected' && k !== 'disconnected' && k !== 'invalidVersion' && typeof prototype[k] === 'function')
+		.filter(k => k !== 'connected' && k !== 'disconnected' && k !== 'connectionError' && typeof prototype[k] === 'function')
 		.map(name => ({ name, options: {} }));
 }
 

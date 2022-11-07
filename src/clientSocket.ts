@@ -83,7 +83,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			clientSocket.client.connected?.();
 		} else {
 			disconnect();
-			clientSocket.client.invalidVersion?.(version, clientSocket.options.hash!);
+			clientSocket.client.connectionError?.(`invalid version (expected: ${version}, actual: ${clientSocket.options.hash})`);
 		}
 	};
 

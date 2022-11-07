@@ -87,32 +87,42 @@ describe('ClientSocket', () => {
 		service = createClientSocket<Client, Server>(clientOptions, undefined, errorHandler);
 	});
 
-	describe('invalidVersion', () => {
+	describe('connectionError', () => {
 		it('should not be called if version is correct', () => {
-			service.client.invalidVersion = () => { };
-			const invalidVersion = stub(service.client, 'invalidVersion');
+			service.client.connectionError = () => { };
+			const connectionError = stub(service.client, 'connectionError');
 			service.connect();
 
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '123']) });
 
-			assert.notCalled(invalidVersion);
+			assert.notCalled(connectionError);
 		});
 
 		it('should be called if version is incorrect', () => {
-			service.client.invalidVersion = () => { };
-			const invalidVersion = stub(service.client, 'invalidVersion');
+			service.client.connectionError = () => { };
+			const connectionError = stub(service.client, 'connectionError');
 			service.connect();
 
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '321']) });
 
-			assert.calledOnce(invalidVersion);
+			assert.calledOnce(connectionError);
 		});
 
 		it('should do nothing if there is no callback', () => {
-			service.client.invalidVersion = undefined;
+			service.client.connectionError = undefined;
 			service.connect();
 
 			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Version, 0, 0, '321']) });
+		});
+
+		it('should report error', () => {
+			service.client.connectionError = () => { };
+			const connectionError = stub(service.client, 'connectionError');
+			service.connect();
+
+			lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Error, 0, 0, 'foo']) });
+
+			assert.calledWith(connectionError, 'foo');
 		});
 	});
 

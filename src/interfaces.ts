@@ -16,7 +16,6 @@ export interface SocketClient {
 	[name: string]: any;
 	connected?(): void;
 	disconnected?(code: number, reason: string): void;
-	invalidVersion?(expected: string, actual: string): void;
 	connectionError?(error: string): void;
 }
 

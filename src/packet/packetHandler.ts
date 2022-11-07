@@ -218,6 +218,11 @@ export function createPacketHandler(
 			args.shift(); // skip funcId
 			args.shift(); // skip messageId
 			funcSpecial = true;
+		} else if (funcId === MessageType.Error) {
+			funcName = '*error';
+			args.shift(); // skip funcId
+			args.shift(); // skip messageId
+			funcSpecial = true;
 		} else if (funcId === MessageType.Rejected) {
 			funcName = '*reject:' + remoteNames[args.shift() | 0];
 			funcSpecial = true;
