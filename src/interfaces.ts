@@ -17,6 +17,7 @@ export interface SocketClient {
 	connected?(): void;
 	disconnected?(code: number, reason: string): void;
 	invalidVersion?(expected: string, actual: string): void;
+	connectionError?(error: string): void;
 }
 
 export interface SocketService<TClient extends SocketClient, TServer extends SocketServer> {

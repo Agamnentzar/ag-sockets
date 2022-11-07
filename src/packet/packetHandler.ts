@@ -82,6 +82,7 @@ export const enum MessageType {
 	Version = 255,
 	Resolved = 254,
 	Rejected = 253,
+	Error = 252,
 }
 
 export interface FunctionHandler {
@@ -333,6 +334,7 @@ function generateLocalHandlerCode(
 	}
 
 	code += `      case ${MessageType.Version}:\n`;
+	code += `      case ${MessageType.Error}:\n`;
 	code += `      case ${MessageType.Resolved}:\n`;
 	code += `      case ${MessageType.Rejected}: {\n`;
 	code += `        const funcId = readUint8(reader);\n`;
@@ -340,6 +342,8 @@ function generateLocalHandlerCode(
 	code += `        const result = readAny(reader, strings);\n`;
 	code += `        if (packetId === ${MessageType.Version}) {\n`;
 	code += `          special['*version'](result);\n`;
+	code += `        } else if (packetId === ${MessageType.Error}) {\n`;
+	code += `          special['*error'](result);\n`;
 	code += `        } else if (packetId === ${MessageType.Resolved}) {\n`;
 	code += `          special['*resolve:' + remoteNames[funcId]](messageId, result);\n`;
 	code += `        } else if (packetId === ${MessageType.Rejected}) {\n`;

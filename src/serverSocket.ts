@@ -374,6 +374,7 @@ function connectClient(
 
 	if (server.connectionTokens && !token) {
 		errorHandler.handleError({ originalRequest } as any, new Error(`Invalid token: ${t}`));
+		socket.send(JSON.stringify([MessageType.Error, 0, 0, 'invalid token']));
 		socket.terminate();
 		return;
 	}

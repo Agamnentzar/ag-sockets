@@ -87,6 +87,10 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		}
 	};
 
+	special['*error'] = (error: string) => {
+		clientSocket.client.connectionError?.(error);
+	};
+
 	function beforeunload() {
 		if (socket) {
 			try {
