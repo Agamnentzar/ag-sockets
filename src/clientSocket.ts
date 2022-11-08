@@ -191,6 +191,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			if (connecting) {
 				if (options.tokenLifetime && (lastTokenRefresh + options.tokenLifetime) < Date.now()) {
 					disconnect();
+					clientSocket.client.connectionError?.(`token expired`);
 				} else {
 					reconnectTimeout = setTimeout(() => {
 						connect();
