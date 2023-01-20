@@ -131,6 +131,7 @@ export function toClientOptions(options: ServerOptions): ClientOptions {
 		ssl: options.ssl,
 		pingInterval: options.pingInterval,
 		reconnectTimeout: options.reconnectTimeout,
+		clientConnectionTimeout: options.clientConnectionTimeout,
 		debug: options.debug,
 		hash: options.hash,
 		requestParams: options.requestParams,

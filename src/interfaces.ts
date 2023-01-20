@@ -91,6 +91,8 @@ export interface CommonOptions {
 	pingInterval?: number;
 	/** delay for client to wait before trying to reconnect in milliseconds */
 	reconnectTimeout?: number;
+	/** if no packets are received for this time, the socket reconnects */
+	clientConnectionTimeout?: number;
 	/** log debug information to console */
 	debug?: boolean;
 	/** log additional errors to console */

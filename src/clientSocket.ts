@@ -262,10 +262,19 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	function sendPing() {
 		try {
 			const now = Date.now();
-			const interval = clientSocket.options.pingInterval;
 
-			if (versionValidated && interval && (now - lastSend) > interval) {
-				send(supportsBinary ? pingBuffer : '');
+			if (versionValidated) {
+				const interval = clientSocket.options.pingInterval;
+
+				if (interval && (now - lastSend) > interval) {
+					send(supportsBinary ? pingBuffer : '');
+				}
+
+				const timeout = clientSocket.options.clientConnectionTimeout;
+
+				if (timeout && (now - clientSocket.lastPacket) > timeout) {
+					socket?.close();
+				}
 			}
 		} catch { }
 	}
