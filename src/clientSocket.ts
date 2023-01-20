@@ -166,8 +166,8 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 			if (options.debug) log('socket opened');
 
-			if (options.pingInterval) {
-				pingInterval = setInterval(sendPing, options.pingInterval);
+			if (options.clientPingInterval) {
+				pingInterval = setInterval(sendPing, options.clientPingInterval);
 			}
 		};
 
@@ -264,7 +264,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			const now = Date.now();
 
 			if (versionValidated) {
-				const interval = clientSocket.options.pingInterval;
+				const interval = clientSocket.options.clientPingInterval;
 
 				if (interval && (now - lastSend) > interval) {
 					send(supportsBinary ? pingBuffer : '');

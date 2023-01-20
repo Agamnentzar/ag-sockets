@@ -57,7 +57,7 @@ describe('ClientSocket', () => {
 			// '',
 			// '',
 		],
-		pingInterval: 1000,
+		clientPingInterval: 1000,
 		requestParams: { foo: 'bar', x: 5 },
 		reconnectTimeout: 1000, // prevent immediate reconnect changing lastWebSocket
 	};

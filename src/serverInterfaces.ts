@@ -98,6 +98,8 @@ export interface InternalServer {
 }
 
 export interface ServerOptions extends CommonOptions {
+	/** ping interval in milliseconds, ping disabled if not specified or 0 */
+	pingInterval?: number;
 	/** time after after last message from client when server assumes client is not responding (in milliseconds) */
 	connectionTimeout?: number;
 	/** limit connections to one per generated token */

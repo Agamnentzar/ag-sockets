@@ -88,7 +88,7 @@ export interface CommonOptions {
 	/** true to force SSL websockets on non-SSL website */
 	ssl?: boolean;
 	/** ping interval in milliseconds, ping disabled if not specified or 0 */
-	pingInterval?: number;
+	clientPingInterval?: number;
 	/** delay for client to wait before trying to reconnect in milliseconds */
 	reconnectTimeout?: number;
 	/** if no packets are received for this time, the socket reconnects */
