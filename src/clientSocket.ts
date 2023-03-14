@@ -41,7 +41,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	let remote: { [key: string]: Function; } | undefined = undefined;
 	let lastSentId = 0;
 	let versionValidated = false;
-	let lastTokenRefresh = Date.now();
+	let lastTokenRefresh = now();
 
 	const clientSocket: SocketService<TClient, TServer> = {
 		client: {} as any as TClient,
@@ -183,13 +183,13 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			versionValidated = false;
 
 			if (clientSocket.isConnected) {
-				lastTokenRefresh = Date.now();
+				lastTokenRefresh = now();
 				clientSocket.isConnected = false;
 				clientSocket.client.disconnected?.(e.code, e.reason);
 			}
 
 			if (connecting) {
-				if (options.tokenLifetime && (lastTokenRefresh + options.tokenLifetime) < Date.now()) {
+				if (options.tokenLifetime && (lastTokenRefresh + options.tokenLifetime) < now()) {
 					disconnect();
 					clientSocket.client.connectionError?.(`token expired`);
 				} else {
@@ -252,7 +252,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 			socket.send(data);
 			clientSocket.sentPackets++;
-			lastSend = Date.now();
+			lastSend = now();
 			return true;
 		} else {
 			return false;
@@ -261,18 +261,18 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 
 	function sendPing() {
 		try {
-			const now = Date.now();
+			const n = now();
 
 			if (versionValidated) {
 				const interval = clientSocket.options.clientPingInterval;
 
-				if (interval && (now - lastSend) > interval) {
+				if (interval && (n - lastSend) > interval) {
 					send(supportsBinary ? pingBuffer : '');
 				}
 
 				const timeout = clientSocket.options.clientConnectionTimeout;
 
-				if (timeout && (now - clientSocket.lastPacket) > timeout) {
+				if (timeout && (n - clientSocket.lastPacket) > timeout) {
 					socket?.close();
 				}
 			}
