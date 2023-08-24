@@ -1,6 +1,6 @@
 {
   "name": "ag-sockets",
-  "version": "10.3.1",
+  "version": "10.3.2",
   "description": "Library for communication via WebSockets",
   "main": "dist/index.js",
   "browser": "dist/browser.js",
@@ -13,7 +13,6 @@
     "ts": "npm run clean && tsc --watch --project tsconfig.json",
     "test": "mocha --watch --timeout 10000 -R dot dist/test",
     "build": "npm run clean && tsc --project tsconfig.json",
-    "dev": "gulp dev",
     "clean": "node clean.js",
     "lint": "tslint -c tslint.json src/**/*.ts",
     "prepublishOnly": "npm run build"

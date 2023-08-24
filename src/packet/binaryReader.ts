@@ -82,7 +82,8 @@ export function readArrayBuffer(reader: BinaryReader) {
 
 	const offset = reader.offset;
 	reader.offset += length;
-	return reader.view.buffer.slice(reader.view.byteOffset + offset, offset + length);
+	const start = reader.view.byteOffset + offset;
+	return reader.view.buffer.slice(start, start + length);
 }
 
 export function readBoolean(reader: BinaryReader) {
