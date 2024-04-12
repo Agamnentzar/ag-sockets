@@ -315,12 +315,11 @@ export function writeAny(writer: BinaryWriter, value: any, strings: Map<string, 
 				const index = strings.get(key);
 
 				if (index === undefined) {
-					writeLength(writer, stringLengthInBytes(key));
+					const length = stringLengthInBytes(key);
+					if (!length) throw new Error('Invalid empty object key');
+					writeLength(writer, length);
 					writeStringValue(writer, key);
-
-					if (key) {
-						strings.set(key, strings.size);
-					}
+					strings.set(key, strings.size);
 				} else {
 					writeLength(writer, 0);
 					writeLength(writer, index);
