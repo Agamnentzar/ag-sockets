@@ -127,7 +127,8 @@ export function decodeString(value: DataView | null, offset: number, length: num
 			}
 
 			if (code >= 0xd800 && code <= 0xdfff) {
-				throw Error(`Lone surrogate U+${code.toString(16).toUpperCase()} is not a scalar value`);
+				continue;
+				// throw Error(`Lone surrogate U+${code.toString(16).toUpperCase()} is not a scalar value`);
 			}
 		} else if ((byte1 & 0xf8) === 0xf0) {
 			const byte2 = continuationByte(value, i++, end);
