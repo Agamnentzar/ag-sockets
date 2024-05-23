@@ -1,85 +1,57 @@
-function charLengthInBytes(code: number): number {
+const encoder = (typeof TextEncoder !== 'undefined' && typeof new TextEncoder().encodeInto === 'function') ? new TextEncoder() : undefined;
+const decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder() : undefined;
+
+export function maxUtf8Length(value: string): number {
+	return value.length * 3;
+}
+
+function writeCharacter(buffer: DataView, offset: number, code: number) {
 	if ((code & 0xffffff80) === 0) {
+		buffer.setUint8(offset, code);
 		return 1;
 	} else if ((code & 0xfffff800) === 0) {
+		buffer.setUint8(offset, ((code >> 6) & 0x1f) | 0xc0);
+		buffer.setUint8(offset + 1, (code & 0x3f) | 0x80);
 		return 2;
 	} else if ((code & 0xffff0000) === 0) {
+		buffer.setUint8(offset, ((code >> 12) & 0x0f) | 0xe0);
+		buffer.setUint8(offset + 1, ((code >> 6) & 0x3f) | 0x80);
+		buffer.setUint8(offset + 2, (code & 0x3f) | 0x80);
 		return 3;
 	} else {
+		buffer.setUint8(offset, ((code >> 18) & 0x07) | 0xf0);
+		buffer.setUint8(offset + 1, ((code >> 12) & 0x3f) | 0x80);
+		buffer.setUint8(offset + 2, ((code >> 6) & 0x3f) | 0x80);
+		buffer.setUint8(offset + 3, (code & 0x3f) | 0x80);
 		return 4;
 	}
 }
 
-export function stringLengthInBytes(value: string): number {
-	let result = 0;
-
-	for (let i = 0; i < value.length; i++) {
-		const code = value.charCodeAt(i);
-
-		// high surrogate
-		if (code >= 0xd800 && code <= 0xdbff) {
-			if ((i + 1) < value.length) {
-				const extra = value.charCodeAt(i + 1);
-
-				// low surrogate
-				if ((extra & 0xfc00) === 0xdc00) {
-					i++;
-					result += charLengthInBytes(((code & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000);
-				}
-			}
-		} else {
-			result += charLengthInBytes(code);
-		}
-	}
-
-	return result;
-}
-
-function writeCharacter(buffer: DataView, offset: number, code: number): number {
-	const length = charLengthInBytes(code);
-
-	switch (length) {
-		case 1:
-			buffer.setUint8(offset, code);
-			break;
-		case 2:
-			buffer.setUint8(offset, ((code >> 6) & 0x1f) | 0xc0);
-			buffer.setUint8(offset + 1, (code & 0x3f) | 0x80);
-			break;
-		case 3:
-			buffer.setUint8(offset, ((code >> 12) & 0x0f) | 0xe0);
-			buffer.setUint8(offset + 1, ((code >> 6) & 0x3f) | 0x80);
-			buffer.setUint8(offset + 2, (code & 0x3f) | 0x80);
-			break;
-		default:
-			buffer.setUint8(offset, ((code >> 18) & 0x07) | 0xf0);
-			buffer.setUint8(offset + 1, ((code >> 12) & 0x3f) | 0x80);
-			buffer.setUint8(offset + 2, ((code >> 6) & 0x3f) | 0x80);
-			buffer.setUint8(offset + 3, (code & 0x3f) | 0x80);
-			break;
-	}
-
-	return length;
-}
-
 export function encodeStringTo(buffer: DataView, offset: number, value: string): number {
-	for (let i = 0; i < value.length; i++) {
-		const code = value.charCodeAt(i);
+	if (encoder && typeof encoder.encodeInto === 'function' && value.length > 100) {
+		const target = new Uint8Array(buffer.buffer, buffer.byteOffset + offset);
+		const { read = 0, written = 0 } = encoder.encodeInto(value, target);
+		if (read !== value.length) throw new RangeError('Buffer is too small to encode string');
+		offset += written;
+	} else {
+		for (let i = 0; i < value.length; i++) {
+			const code = value.charCodeAt(i);
 
-		// high surrogate
-		if (code >= 0xd800 && code <= 0xdbff) {
-			if ((i + 1) < value.length) {
-				const extra = value.charCodeAt(i + 1);
+			// high surrogate
+			if (code >= 0xd800 && code <= 0xdbff) {
+				if ((i + 1) < value.length) {
+					const extra = value.charCodeAt(i + 1);
 
-				// low surrogate
-				if ((extra & 0xfc00) === 0xdc00) {
-					i++;
-					const fullCode = ((code & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000;
-					offset += writeCharacter(buffer, offset, fullCode);
+					// low surrogate
+					if ((extra & 0xfc00) === 0xdc00) {
+						i++;
+						const fullCode = ((code & 0x3ff) << 10) + (extra & 0x3ff) + 0x10000;
+						offset += writeCharacter(buffer, offset, fullCode);
+					}
 				}
+			} else {
+				offset += writeCharacter(buffer, offset, code);
 			}
-		} else {
-			offset += writeCharacter(buffer, offset, code);
 		}
 	}
 
@@ -100,6 +72,10 @@ function continuationByte(buffer: DataView, index: number, end: number): number 
 
 export function decodeString(value: DataView | null, offset: number, length: number): string | null {
 	if (value == null) return null;
+
+	if (decoder && length > 100) {
+		return decoder.decode(new Uint8Array(value.buffer, value.byteOffset + offset, length));
+	}
 
 	let result = '';
 	const end = offset + length;
