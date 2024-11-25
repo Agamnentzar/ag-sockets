@@ -149,7 +149,7 @@ describe('ClientSocket + Server', () => {
 	});
 
 	[
-		{ name: 'ws', ws: WebSocket },
+		{ name: 'ws', ws: undefined }, // use 'ws' library
 		{ name: 'clusterWS-µWS', ws: { Server: ClusterWsServer } },
 	].forEach(({ name, ws }) => {
 		describe(`[${name}]`, () => {

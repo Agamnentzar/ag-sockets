@@ -32,10 +32,16 @@ export function encodeStringTo(buffer: DataView, offset: number, value: string):
 		const target = new Uint8Array(buffer.buffer, buffer.byteOffset + offset);
 		const { read = 0, written = 0 } = encoder.encodeInto(value, target);
 		if (read !== value.length) throw new RangeError('Buffer is too small to encode string');
-		offset += written;
+
+		// break on first \0 in case string contained \0 bytes
+		for (let i = 0; i < written && target[i]; i++) {
+			offset++;
+		}
 	} else {
 		for (let i = 0; i < value.length; i++) {
 			const code = value.charCodeAt(i);
+
+			if (!code) break; // break on \0 byte
 
 			// high surrogate
 			if (code >= 0xd800 && code <= 0xdbff) {

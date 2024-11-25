@@ -181,4 +181,15 @@ describe('PacketHandler', () => {
 			assert.calledWithMatch(handleResult, 1, 'foo', funcs.foo, funcs, ['abc']);
 		});
 	});
+
+	it.skip('ttt', () => {
+		const BinSequenceUser = [Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Bool, Bin.U32, Bin.Str, Bin.Str, Bin.U8];
+
+		handler = createPacketHandler(
+			[['foo', { binary: [Bin.Str, BinSequenceUser] }]],
+			[['bar', { binary: [Bin.Str, BinSequenceUser] }]],
+			{ printGeneratedCode: true }, () => { });
+
+		console.log('a');
+	});
 });

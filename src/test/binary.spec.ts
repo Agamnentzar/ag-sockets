@@ -21,6 +21,7 @@ describe('binary encoding', () => {
 		['mix', { binary: [[Bin.U8, Bin.U16, Bin.F64, Bin.F64, Bin.F64, Bin.F64, Bin.Bool, Bin.Obj, [Bin.I16], Bin.U8Array]] }],
 		['u8_off_len', { binary: [Bin.U8ArrayOffsetLength] }],
 		['view_off_len', { binary: [Bin.DataViewOffsetLength] }],
+		['long_array_of_arrays', { binary: [Bin.Str, [Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Bool, Bin.U32, Bin.Str, Bin.Str, Bin.U8]] }],
 	];
 
 	const server: MethodDef[] = [
@@ -210,5 +211,19 @@ describe('binary encoding', () => {
 		data.set([1, 2, 3, 4, 5]);
 		const view = new DataView(buffer);
 		remote.view_off_len(view, 1, 3);
+	});
+
+	it('long array of arrays', () => {
+		const dataName = "Yellow Bear";
+		const dataArray: any[] = [
+			['61b2a512ac73edb533d3e209', '_QTs3OgZ', 'Yellow Bear', '#46baff', 'VlZD4sJbK2GypTRcmOOUlA.png', true, 0, 'aaa', 'bbb', 5],
+		];
+
+		actions.long_array_of_arrays = (name: string, array: any[]) => {
+			expect(name).equal(dataName);
+			expect(array).eql(dataArray);
+		};
+
+		remote.long_array_of_arrays(dataName, dataArray);
 	});
 });
