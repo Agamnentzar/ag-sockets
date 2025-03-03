@@ -134,22 +134,30 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 			if (socket !== theSocket) return;
 
 			clientSocket.lastPacket = now();
-			clientSocket.receivedPackets++;
 
 			const data: string | ArrayBuffer | undefined = message.data;
 
-			if (data && packet && (typeof data === 'string' || data.byteLength > 0)) {
-				try {
-					if (typeof data === 'string') {
+			if (data && packet) {
+				if (typeof data === 'string') {
+					try {
 						clientSocket.receivedSize += data.length;
+						clientSocket.receivedPackets++;
 						packet.recvString(data, clientSocket.client, special);
-					} else {
-						clientSocket.receivedSize += data.byteLength;
-						const reader = createBinaryReaderFromBuffer(data, 0, data.byteLength);
-						packet.recvBinary(reader, clientSocket.client, special, mockCallsList, 0);
+					} catch (e) {
+						errorHandler.handleRecvError(e, data);
 					}
-				} catch (e) {
-					errorHandler.handleRecvError(e, typeof data === 'string' ? data : new Uint8Array(data));
+				} else if (data.byteLength > 0) {
+					clientSocket.receivedSize += data.byteLength;
+					const reader = createBinaryReaderFromBuffer(data, 0, data.byteLength);
+
+					while (reader.offset < reader.view.byteLength) { // read batch of packets
+						try {
+							clientSocket.receivedPackets++;
+							packet.recvBinary(reader, clientSocket.client, special, mockCallsList, 0);
+						} catch (e) {
+							errorHandler.handleRecvError(e, new Uint8Array(data));
+						}
+					}
 				}
 			}
 

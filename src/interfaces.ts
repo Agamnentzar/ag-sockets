@@ -54,7 +54,8 @@ export enum Bin {
 	DataViewOffsetLength,
 }
 
-export type BinaryDef = (Bin | (Bin | (Bin | any[]))[])[];
+export type BinaryDefItem = Bin | { [key: string]: BinaryDefItem; } | BinaryDefItem[];
+export type BinaryDef = BinaryDefItem[];
 export type MethodDef = string | [string, MethodOptions];
 
 export interface MethodOptions {

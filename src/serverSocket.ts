@@ -5,13 +5,8 @@ import { ClientOptions, getNames, SocketServer, Logger, MethodOptions } from './
 import { getLength, cloneDeep, checkRateLimit2 } from './utils';
 import { ErrorHandler, OriginalRequest } from './server';
 import { MessageType, Send, createPacketHandler, HandleResult, HandlerOptions } from './packet/packetHandler';
-import {
-	Server, ClientState, InternalServer, GlobalConfig, ServerHost, CreateServerMethod, CreateServer, ServerOptions
-} from './serverInterfaces';
-import {
-	hasToken, createToken, getToken, getTokenFromClient, returnTrue, createOriginalRequest, defaultErrorHandler,
-	createServerOptions, optionsWithDefaults, toClientOptions, getQuery, callWithErrorHandling, parseRateLimitDef,
-} from './serverUtils';
+import { Server, ClientState, InternalServer, GlobalConfig, ServerHost, CreateServerMethod, CreateServer, ServerOptions } from './serverInterfaces';
+import { hasToken, createToken, getToken, getTokenFromClient, returnTrue, createOriginalRequest, defaultErrorHandler, createServerOptions, optionsWithDefaults, toClientOptions, getQuery, callWithErrorHandling, parseRateLimitDef } from './serverUtils';
 import { BinaryReader, createBinaryReaderFromBuffer, getBinaryReaderBuffer } from './packet/binaryReader';
 
 export function createServer<TServer, TClient>(
@@ -26,10 +21,7 @@ export function createServer<TServer, TClient>(
 	return createServerRaw(httpServer, createServer, createServerOptions(serverType, clientType, options), errorHandler, log);
 }
 
-export function createServerRaw(
-	httpServer: HttpServer | undefined, createServer: CreateServerMethod, options: ServerOptions,
-	errorHandler?: ErrorHandler, log?: Logger
-): Server {
+export function createServerRaw(httpServer: HttpServer | undefined, createServer: CreateServerMethod, options: ServerOptions, errorHandler?: ErrorHandler, log?: Logger): Server {
 	const host = createServerHost(httpServer, {
 		path: options.path,
 		errorHandler,
@@ -52,9 +44,10 @@ export function createServerHost(httpServer: HttpServer | undefined, globalConfi
 		errorCode = 400,
 		errorName = 'Bad Request',
 		nativePing = 0,
+		timingStart = () => { },
+		timingEnd = () => { },
 	} = globalConfig;
 	const servers: InternalServer[] = [];
-
 	const wsServer = new wsLibrary.Server({
 		server: httpServer,
 		noServer: !httpServer,
@@ -89,6 +82,7 @@ export function createServerHost(httpServer: HttpServer | undefined, globalConfi
 
 	function verifyClient({ req }: { req: IncomingMessage }, next: (result: any, code: number, name: string) => void) {
 		try {
+			timingStart('verify client');
 			const query = getQuery(req.url);
 			const server = getServer(query.id);
 
@@ -108,6 +102,8 @@ export function createServerHost(httpServer: HttpServer | undefined, globalConfi
 		} catch (e) {
 			errorHandler.handleError(null, e);
 			next(false, errorCode, errorName);
+		} finally {
+			timingEnd();
 		}
 	}
 
@@ -133,7 +129,7 @@ export function createServerHost(httpServer: HttpServer | undefined, globalConfi
 	}
 
 	function socketRaw(createServer: CreateServerMethod, options: ServerOptions): Server {
-		const internalServer = createInternalServer(createServer, { ...options, path }, errorHandler, log);
+		const internalServer = createInternalServer(createServer, { ...options, path }, { timingStart, timingEnd }, errorHandler, log);
 
 		if (servers.some(s => s.id === internalServer.id)) {
 			throw new Error('Cannot open two sokets with the same id');
@@ -167,6 +163,7 @@ export function createServerHost(httpServer: HttpServer | undefined, globalConfi
 
 	function connectSocket(socket: ws, request: IncomingMessage) {
 		try {
+			timingStart('socket connected');
 			const originalRequest = createOriginalRequest(socket, request);
 			const query = getQuery(originalRequest.url);
 			const server = getServer(query.id);
@@ -174,15 +171,20 @@ export function createServerHost(httpServer: HttpServer | undefined, globalConfi
 		} catch (e) {
 			socket.terminate();
 			errorHandler.handleError(null, e);
+		} finally {
+			timingEnd();
 		}
 	}
 
 	return { close, socket, socketRaw, upgrade };
 }
 
-function createInternalServer(
-	createServer: CreateServerMethod, options: ServerOptions, errorHandler: ErrorHandler, log: Logger,
-): InternalServer {
+interface ExtraServerOptions {
+	timingStart: (name: string) => void;
+	timingEnd: () => void;
+}
+
+function createInternalServer(createServer: CreateServerMethod, options: ServerOptions, extraOptions: ExtraServerOptions, errorHandler: ErrorHandler, log: Logger): InternalServer {
 	options = optionsWithDefaults(options);
 
 	const onSend = options.onSend;
@@ -203,6 +205,9 @@ function createInternalServer(
 	const clientOptions = toClientOptions(options);
 	const clientMethods = getNames(options.client!);
 	const serverMethodOptions: MethodOptions[] = options.server!.map(m => Array.isArray(m) ? m[1] : {});
+	const { createClient = x => x, verifyClient = returnTrue } = options;
+	const { timingStart, timingEnd } = extraOptions;
+
 	const server: InternalServer = {
 		id: options.id ?? 'socket',
 		clients: [],
@@ -221,8 +226,10 @@ function createInternalServer(
 		tokenLifetime: options.tokenLifetime ?? 0,
 		clientLimit: options.clientLimit ?? 0,
 		transferLimit: options.transferLimit ?? 0,
-		verifyClient: options.verifyClient ?? returnTrue,
-		createClient: options.createClient,
+		verifyClient,
+		createClient,
+		timingStart,
+		timingEnd,
 		serverMethods: options.server!,
 		clientMethods,
 		rateLimits: serverMethodOptions.map(parseRateLimitDef),
@@ -238,22 +245,33 @@ function createInternalServer(
 	function handleResult(send: Send, obj: ClientState, funcId: number, funcName: string, funcBinary: boolean, result: Promise<any>, messageId: number) {
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
-				if (!obj.client.isConnected()) return;
+				try {
+					timingStart('send result');
 
-				if (funcBinary) {
-					packetHandler.sendBinary(send, `*resolve:${funcName}`, MessageType.Resolved, funcId, messageId, result);
-				} else {
-					packetHandler.sendString(send, `*resolve:${funcName}`, MessageType.Resolved, funcId, messageId, result);
+					if (obj.client.isConnected()) {
+						if (funcBinary) {
+							packetHandler.sendBinary(send, `*resolve:${funcName}`, MessageType.Resolved, funcId, messageId, result);
+						} else {
+							packetHandler.sendString(send, `*resolve:${funcName}`, MessageType.Resolved, funcId, messageId, result);
+						}
+					}
+				} finally {
+					timingEnd();
 				}
 			}, (e: Error) => {
-				e = errorHandler.handleRejection(obj.client, e) || e;
+				try {
+					timingStart('send error');
+					e = errorHandler.handleRejection(obj.client, e) || e;
 
-				if (!obj.client.isConnected()) return;
+					if (!obj.client.isConnected()) return;
 
-				if (funcBinary) {
-					packetHandler.sendBinary(send, `*reject:${funcName}`, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
-				} else {
-					packetHandler.sendString(send, `*reject:${funcName}`, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
+					if (funcBinary) {
+						packetHandler.sendBinary(send, `*reject:${funcName}`, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
+					} else {
+						packetHandler.sendString(send, `*reject:${funcName}`, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
+					}
+				} finally {
+					timingEnd();
 				}
 			}).catch((e: Error) => errorHandler.handleError(obj.client, e));
 		}
@@ -263,6 +281,7 @@ function createInternalServer(
 
 	if (pingInterval) {
 		server.pingInterval = setInterval(() => {
+			timingStart('ping');
 			const now = Date.now();
 			const threshold = now - pingInterval;
 			const timeoutThreshold = now - options.connectionTimeout!;
@@ -279,11 +298,13 @@ function createInternalServer(
 					}
 				} catch { }
 			}
+			timingEnd();
 		}, pingInterval);
 	}
 
 	if (options.connectionTokens) {
 		server.tokenInterval = setInterval(() => {
+			timingStart('expire tokens');
 			const now = Date.now();
 			const ids: string[] = [];
 
@@ -296,6 +317,7 @@ function createInternalServer(
 			for (const id of ids) {
 				server.freeTokens.delete(id);
 			}
+			timingEnd();
 		}, 10000);
 	}
 
@@ -358,9 +380,7 @@ function closeServer(server: InternalServer) {
 	}
 }
 
-function connectClient(
-	socket: ws, server: InternalServer, originalRequest: OriginalRequest, errorHandler: ErrorHandler, log: Logger
-) {
+function connectClient(socket: ws, server: InternalServer, originalRequest: OriginalRequest, errorHandler: ErrorHandler, log: Logger) {
 	const query = getQuery(originalRequest.url);
 	const t = (query.t || '') as string;
 	const token = server.connectionTokens ? getToken(server, t) || getTokenFromClient(server, t) : undefined;
@@ -380,7 +400,7 @@ function connectClient(
 	}
 
 	const callsList: number[] = [];
-	const { handleResult, createClient = x => x } = server;
+	const { timingStart, timingEnd, handleResult, createClient } = server;
 
 	let bytesReset = Date.now();
 	let bytesReceived = 0;
@@ -463,8 +483,8 @@ function connectClient(
 	function serverActionsCreated(serverActions: SocketServer) {
 		socket.on('message', (message: string | Buffer | ArrayBuffer, flags?: { binary: boolean; }) => {
 			try {
-				if (transferLimitExceeded || !isConnected)
-					return;
+				timingStart('packet');
+				if (transferLimitExceeded || !isConnected) return;
 
 				const messageLength = getLength(message);
 				bytesReceived += messageLength;
@@ -491,48 +511,47 @@ function connectClient(
 				if (transferLimit && transferLimit < bytesPerSecond) {
 					transferLimitExceeded = true;
 					obj.client.disconnect(true, true, 'transfer limit');
-					errorHandler.handleRecvError(
-						obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${transferLimit} (${diff}ms)`),
-						reader ? getBinaryReaderBuffer(reader) : data!);
+					errorHandler.handleRecvError(obj.client, new Error(`Transfer limit exceeded ${bytesPerSecond.toFixed(0)}/${transferLimit} (${diff}ms)`), reader ? getBinaryReaderBuffer(reader) : data!);
 					return;
 				}
 
 				if (server.forceBinary && data !== undefined) {
 					obj.client.disconnect(true, true, 'non-binary message');
-					errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`),
-						reader ? getBinaryReaderBuffer(reader) : data!);
+					errorHandler.handleRecvError(obj.client, new Error(`String message while forced binary`), reader ? getBinaryReaderBuffer(reader) : data!);
 					return;
 				}
 
 				obj.lastMessageTime = Date.now();
 				obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
 
-				if (reader || data) {
-					obj.lastMessageId++;
-					const messageId = obj.lastMessageId;
-
-					try {
-						// TODO: options.onPacket?.(obj.client)
-
-						if (data !== undefined) {
-							server.packetHandler.recvString(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
-								const rate = server.rateLimits[funcId];
-								const funcBinary = server.resultBinary[funcId];
-
-								// TODO: move rate limits to packet handler
-								if (checkRateLimit2(funcId, callsList, server.rateLimits)) {
-									handleResult(send, obj, funcId, funcName, funcBinary, func.apply(funcObj, args), messageId);
-								} else if (rate && rate.promise) {
-									handleResult(send, obj, funcId, funcName, funcBinary, Promise.reject(new Error('Rate limit exceeded')), messageId);
-								} else {
-									throw new Error(`Rate limit exceeded (${funcName})`);
-								}
-							});
-						} else {
-							server.packetHandler.recvBinary(reader!, serverActions, {}, callsList, messageId, handleResult2);
+				if (reader) {
+					while (reader.offset < reader.view.byteLength) { // read batch of packets
+						try {
+							obj.lastMessageId++;
+							server.packetHandler.recvBinary(reader, serverActions, {}, callsList, obj.lastMessageId, handleResult2);
+						} catch (e) {
+							errorHandler.handleRecvError(obj.client, e, getBinaryReaderBuffer(reader));
 						}
+					}
+				} else if (data) {
+					try {
+						obj.lastMessageId++;
+						const messageId = obj.lastMessageId;
+						server.packetHandler.recvString(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
+							const rate = server.rateLimits[funcId];
+							const funcBinary = server.resultBinary[funcId];
+
+							// TODO: move rate limits to packet handler
+							if (checkRateLimit2(funcId, callsList, server.rateLimits)) {
+								handleResult(send, obj, funcId, funcName, funcBinary, func.apply(funcObj, args), messageId);
+							} else if (rate && rate.promise) {
+								handleResult(send, obj, funcId, funcName, funcBinary, Promise.reject(new Error('Rate limit exceeded')), messageId);
+							} else {
+								throw new Error(`Rate limit exceeded (${funcName})`);
+							}
+						});
 					} catch (e) {
-						errorHandler.handleRecvError(obj.client, e, reader ? getBinaryReaderBuffer(reader) : data!);
+						errorHandler.handleRecvError(obj.client, e, data);
 					}
 				}
 
@@ -542,6 +561,8 @@ function connectClient(
 				}
 			} catch (e) {
 				errorHandler.handleError(obj.client, e);
+			} finally {
+				timingEnd();
 			}
 		});
 
@@ -566,6 +587,7 @@ function connectClient(
 		if (closed) return;
 
 		try {
+			timingStart('socket closed');
 			closed = true;
 			isConnected = false;
 
@@ -593,6 +615,8 @@ function connectClient(
 			}
 		} catch (e) {
 			errorHandler.handleError(obj.client, e);
+		} finally {
+			timingEnd();
 		}
 	}
 
@@ -601,10 +625,12 @@ function connectClient(
 
 	Promise.resolve(server.createServer(obj.client))
 		.then(actions => {
+			timingStart('client connected');
 			if (isConnected) {
 				serverActions = actions;
 				serverActionsCreated(serverActions);
 			}
+			timingEnd();
 		})
 		.catch(e => {
 			socket.terminate();

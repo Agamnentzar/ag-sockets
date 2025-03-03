@@ -1,4 +1,4 @@
-import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSend, OnRecv, Bin, RemoteOptions } from '../interfaces';
+import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSend, OnRecv, Bin, RemoteOptions, BinaryDefItem } from '../interfaces';
 import { isBinaryOnlyPacket, parseRateLimit, checkRateLimit3 } from '../utils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
@@ -409,38 +409,46 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 		if (options.binary || handlerOptions.useBinaryByDefault) {
 			code += `${indent}if (remoteState.supportsBinary) {\n`;
-			code += `${indent}  while (true) {\n`;
-			code += `${indent}    try {\n`;
-			code += `${indent}      strings.clear();\n`;
-			code += `${indent}      writer.offset = 0;\n`;
+			code += `${indent}  try {\n`;
+			code += `${indent}    while (true) {\n`;
+			code += `${indent}      try {\n`;
+			code += `${indent}        strings.clear();\n`; // TODO: remove this, but removing this somehow causes tests to fail
+			code += `${indent}        writer.offset = 0;\n`;
+
 			if (!options.binary) {
-				code += `${indent}      var a0 = [];\n`;
-				code += `${indent}      for (var i = 0; i < arguments.length; i++) a0.push(arguments[i]);\n`;
+				code += `${indent}        var a0 = [];\n`;
+				code += `${indent}        for (var i = 0; i < arguments.length; i++) a0.push(arguments[i]);\n`;
 			}
+
 			code += createWriteFunction(packetId, options.binary ?? [Bin.Obj], `${indent}      `);
-			code += `${indent}      var buffer = ${bufferCtor}(writer.view.buffer, writer.view.byteOffset, writer.offset);\n`;
-			code += `${indent}      send(buffer);\n`;
-			code += `${indent}      remoteState.sentSize += buffer.${bufferLength};\n`; // TODO: move from here, just count in send function
-			code += `${indent}      onSend(${packetId}, '${name}', buffer.${bufferLength}, true);\n`;
 
-			if (handlerOptions.debug && !options.ignore) {
-				code += `${indent}      log('SEND [' + buffer.${bufferLength} + '] (bin) "${name}"', arguments);\n`;
-			}
-
-			code += `${indent}      break;\n`;
-			code += `${indent}    } catch (e) {\n`;
-			code += `${indent}      if (isSizeError(e)) {\n`;
-			code += `${indent}        resizeWriter(writer);\n`;
-			code += `${indent}      } else {\n`;
+			code += `${indent}        break;\n`;
+			code += `${indent}      } catch (e) {\n`;
+			code += `${indent}        if (isSizeError(e)) {\n`;
+			code += `${indent}          resizeWriter(writer);\n`;
+			code += `${indent}        } else {\n`;
 
 			if (catchError) {
-				code += `${indent}        return false;\n`;
+				code += `${indent}          return false;\n`;
 			} else {
-				code += `${indent}        throw e;\n`;
+				code += `${indent}          throw e;\n`;
 			}
 
+			code += `${indent}        }\n`;
 			code += `${indent}      }\n`;
 			code += `${indent}    }\n`;
+			code += `${indent}    var buffer = ${bufferCtor}(writer.view.buffer, writer.view.byteOffset, writer.offset);\n`;
+			code += `${indent}    send(buffer);\n`;
+			code += `${indent}    remoteState.sentSize += buffer.${bufferLength};\n`; // TODO: move from here, just count in send function
+			code += `${indent}    onSend(${packetId}, '${name}', buffer.${bufferLength}, true);\n`;
+
+			if (handlerOptions.debug && !options.ignore) {
+				code += `${indent}    log('SEND [' + buffer.${bufferLength} + '] (bin) "${name}"', arguments);\n`;
+			}
+
+			code += `${indent}  } finally {\n`;
+			code += `${indent}    strings.clear();\n`;
+			code += `${indent}    writer.offset = 0;\n`;
 			code += `${indent}  }\n`;
 			code += `${indent}} else {\n`;
 		}
@@ -485,7 +493,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 let id = 0;
 
-function writeField(f: Bin | any[], n: string, indent: string) {
+function writeField(f: BinaryDefItem, n: string, indent: string) {
 	if (Array.isArray(f)) {
 		const thisId = ++id;
 		const it = `i${thisId}`;
@@ -508,6 +516,18 @@ function writeField(f: Bin | any[], n: string, indent: string) {
 
 		code += `${indent}  }\n`;
 		code += `${indent}}\n`;
+		return code;
+	} else if (typeof f === 'object') {
+		const thisId = ++id;
+		const object = `object${thisId}`;
+		let code = '';
+
+		code += `${indent}var ${object} = ${n};\n`;
+
+		for (const key of Object.keys(f).sort()) {
+			code += writeField(f[key], `${object}.${key}`, indent);
+		}
+
 		return code;
 	} else {
 		return `${indent}write${binaryNames[f]}(writer, ${n}${f === Bin.Obj ? ', strings' : ''});\n`;
@@ -532,7 +552,7 @@ function createWriteFunction(id: number, fields: any[], indent: string) {
 	return code;
 }
 
-function readField(f: Bin | any[], indent: string) {
+function readField(f: BinaryDefItem, indent: string) {
 	if (f instanceof Array) {
 		let code = '';
 
@@ -549,6 +569,12 @@ function readField(f: Bin | any[], indent: string) {
 		}
 
 		return `readArray(reader, function (reader) { return ${code.trim()}; })`;
+	} else if (typeof f === 'object') {
+		let code = `{\n`;
+		for (const key of Object.keys(f).sort()) {
+			code += `${indent}  ${key}: ${readField(f[key], indent + '  ')},\n`;
+		}
+		return `${code}${indent}}`;
 	} else {
 		return `read${binaryNames[f]}(reader${f === Bin.Obj ? ', strings, false' : ''})`;
 	}

@@ -60,6 +60,9 @@ export interface GlobalConfig {
 	errorCode?: number;
 	errorName?: string;
 	nativePing?: number;
+	/** function for tracking timing of methods */
+	timingStart?: (name: string) => void;
+	timingEnd?: () => void;
 }
 
 export interface InternalServer {
@@ -88,8 +91,10 @@ export interface InternalServer {
 	clientMethods: string[];
 	rateLimits: (RateLimitDef | undefined)[];
 	resultBinary: boolean[];
+	timingStart: (name: string) => void;
+	timingEnd: () => void;
 	verifyClient: (req: IncomingMessage) => boolean;
-	createClient?: (client: SocketServerClient, send: (data: string | Uint8Array | Buffer) => void) => SocketServerClient;
+	createClient: (client: SocketServerClient, send: (data: string | Uint8Array | Buffer) => void) => SocketServerClient;
 	// methods
 	createServer: CreateServerMethod;
 	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, funcBinary: boolean, result: Promise<any>, messageId: number) => void;

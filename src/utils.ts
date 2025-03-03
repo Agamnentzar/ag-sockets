@@ -1,4 +1,4 @@
-import { MethodDef, BinaryDef, Bin, RateLimitDef } from './interfaces';
+import { MethodDef, BinaryDef, Bin, RateLimitDef, BinaryDefItem } from './interfaces';
 
 export function getLength(message: any): number {
 	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
@@ -116,6 +116,6 @@ export function isBinaryOnlyPacket(method: MethodDef) {
 	return typeof method !== 'string' && method[1].binary && hasArrayBuffer(method[1].binary);
 }
 
-export function hasArrayBuffer(def: BinaryDef | Bin): boolean {
-	return Array.isArray(def) ? def.some(hasArrayBuffer) : def === Bin.Buffer;
+export function hasArrayBuffer(def: BinaryDef | BinaryDefItem): boolean {
+	return Array.isArray(def) ? def.some(hasArrayBuffer) : (def === Bin.Buffer);
 }

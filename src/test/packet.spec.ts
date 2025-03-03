@@ -183,13 +183,11 @@ describe('PacketHandler', () => {
 	});
 
 	it.skip('ttt', () => {
-		const BinSequenceUser = [Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Bool, Bin.U32, Bin.Str, Bin.Str, Bin.U8];
+		const BinSequenceUser = [Bin.Str, Bin.Str, { test: Bin.Str, x: [Bin.I8, Bin.I8] }, Bin.Str, Bin.Str, Bin.Bool, Bin.U32, Bin.U8];
 
 		handler = createPacketHandler(
-			[['foo', { binary: [Bin.Str, BinSequenceUser] }]],
-			[['bar', { binary: [Bin.Str, BinSequenceUser] }]],
+			[['foo', { binary: [Bin.Str, { foo: Bin.Str, bar: Bin.F64 }, BinSequenceUser] }]],
+			[['bar', { binary: [Bin.Str, { foo: Bin.Str, bar: Bin.F64 }, BinSequenceUser] }]],
 			{ printGeneratedCode: true }, () => { });
-
-		console.log('a');
 	});
 });

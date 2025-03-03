@@ -22,6 +22,7 @@ describe('binary encoding', () => {
 		['u8_off_len', { binary: [Bin.U8ArrayOffsetLength] }],
 		['view_off_len', { binary: [Bin.DataViewOffsetLength] }],
 		['long_array_of_arrays', { binary: [Bin.Str, [Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Bool, Bin.U32, Bin.Str, Bin.Str, Bin.U8]] }],
+		['object', { binary: [{ foo: Bin.Str, bar: Bin.I32 }] }],
 	];
 
 	const server: MethodDef[] = [
@@ -225,5 +226,18 @@ describe('binary encoding', () => {
 		};
 
 		remote.long_array_of_arrays(dataName, dataArray);
+	});
+
+	it('objects', () => {
+		const dataObject: any = {
+			foo: 'test',
+			bar: 123,
+		};
+
+		actions.object = (obj: any) => {
+			expect(obj).eql(dataObject);
+		};
+
+		remote.object(dataObject);
 	});
 });
