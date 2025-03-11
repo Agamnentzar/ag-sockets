@@ -8,7 +8,7 @@ import {
 import {
 	createBinaryReader, readInt8, readUint8, readInt16, readUint16, readInt32, readUint32,
 	readFloat32, readFloat64, readBoolean, readBytes, readLength, readString, readObject,
-	readArray, readArrayBuffer, readUint8Array, BinaryReader
+	readArray, readArrayBuffer, readUint8Array, BinaryReader, readArrayOrNull
 } from '../packet/binaryReader';
 
 type Foo = [any, number[]];
@@ -82,6 +82,8 @@ describe('PacketReader + PacketWriter', () => {
 			writeObject(writer, i[0]);
 			writeArray(writer, i[1], writeUint8);
 		});
+		writeArray<string>(writer, [], writeString);
+		writeArray<string>(writer, null, writeString);
 		writeArrayBuffer(writer, null);
 		writeArrayBuffer(writer, new Uint8Array([1, 2, 3]).buffer);
 		writeUint8Array(writer, null);
@@ -120,12 +122,14 @@ describe('PacketReader + PacketWriter', () => {
 		expect(readObject(reader)).eql({ foo: 'bar' }, 'readObject empty');
 		expect(readArray(reader, readString)).eql(['foo', 'bar', 'boo'], 'readArray ["foo", "bar", "boo"]');
 		expect(readArray(reader, readString)).eql([], 'readArray empty');
-		expect(readArray(reader, readString)).equal(null, 'readArray null');
+		expect(readArray(reader, readString)).eql([], 'readArray null (converted to [])');
 		expect(readArray(reader, readObject)).eql([{ foo: 'bar' }, { foo: 'boo' }], 'readArray obj[]');
 		expect(readArray(reader, reader => [
 			readObject(reader),
 			readArray(reader, readUint8),
 		])).eql([[{ foo: 'bar' }, [1, 2, 3]], [{ foo: 'boo' }, [4, 5, 6]]], 'readArray Foo[]');
+		expect(readArrayOrNull(reader, readString)).eql([], 'readArrayOrNull empty');
+		expect(readArrayOrNull(reader, readString)).equal(null, 'readArrayOrNull null');
 		expect(readArrayBuffer(reader)).equal(null, 'readArrayBuffer null');
 		expect(new Uint8Array(readArrayBuffer(reader)!)).eql(new Uint8Array([1, 2, 3]), 'readArrayBuffer [1, 2, 3]');
 		expect(readUint8Array(reader)).equal(null, 'readUint8Array null');

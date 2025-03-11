@@ -12,6 +12,7 @@ describe('binary encoding', () => {
 		['far', { binary: [[Bin.I32, [Bin.I32, Bin.I32]]] }],
 		['fab', { binary: [[Bin.I32, [Bin.I32]]] }],
 		['obj', { binary: [[Bin.Obj]] }],
+		['array_of_numbers', { binary: [[Bin.U8]] }],
 		['all', { binary: [Bin.I8, Bin.U8, Bin.I16, Bin.U16, Bin.I32, Bin.U32, Bin.F32, Bin.F64, Bin.Bool, Bin.Str, Bin.Obj] }],
 		['buf', { binary: [Bin.Buffer] }],
 		['u8a', { binary: [Bin.U8Array] }],
@@ -58,9 +59,9 @@ describe('binary encoding', () => {
 	it('arrays', () => {
 		actions.boo = spy();
 
-		remote.boo({ foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]);
+		remote.boo({ foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, [1, 2, 3]]], [{ a: 1 }, { b: 2 }]);
 
-		assert.calledWithMatch(actions.boo, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, null]], [{ a: 1 }, { b: 2 }]);
+		assert.calledWithMatch(actions.boo, { foo: 'bar' }, [1, 2, 3], [[10, 20, [3, 3, 4]], [3, 4, [1, 2, 3]]], [{ a: 1 }, { b: 2 }]);
 	});
 
 	it('arrays 2', () => {
@@ -85,6 +86,22 @@ describe('binary encoding', () => {
 		remote.obj([{ a: 1 }, { b: 2 }]);
 
 		assert.calledWithMatch(actions.obj, [{ a: 1 }, { b: 2 }]);
+	});
+
+	it('array of numbers', () => {
+		actions.array_of_numbers = spy();
+
+		remote.array_of_numbers([1, 2, 3, 4]);
+
+		assert.calledWithMatch(actions.array_of_numbers, [1, 2, 3, 4]);
+	});
+
+	it('array of numbers (bad)', () => {
+		actions.array_of_numbers = spy();
+
+		remote.array_of_numbers(undefined);
+
+		assert.calledWithMatch(actions.array_of_numbers, []);
 	});
 
 	it('array of objects (re-use string map)', () => {
@@ -167,12 +184,12 @@ describe('binary encoding', () => {
 			[
 				2, 5, 0, 0, 0, 0, false,
 				{ id: 20, color: 4294967295, opacity: 1, rect: { x: 0, y: 0, w: 1920, h: 1080 }, fill: true, t: 0 },
-				null, new Uint8Array(length)
+				[1, 2, 3], new Uint8Array(length)
 			],
 			[
 				2, 5, 0, 0, 0, 0, false,
 				{ id: 20, color: 4294967295, opacity: 1, rect: { x: 0, y: 0, w: 1920, h: 1080 }, fill: true, t: 0 },
-				null, new Uint8Array(10)
+				[1, 2, 3], new Uint8Array(10)
 			],
 		];
 

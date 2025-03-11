@@ -90,11 +90,22 @@ export function readBoolean(reader: BinaryReader) {
 	return readUint8(reader) === 1;
 }
 
-export function readArray<T>(reader: BinaryReader, readOne: (reader: BinaryReader) => T): T[] | null {
+export function readArrayOrNull<T>(reader: BinaryReader, readOne: (reader: BinaryReader) => T): T[] | null {
 	const length = readLength(reader);
 
 	if (length === -1) return null;
 
+	const result: T[] = [];
+
+	for (let i = 0; i < length; i++) {
+		result.push(readOne(reader));
+	}
+
+	return result;
+}
+
+export function readArray<T>(reader: BinaryReader, readOne: (reader: BinaryReader) => T): T[] {
+	const length = readLength(reader);
 	const result: T[] = [];
 
 	for (let i = 0; i < length; i++) {
