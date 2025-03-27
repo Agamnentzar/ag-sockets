@@ -204,8 +204,9 @@ function createInternalServer(createServer: CreateServerMethod, options: ServerO
 	const packetHandler = createPacketHandler(options.server, options.client, handlerOptions, log);
 	const clientOptions = toClientOptions(options);
 	const clientMethods = getNames(options.client!);
-	const clientResults = clientMethods.map(name => `resolve (${name})`);
-	const clientErrors = clientMethods.map(name => `reject (${name})`);
+	const serverMethods = getNames(options.server!);
+	const serverResults = serverMethods.map(name => `resolve (${name})`);
+	const serverErrors = serverMethods.map(name => `reject (${name})`);
 	const serverMethodOptions: MethodOptions[] = options.server!.map(m => Array.isArray(m) ? m[1] : {});
 	const { createClient = x => x, verifyClient = returnTrue } = options;
 	const { timingStart, timingEnd } = extraOptions;
@@ -248,7 +249,7 @@ function createInternalServer(createServer: CreateServerMethod, options: ServerO
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
 				try {
-					timingStart(clientResults[funcId]);
+					timingStart(serverResults[funcId]);
 
 					if (obj.client.isConnected()) {
 						if (funcBinary) {
@@ -262,7 +263,7 @@ function createInternalServer(createServer: CreateServerMethod, options: ServerO
 				}
 			}, (e: Error) => {
 				try {
-					timingStart(clientErrors[funcId]);
+					timingStart(serverErrors[funcId]);
 					e = errorHandler.handleRejection(obj.client, e) || e;
 
 					if (!obj.client.isConnected()) return;
