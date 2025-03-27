@@ -21,19 +21,19 @@ describe('PacketHandler', () => {
 		it('sends message to websocket', () => {
 			const send = spy();
 
-			handler.sendString(send, 'foo', 1, 69, 420, 'xyz');
+			handler.sendString(send, 1, 69, 420, 'xyz');
 
 			assert.calledWith(send, '[1,69,420,"xyz"]');
 		});
 
 		it('returns message length', () => {
-			expect(handler.sendString(spy(), 'foo', 1, 69, 420, 'xyz')).equal('[1,69,420,"xyz"]'.length);
+			expect(handler.sendString(spy(), 1, 69, 420, 'xyz')).equal('[1,69,420,"xyz"]'.length);
 		});
 
 		it('returns 0 on error', () => {
 			const send = stub().throws(new Error(''));
 
-			expect(handler.sendString(send, 'foo', 1, 69, 420, 'xyz')).equal(0);
+			expect(handler.sendString(send, 1, 69, 420, 'xyz')).equal(0);
 		});
 
 		it('sends binary message', () => {
@@ -48,7 +48,7 @@ describe('PacketHandler', () => {
 		});
 
 		it('returns sent size (string)', () => {
-			const size = handler.sendString(spy(), 'bar', 1, 69, 420, 'xyz');
+			const size = handler.sendString(spy(), 1, 69, 420, 'xyz');
 
 			expect(size).equal('[1,69,420,"xyz"]'.length);
 		});
@@ -178,7 +178,7 @@ describe('PacketHandler', () => {
 
 			handler.recvString('[1,"abc"]', funcs, special, handleResult);
 
-			assert.calledWithMatch(handleResult, 1, 'foo', funcs.foo, funcs, ['abc']);
+			assert.calledWithMatch(handleResult, 1, funcs.foo, funcs, ['abc']);
 		});
 	});
 

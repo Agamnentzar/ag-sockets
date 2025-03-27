@@ -1,4 +1,4 @@
-import { FuncList, Logger, getNames, getIgnore, MethodDef, OnSend, OnRecv, Bin, RemoteOptions, BinaryDefItem } from '../interfaces';
+import { FuncList, Logger, getNames, MethodDef, OnSend, OnRecv, Bin, RemoteOptions, BinaryDefItem } from '../interfaces';
 import { isBinaryOnlyPacket, parseRateLimit, checkRateLimit3 } from '../utils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
@@ -86,18 +86,17 @@ export const enum MessageType {
 }
 
 export interface FunctionHandler {
-	(funcId: number, funcName: string, func: Function, funcObj: any, args: any[]): void;
+	(funcId: number, func: Function, funcObj: any, args: any[]): void;
 }
 
-export const defaultHandler: FunctionHandler =
-	(_funcId, _funcName, func, funcObj, args) => func.apply(funcObj, args);
+export const defaultHandler: FunctionHandler = (_funcId, func, funcObj, args) => func.apply(funcObj, args);
 
 export interface RemoteState {
 	supportsBinary: boolean;
 	sentSize: number;
 }
 
-export type HandleResult = (funcId: number, funcName: string, funcBinary: boolean, result: Promise<any>, messageId: number) => void;
+export type HandleResult = (funcId: number, funcBinary: boolean, result: Promise<any>, messageId: number) => void;
 
 export interface HandlerOptions {
 	forceBinary?: boolean;
@@ -121,8 +120,8 @@ type LocalHandler = (
 ) => void;
 
 export interface PacketHandler {
-	sendString(send: Send, name: string, id: number, funcId: number, messageId: number, result: any): number;
-	sendBinary(send: Send, name: string, id: number, funcId: number, messageId: number, result: any): number;
+	sendString(send: Send, id: number, funcId: number, messageId: number, result: any): number;
+	sendBinary(send: Send, id: number, funcId: number, messageId: number, result: any): number;
 	createRemote(remote: any, send: Send, state: RemoteState): void;
 	recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction?: FunctionHandler): void;
 	recvBinary(reader: BinaryReader, funcList: FuncList, specialFuncList: FuncList, callsList: number[], messageId: number, handleResult?: HandleResult): void;
@@ -147,22 +146,21 @@ export function createPacketHandler(
 		.map(x => typeof x === 'string' ? { name: x, binary: false } : { name: x[0], binary: !!x[1].binary })
 		.filter(x => x.binary)
 		.map(x => x.name));
-	const ignorePackets = new Set([...getIgnore(remote), ...getIgnore(local)]);
 	const recvBinary = generateLocalHandlerCode(local, remoteNames, options, onRecv);
 	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
 	const writer = createBinaryWriter();
 	const strings = new Map();
 
-	function sendString(send: Send, name: string, id: number, funcId: number, messageId: number, result: any): number {
+	function sendString(send: Send, id: number, funcId: number, messageId: number, result: any): number {
 		try {
 			const data = JSON.stringify([id, funcId, messageId, result]);
 			send(data);
 
-			if (debug && !ignorePackets.has(name)) {
-				log(`SEND [${data.length}] (str)`, name, [id, funcId, messageId, result]);
+			if (debug) {
+				log(`SEND [${data.length}] (str)`, [id, funcId, messageId, result]);
 			}
 
-			if (onSend) onSend(id, name, data.length, false);
+			if (onSend) onSend(id, '', data.length, false);
 			return data.length;
 		} catch (e) {
 			if (debug || development) throw e;
@@ -170,7 +168,7 @@ export function createPacketHandler(
 		}
 	}
 
-	function sendBinary(send: Send, name: string, id: number, funcId: number, messageId: number, result: any): number {
+	function sendBinary(send: Send, id: number, funcId: number, messageId: number, result: any): number {
 		while (true) {
 			try {
 				strings.clear();
@@ -186,11 +184,11 @@ export function createPacketHandler(
 
 				send(data);
 
-				if (debug && !ignorePackets.has(name)) {
-					log(`SEND [${data.length}] (bin)`, name, [id, funcId, messageId, result]);
+				if (debug) {
+					log(`SEND [${data.length}] (bin)`, [id, funcId, messageId, result]);
 				}
 
-				if (onSend) onSend(id, name, data.length, true);
+				if (onSend) onSend(id, '', data.length, true);
 				return data.length;
 			} catch (e) {
 				if (isSizeError(e)) {
@@ -236,7 +234,7 @@ export function createPacketHandler(
 		const funcObj = funcSpecial ? specialFuncList : funcList;
 		const func = funcObj[funcName];
 
-		if (debug && !ignorePackets.has(funcName)) {
+		if (debug) {
 			log(`RECV [${data.length}] (str)`, funcName, args);
 		}
 
@@ -245,7 +243,7 @@ export function createPacketHandler(
 		}
 
 		if (func) {
-			handleFunction(funcId, funcName, func, funcObj, args);
+			handleFunction(funcId, func, funcObj, args);
 		} else {
 			if (debug) log(`invalid message: ${funcName}`, args);
 			if (development) throw new Error(`Invalid packet (${funcName})`);
@@ -317,7 +315,7 @@ function generateLocalHandlerCode(
 				code += `        console.log('RECV [' + reader.view.byteLength + '] (bin)', '${name}', [${argList}]);\n`;
 			}
 
-			code += `        onRecv(${packetId}, '${name}', reader.view.byteLength, true, reader.view, actions);\n`;
+			code += `        onRecv(${packetId}, reader.view.byteLength, true, reader.view, actions);\n`;
 
 			const call = options.binary ? `actions.${name}(${argList})` : `actions.${name}.apply(actions, ${argList})`;
 

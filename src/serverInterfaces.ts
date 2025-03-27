@@ -97,7 +97,7 @@ export interface InternalServer {
 	createClient: (client: SocketServerClient, send: (data: string | Uint8Array | Buffer) => void) => SocketServerClient;
 	// methods
 	createServer: CreateServerMethod;
-	handleResult: (send: Send, obj: ClientState, funcId: number, funcName: string, funcBinary: boolean, result: Promise<any>, messageId: number) => void;
+	handleResult: (send: Send, obj: ClientState, funcId: number, funcBinary: boolean, result: Promise<any>, messageId: number) => void;
 	packetHandler: PacketHandler;
 	server: Server;
 }

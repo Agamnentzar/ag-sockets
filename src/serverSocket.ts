@@ -204,6 +204,8 @@ function createInternalServer(createServer: CreateServerMethod, options: ServerO
 	const packetHandler = createPacketHandler(options.server, options.client, handlerOptions, log);
 	const clientOptions = toClientOptions(options);
 	const clientMethods = getNames(options.client!);
+	const clientResults = clientMethods.map(name => `resolve (${name})`);
+	const clientErrors = clientMethods.map(name => `reject (${name})`);
 	const serverMethodOptions: MethodOptions[] = options.server!.map(m => Array.isArray(m) ? m[1] : {});
 	const { createClient = x => x, verifyClient = returnTrue } = options;
 	const { timingStart, timingEnd } = extraOptions;
@@ -242,17 +244,17 @@ function createInternalServer(createServer: CreateServerMethod, options: ServerO
 		tokenInterval: undefined,
 	};
 
-	function handleResult(send: Send, obj: ClientState, funcId: number, funcName: string, funcBinary: boolean, result: Promise<any>, messageId: number) {
+	function handleResult(send: Send, obj: ClientState, funcId: number, funcBinary: boolean, result: Promise<any>, messageId: number) {
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
 				try {
-					timingStart('send result');
+					timingStart(clientResults[funcId]);
 
 					if (obj.client.isConnected()) {
 						if (funcBinary) {
-							packetHandler.sendBinary(send, `*resolve:${funcName}`, MessageType.Resolved, funcId, messageId, result);
+							packetHandler.sendBinary(send, MessageType.Resolved, funcId, messageId, result);
 						} else {
-							packetHandler.sendString(send, `*resolve:${funcName}`, MessageType.Resolved, funcId, messageId, result);
+							packetHandler.sendString(send, MessageType.Resolved, funcId, messageId, result);
 						}
 					}
 				} finally {
@@ -260,15 +262,15 @@ function createInternalServer(createServer: CreateServerMethod, options: ServerO
 				}
 			}, (e: Error) => {
 				try {
-					timingStart('send error');
+					timingStart(clientErrors[funcId]);
 					e = errorHandler.handleRejection(obj.client, e) || e;
 
 					if (!obj.client.isConnected()) return;
 
 					if (funcBinary) {
-						packetHandler.sendBinary(send, `*reject:${funcName}`, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
+						packetHandler.sendBinary(send, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
 					} else {
-						packetHandler.sendString(send, `*reject:${funcName}`, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
+						packetHandler.sendString(send, MessageType.Rejected, funcId, messageId, e ? e.message : 'error');
 					}
 				} finally {
 					timingEnd();
@@ -462,22 +464,27 @@ function connectClient(socket: ws, server: InternalServer, originalRequest: Orig
 			errorHandler.handleError(obj.client, new Error('Not Connected'));
 		}
 
-		if (data instanceof Buffer) {
-			server.totalSent += data.byteLength;
-			socket.send(data);
-		} else if (typeof data !== 'string') {
-			server.totalSent += data.byteLength;
-			socket.send(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
-		} else {
-			server.totalSent += data.length;
-			socket.send(data);
+		try {
+			timingStart('send');
+			if (data instanceof Buffer) {
+				server.totalSent += data.byteLength;
+				socket.send(data);
+			} else if (typeof data !== 'string') {
+				server.totalSent += data.byteLength;
+				socket.send(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
+			} else {
+				server.totalSent += data.length;
+				socket.send(data);
+			}
+		} finally {
+			timingEnd();
 		}
 
 		obj.lastSendTime = Date.now();
 	}
 
-	const handleResult2: HandleResult = (funcId, funcName, funcBinary, result, messageId) => {
-		handleResult(send, obj, funcId, funcName, funcBinary, result, messageId);
+	const handleResult2: HandleResult = (funcId, funcBinary, result, messageId) => {
+		handleResult(send, obj, funcId, funcBinary, result, messageId);
 	};
 
 	function serverActionsCreated(serverActions: SocketServer) {
@@ -537,17 +544,17 @@ function connectClient(socket: ws, server: InternalServer, originalRequest: Orig
 					try {
 						obj.lastMessageId++;
 						const messageId = obj.lastMessageId;
-						server.packetHandler.recvString(data, serverActions, {}, (funcId, funcName, func, funcObj, args) => {
+						server.packetHandler.recvString(data, serverActions, {}, (funcId, func, funcObj, args) => {
 							const rate = server.rateLimits[funcId];
 							const funcBinary = server.resultBinary[funcId];
 
 							// TODO: move rate limits to packet handler
 							if (checkRateLimit2(funcId, callsList, server.rateLimits)) {
-								handleResult(send, obj, funcId, funcName, funcBinary, func.apply(funcObj, args), messageId);
+								handleResult(send, obj, funcId, funcBinary, func.apply(funcObj, args), messageId);
 							} else if (rate && rate.promise) {
-								handleResult(send, obj, funcId, funcName, funcBinary, Promise.reject(new Error('Rate limit exceeded')), messageId);
+								handleResult(send, obj, funcId, funcBinary, Promise.reject(new Error('Rate limit exceeded')), messageId);
 							} else {
-								throw new Error(`Rate limit exceeded (${funcName})`);
+								throw new Error(`Rate limit exceeded (${funcId})`);
 							}
 						});
 					} catch (e) {
@@ -570,7 +577,7 @@ function connectClient(socket: ws, server: InternalServer, originalRequest: Orig
 
 		if (server.debug) log('client connected');
 
-		server.packetHandler.sendString(send, '*version', MessageType.Version, 0, 0, server.hash);
+		server.packetHandler.sendString(send, MessageType.Version, 0, 0, server.hash);
 		server.clients.push(obj);
 
 		if (serverActions.connected) {
