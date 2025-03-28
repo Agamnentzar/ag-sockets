@@ -231,6 +231,7 @@ export function createPacketHandler(
 			funcName = localNames[funcId];
 		}
 
+		// TODO: use different lists, don't use funcName for rejects/resolves/error/version
 		const funcObj = funcSpecial ? specialFuncList : funcList;
 		const func = funcObj[funcName];
 
@@ -289,7 +290,7 @@ function generateLocalHandlerCode(
 				code += `        if (!checkRateLimit(${packetId}, callsList, ${limit}, ${frame})) `;
 
 				if (options.promise) {
-					code += `handleResult(${packetId}, '${name}', ${binaryResult ? 'true' : 'false'}, Promise.reject(new Error('Rate limit exceeded')), messageId);\n`;
+					code += `handleResult(${packetId}, ${binaryResult ? 'true' : 'false'}, Promise.reject(new Error('Rate limit exceeded')), messageId);\n`;
 				} else {
 					code += `throw new Error('Rate limit exceeded (${name})');\n`;
 				}
@@ -321,7 +322,7 @@ function generateLocalHandlerCode(
 
 			if (options.promise) {
 				code += `        var result = ${call};\n`;
-				code += `        handleResult(${packetId}, '${name}', ${binaryResult ? 'true' : 'false'}, result, messageId);\n`;
+				code += `        handleResult(${packetId}, ${binaryResult ? 'true' : 'false'}, result, messageId);\n`;
 			} else {
 				code += `        ${call};\n`;
 			}
