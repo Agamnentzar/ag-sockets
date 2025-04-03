@@ -313,7 +313,7 @@ function generateLocalHandlerCode(
 			}
 
 			// skip to end if we failed to decode so we don't try to decode more packets
-			code += `        catch (e) {\n`;
+			code += `        } catch (e) {\n`;
 			code += `          reader.offset = reader.view.byteLength;\n`;
 			code += `          throw e;\n`;
 			code += `        }\n`;
