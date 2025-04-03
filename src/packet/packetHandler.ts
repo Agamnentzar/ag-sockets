@@ -296,8 +296,10 @@ function generateLocalHandlerCode(
 				}
 			}
 
+			code += `        try {\n`;
+
 			if (options.binary) {
-				code += createReadFunction(options.binary, '        ');
+				code += createReadFunction(options.binary, '          ');
 
 				for (let i = 0, j = 0; i < options.binary.length; i++, j++) {
 					if (options.binary[i] === Bin.U8ArrayOffsetLength || options.binary[i] === Bin.DataViewOffsetLength) {
@@ -306,9 +308,15 @@ function generateLocalHandlerCode(
 					args.push(j);
 				}
 			} else {
-				code += createReadFunction([Bin.Obj], '        ');
+				code += createReadFunction([Bin.Obj], '          ');
 				args.push(0);
 			}
+
+			// skip to end if we failed to decode so we don't try to decode more packets
+			code += `        catch (e) {\n`;
+			code += `          reader.offset = reader.view.byteLength;\n`;
+			code += `          throw e;\n`;
+			code += `        }\n`;
 
 			const argList = args.map(i => `a${i}`).join(', ');
 
