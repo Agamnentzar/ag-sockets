@@ -284,6 +284,8 @@ function generateLocalHandlerCode(
 		code += `      case ${packetId}: {\n`;
 
 		if (options.binary || useBinaryByDefault) {
+			code += `        try {\n`;
+
 			if (options.rateLimit || options.serverRateLimit) {
 				const { limit, frame } = options.serverRateLimit ? parseRateLimit(options.serverRateLimit, false) : parseRateLimit(options.rateLimit!, true);
 
@@ -295,8 +297,6 @@ function generateLocalHandlerCode(
 					code += `throw new Error('Rate limit exceeded (${name})');\n`;
 				}
 			}
-
-			code += `        try {\n`;
 
 			if (options.binary) {
 				code += createReadFunction(options.binary, '          ');
