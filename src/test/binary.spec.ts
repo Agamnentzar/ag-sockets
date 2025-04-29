@@ -2,7 +2,7 @@ import './common';
 import { expect } from 'chai';
 import { spy, assert } from 'sinon';
 import { Bin, MethodDef } from '../interfaces';
-import { createPacketHandler } from '../packet/packetHandler';
+import { createPacketHandler, PacketHandler, RemoteState, Send } from '../packet/packetHandler';
 import { createBinaryReader } from '../packet/binaryReader';
 
 describe('binary encoding', () => {
@@ -24,6 +24,8 @@ describe('binary encoding', () => {
 		['view_off_len', { binary: [Bin.DataViewOffsetLength] }],
 		['long_array_of_arrays', { binary: [Bin.Str, [Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Str, Bin.Bool, Bin.U32, Bin.Str, Bin.Str, Bin.U8]] }],
 		['object', { binary: [{ foo: Bin.Str, bar: Bin.I32 }] }],
+		['foo1', { binary: [Bin.Obj] }],
+		['foo2', { binary: [Bin.Obj] }],
 	];
 
 	const server: MethodDef[] = [
@@ -33,19 +35,28 @@ describe('binary encoding', () => {
 
 	let actions: any;
 	let remote: any;
+	let remoteState: RemoteState;
+	let sender: PacketHandler;
+	let receiver: PacketHandler;
+	let send: Send;
 
 	beforeEach(() => {
 		actions = {};
 		remote = {};
-		const sender = createPacketHandler(server, client, { development: true }, console.log);
-		const receiver = createPacketHandler(client, server, { development: true }, console.log);
-		const send = (buffer: Uint8Array | string) => {
+		sender = createPacketHandler(server, client, { development: true }, console.log);
+		receiver = createPacketHandler(client, server, { development: true }, console.log);
+		send = (buffer: Uint8Array | string) => {
 			if (typeof buffer === 'string') throw new Error('buffer is string');
 			// console.log(buffer.byteLength);
+			// console.log(buffer);
 			const reader = createBinaryReader(buffer);
-			receiver.recvBinary(reader, actions, {}, [], 0);
+			const strings: string[] = [];
+			while (reader.offset < reader.view.byteLength) {
+				receiver.recvBinary(reader, actions, {}, [], 0, strings);
+			}
 		};
-		sender.createRemote(remote, send, { supportsBinary: true, sentSize: 0 });
+		remoteState = { supportsBinary: true, sentSize: 0, batch: false };
+		sender.createRemote(remote, send, remoteState);
 	});
 
 	it('numbers', () => {
@@ -256,5 +267,19 @@ describe('binary encoding', () => {
 		};
 
 		remote.object(dataObject);
+	});
+
+	it('batch', () => {
+		actions.foo1 = spy();
+		actions.foo2 = spy();
+
+		remoteState.batch = true;
+		remote.foo1({ foo: 'test string' });
+		remote.foo2({ foo: 'test string' });
+		sender.commitBatch(send, remoteState);
+		remoteState.batch = false;
+
+		assert.calledWithMatch(actions.foo1, { foo: 'test string' });
+		assert.calledWithMatch(actions.foo2, { foo: 'test string' });
 	});
 });

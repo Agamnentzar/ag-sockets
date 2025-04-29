@@ -29,6 +29,7 @@ export interface SocketService<TClient extends SocketClient, TServer extends Soc
 	lastPacket: number;
 	isConnected: boolean;
 	supportsBinary: boolean;
+	batch: boolean;
 	options: ClientOptions;
 	connect(): void;
 	disconnect(): void;
@@ -144,4 +145,12 @@ export interface RateLimit {
 	frame: number;
 	calls: number[];
 	promise?: boolean;
+}
+
+export interface StringsDictionary {
+	get(value: string): number | undefined;
+	add(value: string): void;
+	size(): number;
+	clear(): void;
+	trimTo(size: number): void;
 }

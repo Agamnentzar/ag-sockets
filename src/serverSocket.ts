@@ -9,6 +9,8 @@ import { Server, ClientState, InternalServer, GlobalConfig, ServerHost, CreateSe
 import { hasToken, createToken, getToken, getTokenFromClient, returnTrue, createOriginalRequest, defaultErrorHandler, createServerOptions, optionsWithDefaults, toClientOptions, getQuery, callWithErrorHandling, parseRateLimitDef } from './serverUtils';
 import { BinaryReader, createBinaryReaderFromBuffer, getBinaryReaderBuffer } from './packet/binaryReader';
 
+const strings: string[] = [];
+
 export function createServer<TServer, TClient>(
 	httpServer: HttpServer | undefined,
 	serverType: new (...args: any[]) => TServer,
@@ -218,6 +220,7 @@ function createInternalServer(createServer: CreateServerMethod, options: ServerO
 		clientsByToken: new Map(),
 		totalSent: 0,
 		totalReceived: 0,
+		batchClient: undefined,
 		currentClientId: options.clientBaseId ?? 1,
 		path: options.path ?? '',
 		hash: options.hash ?? '',
@@ -246,6 +249,8 @@ function createInternalServer(createServer: CreateServerMethod, options: ServerO
 	};
 
 	function handleResult(send: Send, obj: ClientState, funcId: number, funcBinary: boolean, result: Promise<any>, messageId: number) {
+		if (obj.batch) throw new Error('Handling result in the middle of packet batching');
+		
 		if (result && typeof result.then === 'function') {
 			result.then(result => {
 				try {
@@ -418,6 +423,7 @@ function connectClient(socket: ws, server: InternalServer, originalRequest: Orig
 		lastSendTime: Date.now(),
 		sentSize: 0,
 		supportsBinary: !!server.forceBinary || !!(query && query.bin === 'true'),
+		batch: false,
 		token,
 		ping() {
 			socket.send('');
@@ -450,6 +456,22 @@ function connectClient(socket: ws, server: InternalServer, originalRequest: Orig
 				} else {
 					closeReason = reason;
 					socket.close();
+				}
+			},
+			beginBatch() {
+				if (server.batchClient) errorHandler.handleError(null, new Error(`Already in batch`));
+				server.batchClient = obj;
+				obj.batch = true;
+			},
+			commitBatch() {
+				if (!server.batchClient) errorHandler.handleError(null, new Error(`Not in a batch`));
+				if (server.batchClient !== obj) errorHandler.handleError(null, new Error(`Incorrect client for batch`));
+
+				try {
+					server.packetHandler.commitBatch(send, obj);
+				} finally {
+					server.batchClient = undefined;
+					obj.batch = false;
 				}
 			},
 		}, send),
@@ -533,13 +555,17 @@ function connectClient(socket: ws, server: InternalServer, originalRequest: Orig
 				obj.supportsBinary = obj.supportsBinary || !!(flags && flags.binary);
 
 				if (reader) {
-					while (reader.offset < reader.view.byteLength) { // read batch of packets
-						try {
-							obj.lastMessageId++;
-							server.packetHandler.recvBinary(reader, serverActions, {}, callsList, obj.lastMessageId, handleResult2);
-						} catch (e) {
-							errorHandler.handleRecvError(obj.client, e, getBinaryReaderBuffer(reader));
+					try {
+						while (reader.offset < reader.view.byteLength) { // read batch of packets
+							try {
+								obj.lastMessageId++;
+								server.packetHandler.recvBinary(reader, serverActions, {}, callsList, obj.lastMessageId, strings, handleResult2);
+							} catch (e) {
+								errorHandler.handleRecvError(obj.client, e, getBinaryReaderBuffer(reader));
+							}
 						}
+					} finally {
+						strings.length = 0;
 					}
 				} else if (data) {
 					try {

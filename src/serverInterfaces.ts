@@ -1,7 +1,7 @@
 import { ClientOptions, SocketServer, Logger, MethodDef, CommonOptions, OnSend, OnRecv, RateLimitDef } from './interfaces';
 import { SocketServerClient, ErrorHandler } from './server';
 import { IncomingMessage } from 'http';
-import { Send, PacketHandler } from './packet/packetHandler';
+import { Send, PacketHandler, RemoteState } from './packet/packetHandler';
 
 export interface Token {
 	id: string;
@@ -9,15 +9,13 @@ export interface Token {
 	expire: number;
 }
 
-export interface ClientState {
+export interface ClientState extends RemoteState {
 	lastMessageTime: number;
 	lastMessageId: number;
 	lastSendTime: number;
-	sentSize: number;
 	token: Token | undefined;
 	ping(): void;
 	client: SocketServerClient;
-	supportsBinary: boolean;
 }
 
 export interface ServerInfo {
@@ -75,6 +73,7 @@ export interface InternalServer {
 	tokenInterval: any;
 	totalSent: number;
 	totalReceived: number;
+	batchClient: ClientState | undefined;
 	// options
 	id: string;
 	path: string;

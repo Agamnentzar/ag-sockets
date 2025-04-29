@@ -1,4 +1,6 @@
+import { StringsDictionary } from '../interfaces';
 import { encodeStringTo } from '../utf8';
+import { createStringsDictionary } from '../utils';
 import { Type, Special, NumberType } from './packetCommon';
 
 export interface BinaryWriter {
@@ -34,7 +36,7 @@ export function writeStringValue(writer: BinaryWriter, value: string) {
 }
 
 export function writeObject(writer: BinaryWriter, value: any) {
-	writeAny(writer, value, new Map<string, number>());
+	writeAny(writer, value, createStringsDictionary());
 }
 
 export function writeUint8Array(writer: BinaryWriter, value: Uint8Array | null) {
@@ -162,9 +164,14 @@ export function resetWriter(writer: BinaryWriter) {
 	writer.offset = 0;
 }
 
-export function resizeWriter(writer: BinaryWriter) {
+export function resizeWriter(writer: BinaryWriter, preserveBytes = 0) {
+	const old = writer.view;
 	writer.view = new DataView(new ArrayBuffer(writer.view.byteLength * 2));
 	writer.offset = 0;
+
+	if (preserveBytes) {
+		new Uint8Array(writer.view.buffer).set(new Uint8Array(old.buffer, old.byteOffset, preserveBytes));
+	}
 }
 
 export function writeInt8(writer: BinaryWriter, value: number) {
@@ -270,7 +277,7 @@ function writeShortLength(writer: BinaryWriter, type: Type, length: number) {
 	}
 }
 
-export function writeAny(writer: BinaryWriter, value: any, strings: Map<string, number>) {
+export function writeAny(writer: BinaryWriter, value: any, strings: StringsDictionary) {
 	if (value === undefined) {
 		writeUint8(writer, Type.Special | Special.Undefined);
 	} else if (value === null) {
@@ -329,7 +336,7 @@ export function writeAny(writer: BinaryWriter, value: any, strings: Map<string, 
 		} else {
 			writeUint8(writer, Type.String);
 			writeStringValue(writer, value);
-			strings.set(value, strings.size);
+			strings.add(value);
 		}
 	} else if (Array.isArray(value)) {
 		const length = value.length;
@@ -355,7 +362,7 @@ export function writeAny(writer: BinaryWriter, value: any, strings: Map<string, 
 				if (index === undefined) {
 					writeLength(writer, 0);
 					writeStringValue(writer, key);
-					strings.set(key, strings.size);
+					strings.add(key);
 				} else {
 					writeLength(writer, index + 1);
 				}

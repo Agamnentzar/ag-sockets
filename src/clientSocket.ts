@@ -31,6 +31,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 	const callsLists: number[] = [];
 	const rateLimits: (RateLimitDef | undefined)[] = originalOptions.server.map(() => undefined);
 	const pingBuffer = new ArrayBuffer(0);
+	const strings: string[] = [];
 	let supportsBinary = isSupportingBinary();
 	let socket: WebSocket | null = null;
 	let connecting = false;
@@ -53,6 +54,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		lastPacket: 0,
 		isConnected: false,
 		supportsBinary,
+		batch: false,
 		options: originalOptions,
 		connect,
 		disconnect,
@@ -150,13 +152,17 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 					clientSocket.receivedSize += data.byteLength;
 					const reader = createBinaryReaderFromBuffer(data, 0, data.byteLength);
 
-					while (reader.offset < reader.view.byteLength) { // read batch of packets
-						try {
-							clientSocket.receivedPackets++;
-							packet.recvBinary(reader, clientSocket.client, special, mockCallsList, 0);
-						} catch (e) {
-							errorHandler.handleRecvError(e, new Uint8Array(data));
+					try {
+						while (reader.offset < reader.view.byteLength) { // read batch of packets
+							try {
+								clientSocket.receivedPackets++;
+								packet.recvBinary(reader, clientSocket.client, special, mockCallsList, 0, strings);
+							} catch (e) {
+								errorHandler.handleRecvError(e, new Uint8Array(data));
+							}
 						}
+					} finally {
+						strings.length = 0;
 					}
 				}
 			}

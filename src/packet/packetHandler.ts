@@ -1,5 +1,5 @@
-import { FuncList, Logger, getNames, MethodDef, OnSend, OnRecv, Bin, RemoteOptions, BinaryDefItem } from '../interfaces';
-import { isBinaryOnlyPacket, parseRateLimit, checkRateLimit3 } from '../utils';
+import { FuncList, Logger, getNames, MethodDef, OnSend, OnRecv, Bin, RemoteOptions, BinaryDefItem, StringsDictionary } from '../interfaces';
+import { isBinaryOnlyPacket, parseRateLimit, checkRateLimit3, createStringsDictionary } from '../utils';
 import {
 	writeUint8, writeInt16, writeUint16, writeUint32, writeInt32, writeFloat64, writeFloat32, writeBoolean,
 	writeString, writeArrayBuffer, writeUint8Array, writeInt8, writeArray, writeArrayHeader,
@@ -94,6 +94,7 @@ export const defaultHandler: FunctionHandler = (_funcId, func, funcObj, args) =>
 export interface RemoteState {
 	supportsBinary: boolean;
 	sentSize: number;
+	batch: boolean;
 }
 
 export type HandleResult = (funcId: number, funcBinary: boolean, result: Promise<any>, messageId: number) => void;
@@ -111,21 +112,18 @@ export interface HandlerOptions {
 	onRecv?: OnRecv;
 }
 
-type CreateRemoteHandler = (
-	remote: any, send: Send, state: RemoteState, options: RemoteOptions, writerMethods: any, writer: BinaryWriter,
-) => any;
+type CreateRemoteHandler = (remote: any, send: Send, state: RemoteState, options: RemoteOptions, writerMethods: any, writer: BinaryWriter, strings: StringsDictionary) => any;
 
-type LocalHandler = (
-	reader: BinaryReader, actions: any, specialActions: any, callsList: number[], messageId: number, handleResult?: HandleResult
-) => void;
+type LocalHandler = (reader: BinaryReader, actions: any, specialActions: any, callsList: number[], messageId: number, strings: string[], handleResult?: HandleResult) => void;
 
 export interface PacketHandler {
 	sendString(send: Send, id: number, funcId: number, messageId: number, result: any): number;
 	sendBinary(send: Send, id: number, funcId: number, messageId: number, result: any): number;
 	createRemote(remote: any, send: Send, state: RemoteState): void;
 	recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction?: FunctionHandler): void;
-	recvBinary(reader: BinaryReader, funcList: FuncList, specialFuncList: FuncList, callsList: number[], messageId: number, handleResult?: HandleResult): void;
+	recvBinary(reader: BinaryReader, funcList: FuncList, specialFuncList: FuncList, callsList: number[], messageId: number, strings: string[], handleResult?: HandleResult): void;
 	writerBufferSize(): number;
+	commitBatch(send: Send, state: RemoteState): void;
 }
 
 export function createPacketHandler(
@@ -137,6 +135,7 @@ export function createPacketHandler(
 	const debug = !!options.debug;
 	const forceBinaryPackets = !!options.forceBinaryPackets;
 	const development = !!options.development;
+	const useBuffer = !!options.useBuffer;
 	const onSend = options.onSend;
 	const onRecv = options.onRecv ?? (() => { });
 
@@ -149,7 +148,7 @@ export function createPacketHandler(
 	const recvBinary = generateLocalHandlerCode(local, remoteNames, options, onRecv);
 	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
 	const writer = createBinaryWriter();
-	const strings = new Map();
+	const strings = createStringsDictionary();
 
 	function sendString(send: Send, id: number, funcId: number, messageId: number, result: any): number {
 		try {
@@ -202,7 +201,29 @@ export function createPacketHandler(
 	}
 
 	function createRemote(remote: any, send: Send, state: RemoteState) {
-		createRemoteHandler(remote, send, state, options, writerMethods, writer);
+		createRemoteHandler(remote, send, state, options, writerMethods, writer, strings);
+	}
+
+	function commitBatchUint8Array(send: Send, state: RemoteState) {
+		try {
+			const buffer = new Uint8Array(writer.view.buffer, writer.view.byteOffset, writer.offset);
+			send(buffer);
+			state.sentSize += buffer.byteLength;
+		} finally {
+			strings.clear();
+			writer.offset = 0;
+		}
+	}
+
+	function commitBatchBuffer(send: Send, state: RemoteState) {
+		try {
+			const buffer = Buffer.from(writer.view.buffer, writer.view.byteOffset, writer.offset);
+			send(buffer);
+			state.sentSize += buffer.length;
+		} finally {
+			strings.clear();
+			writer.offset = 0;
+		}
 	}
 
 	function recvString(data: string, funcList: FuncList, specialFuncList: FuncList, handleFunction = defaultHandler) {
@@ -257,19 +278,17 @@ export function createPacketHandler(
 		return writer.view.byteLength;
 	}
 
-	return { sendString, sendBinary, createRemote, recvString, recvBinary, writerBufferSize };
+	const commitBatch = useBuffer ? commitBatchBuffer : commitBatchUint8Array;
+
+	return { sendString, sendBinary, createRemote, recvString, recvBinary, writerBufferSize, commitBatch };
 }
 
 // code generation
 
-function generateLocalHandlerCode(
-	methods: MethodDef[], remoteNames: string[], { debug, printGeneratedCode, useBinaryByDefault, useBinaryResultByDefault }: HandlerOptions, onRecv: OnRecv
-): LocalHandler {
+function generateLocalHandlerCode(methods: MethodDef[], remoteNames: string[], { debug, printGeneratedCode, useBinaryByDefault, useBinaryResultByDefault }: HandlerOptions, onRecv: OnRecv): LocalHandler {
 	let code = ``;
-	code += `var strings = [];\n`;
 	code += `${Object.keys(readerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n\n`;
-	code += `  return function (reader, actions, special, callsList, messageId, handleResult) {\n`;
-	code += `    strings.length = 0;\n`;
+	code += `  return function (reader, actions, special, callsList, messageId, strings, handleResult) {\n`;
 	code += `    var packetId = readUint8(reader);\n`;
 	code += `    switch (packetId) {\n`;
 
@@ -382,8 +401,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 	let code = ``;
 	code += `${Object.keys(writerMethods).map(key => `  var ${key} = methods.${key};`).join('\n')}\n`;
 	code += `  var log = remoteOptions.log || function () {};\n`;
-	code += `  var onSend = remoteOptions.onSend || function () {};\n`;
-	code += `  var strings = new Map();\n\n`;
+	code += `  var onSend = remoteOptions.onSend || function () {};\n\n`;
 
 	let packetId = 0;
 	const bufferCtor = handlerOptions.useBuffer ? 'Buffer.from' : 'new Uint8Array';
@@ -417,10 +435,12 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 		if (options.binary || handlerOptions.useBinaryByDefault) {
 			code += `${indent}if (remoteState.supportsBinary) {\n`;
 			code += `${indent}  try {\n`;
+			code += `${indent}    var stringsSize = strings.size();`;
+			code += `${indent}    var writerOffset = writer.offset;`;
 			code += `${indent}    while (true) {\n`;
 			code += `${indent}      try {\n`;
-			code += `${indent}        strings.clear();\n`; // TODO: remove this, but removing this somehow causes tests to fail
-			code += `${indent}        writer.offset = 0;\n`;
+			code += `${indent}        strings.trimTo(stringsSize);\n`; // reset to previous string list if we failed to write packet
+			code += `${indent}        writer.offset = writerOffset;\n`; // reset to start in case we failed to write packet
 
 			if (!options.binary) {
 				code += `${indent}        var a0 = [];\n`;
@@ -432,7 +452,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}        break;\n`;
 			code += `${indent}      } catch (e) {\n`;
 			code += `${indent}        if (isSizeError(e)) {\n`;
-			code += `${indent}          resizeWriter(writer);\n`;
+			code += `${indent}          resizeWriter(writer, writerOffset);\n`;
 			code += `${indent}        } else {\n`;
 
 			if (catchError) {
@@ -444,18 +464,22 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}        }\n`;
 			code += `${indent}      }\n`;
 			code += `${indent}    }\n`;
-			code += `${indent}    var buffer = ${bufferCtor}(writer.view.buffer, writer.view.byteOffset, writer.offset);\n`;
-			code += `${indent}    send(buffer);\n`;
-			code += `${indent}    remoteState.sentSize += buffer.${bufferLength};\n`; // TODO: move from here, just count in send function
-			code += `${indent}    onSend(${packetId}, '${name}', buffer.${bufferLength}, true);\n`;
+			code += `${indent}    if (!remoteState.batch) {\n`;
+			code += `${indent}      var buffer = ${bufferCtor}(writer.view.buffer, writer.view.byteOffset, writer.offset);\n`;
+			code += `${indent}      send(buffer);\n`;
+			code += `${indent}      remoteState.sentSize += buffer.${bufferLength};\n`; // TODO: move from here, just count in send function
+			code += `${indent}      onSend(${packetId}, '${name}', buffer.${bufferLength}, true);\n`;
 
 			if (handlerOptions.debug && !options.ignore) {
-				code += `${indent}    log('SEND [' + buffer.${bufferLength} + '] (bin) "${name}"', arguments);\n`;
+				code += `${indent}      log('SEND [' + buffer.${bufferLength} + '] (bin) "${name}"', arguments);\n`;
 			}
 
+			code += `${indent}    }\n`;
 			code += `${indent}  } finally {\n`;
-			code += `${indent}    strings.clear();\n`;
-			code += `${indent}    writer.offset = 0;\n`;
+			code += `${indent}    if (!remoteState.batch) {\n`;
+			code += `${indent}      strings.clear();\n`;
+			code += `${indent}      writer.offset = 0;\n`;
+			code += `${indent}    }\n`;
 			code += `${indent}  }\n`;
 			code += `${indent}} else {\n`;
 		}
@@ -492,10 +516,10 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 	}
 
 	if (handlerOptions.printGeneratedCode) {
-		console.log(`\n\nfunction createSendHandler(remote, send, removeState, remoteOptions, methods, writer) {\n${code}}\n`);
+		console.log(`\n\nfunction createSendHandler(remote, send, removeState, remoteOptions, methods, writer, strings) {\n${code}}\n`);
 	}
 
-	return new Function('remote', 'send', 'remoteState', 'remoteOptions', 'methods', 'writer', code) as any;
+	return new Function('remote', 'send', 'remoteState', 'remoteOptions', 'methods', 'writer', 'strings', code) as any;
 }
 
 let id = 0;

@@ -1,4 +1,4 @@
-import { MethodDef, BinaryDef, Bin, RateLimitDef, BinaryDefItem } from './interfaces';
+import { MethodDef, BinaryDef, Bin, RateLimitDef, BinaryDefItem, StringsDictionary } from './interfaces';
 
 export function getLength(message: any): number {
 	return (message ? (message as string | Buffer).length || (message as ArrayBuffer).byteLength : 0) | 0;
@@ -118,4 +118,35 @@ export function isBinaryOnlyPacket(method: MethodDef) {
 
 export function hasArrayBuffer(def: BinaryDef | BinaryDefItem): boolean {
 	return Array.isArray(def) ? def.some(hasArrayBuffer) : (def === Bin.Buffer);
+}
+
+export function createStringsDictionary(): StringsDictionary {
+	const array: string[] = [];
+	const map = new Map<string, number>();
+
+	return {
+		get(value: string) {
+			return map.get(value);
+		},
+		add(value: string) {
+			map.set(value, array.length);
+			array.push(value);
+		},
+		size() {
+			return array.length;
+		},
+		clear() {
+			array.length = 0;
+			map.clear();
+		},
+		trimTo(size: number) {
+			if (array.length !== size) {
+				array.length = size;
+				map.clear();
+				for (let i = 0; i < array.length; i++) {
+					map.set(array[i], i);
+				}
+			}
+		}
+	};
 }
