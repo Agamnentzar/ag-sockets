@@ -14,6 +14,8 @@ export interface ClientExtensions {
 	isConnected(): boolean;
 	lastMessageTime(): number;
 	disconnect(force?: boolean, invalidateToken?: boolean, reason?: string): void;
+	beginBatch(): void;
+	commitBatch(): void;
 }
 
 export type SocketServerClient = SocketClient & ClientExtensions;
