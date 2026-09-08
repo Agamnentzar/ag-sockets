@@ -502,6 +502,32 @@ describe('ClientSocket', () => {
 				expect(result2).equal('a');
 			});
 
+			it('ignores resolve for different method with the same message id', async () => {
+				connectLastWebSocket();
+
+				const promise = service.server.foo();
+
+				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 2, 1, 'wrong']) }); // foo2
+
+				expect(service.server.fooInProgress).true;
+
+				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 1, 'ok']) });
+
+				expect(await promise).equal('ok');
+				expect(service.server.fooInProgress).false;
+			});
+
+			it('ignores reject for different method with the same message id', async () => {
+				connectLastWebSocket();
+
+				const promise = service.server.foo();
+
+				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Rejected, 2, 1, 'wrong']) }); // foo2
+				lastWebSocket.onmessage({ data: JSON.stringify([MessageType.Resolved, 1, 1, 'ok']) });
+
+				expect(await promise).equal('ok');
+			});
+
 			it('throws error if using default error handler', () => {
 				service = createClientSocket<Client, Server>(clientOptions);
 				service.connect();

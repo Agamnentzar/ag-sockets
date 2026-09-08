@@ -65,6 +65,74 @@ describe('PacketHandler', () => {
 		});
 	});
 
+	describe('sendBinary()', () => {
+		const resolved = [
+			MessageType.Resolved,
+			1, // funcId
+			123, 0, 0, 0, // messageId
+			Type.Number | NumberType.Uint8, 125 // result (any)
+		];
+
+		it('sends message to websocket', () => {
+			const send = spy();
+
+			handler.sendBinary(send, MessageType.Resolved, 1, 123, 125);
+
+			assert.calledOnce(send);
+			expect(Array.from(send.args[0][0])).eql(resolved);
+		});
+
+		it('returns message length', () => {
+			expect(handler.sendBinary(spy(), MessageType.Resolved, 1, 123, 125)).equal(resolved.length);
+		});
+
+		it('returns 0 on error', () => {
+			const send = stub().throws(new Error(''));
+
+			expect(handler.sendBinary(send, MessageType.Resolved, 1, 123, 125)).equal(0);
+		});
+
+		it('does not leak sent message into next packet sent to another remote', () => {
+			const send = spy();
+			const remote: any = {};
+			handler.createRemote(remote, send, { sentSize: 0, supportsBinary: true, batch: false });
+
+			handler.sendBinary(spy(), MessageType.Resolved, 1, 123, 125);
+			remote.bar(8);
+
+			assert.calledOnce(send);
+			expect(Array.from(send.args[0][0])).eql([1, 8]);
+		});
+
+		it('does not leak sent message into next batch sent to another remote', () => {
+			const send = spy();
+			const remote: any = {};
+			const state: RemoteState = { sentSize: 0, supportsBinary: true, batch: false };
+			handler.createRemote(remote, send, state);
+
+			handler.sendBinary(spy(), MessageType.Resolved, 1, 123, 125);
+			state.batch = true;
+			remote.bar(8);
+			remote.bar(9);
+			handler.commitBatch(send, state);
+
+			assert.calledOnce(send);
+			expect(Array.from(send.args[0][0])).eql([1, 8, 1, 9]);
+		});
+
+		it('does not leak message that failed to send into next packet', () => {
+			const send = spy();
+			const remote: any = {};
+			handler.createRemote(remote, send, { sentSize: 0, supportsBinary: true, batch: false });
+
+			handler.sendBinary(stub().throws(new Error('')), MessageType.Resolved, 1, 123, 125);
+			remote.bar(8);
+
+			assert.calledOnce(send);
+			expect(Array.from(send.args[0][0])).eql([1, 8]);
+		});
+	});
+
 	describe('recvString()', () => {
 		beforeEach(() => {
 			funcs = {

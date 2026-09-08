@@ -168,35 +168,42 @@ export function createPacketHandler(
 	}
 
 	function sendBinary(send: Send, id: number, funcId: number, messageId: number, result: any): number {
-		while (true) {
-			try {
-				strings.clear();
-				writer.offset = 0;
-				writeUint8(writer, id);
-				writeUint8(writer, funcId);
-				writeUint32(writer, messageId);
-				writeAny(writer, result, strings);
+		try {
+			while (true) {
+				try {
+					strings.clear();
+					writer.offset = 0;
+					writeUint8(writer, id);
+					writeUint8(writer, funcId);
+					writeUint32(writer, messageId);
+					writeAny(writer, result, strings);
 
-				const data = options.useBuffer ?
-					Buffer.from(writer.view.buffer, writer.view.byteOffset, writer.offset) :
-					new Uint8Array(writer.view.buffer, writer.view.byteOffset, writer.offset);
+					const data = options.useBuffer ?
+						Buffer.from(writer.view.buffer, writer.view.byteOffset, writer.offset) :
+						new Uint8Array(writer.view.buffer, writer.view.byteOffset, writer.offset);
 
-				send(data);
+					send(data);
 
-				if (debug) {
-					log(`SEND [${data.length}] (bin)`, [id, funcId, messageId, result]);
-				}
+					if (debug) {
+						log(`SEND [${data.length}] (bin)`, [id, funcId, messageId, result]);
+					}
 
-				if (onSend) onSend(id, '', data.length, true);
-				return data.length;
-			} catch (e) {
-				if (isSizeError(e)) {
-					resizeWriter(writer);
-				} else {
-					if (debug || development) throw e;
-					return 0;
+					if (onSend) onSend(id, '', data.length, true);
+					return data.length;
+				} catch (e) {
+					if (isSizeError(e)) {
+						resizeWriter(writer);
+					} else {
+						if (debug || development) throw e;
+						return 0;
+					}
 				}
 			}
+		} finally {
+			// writer and strings are shared by all remotes created from this handler, anything left
+			// in the writer would be prepended to the next packet (or batch) sent to any of them
+			strings.clear();
+			writer.offset = 0;
 		}
 	}
 

@@ -293,6 +293,22 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		} catch { }
 	}
 
+	// replies are matched to requests by message id only, a reply for a different method
+	// (misrouted or out of sync) must not settle the request that happens to have the same id
+	function getDefer(messageId: number, name: string) {
+		const defer = defers.get(messageId);
+
+		if (defer && (defer as any).name !== name) {
+			if (clientSocket.options.debug) {
+				log(`ignoring reply for ${name} (pending: ${(defer as any).name}, messageId: ${messageId})`);
+			}
+
+			return undefined;
+		}
+
+		return defer;
+	}
+
 	function createMethod(name: string, id: number, options: MethodOptions) {
 		if (name) {
 			if (options.promise) {
@@ -349,7 +365,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		};
 
 		special['*resolve:' + name] = (messageId: number, result: any) => {
-			const defer = defers.get(messageId);
+			const defer = getDefer(messageId, name);
 
 			if (defer) {
 				defers.delete(messageId);
@@ -361,7 +377,7 @@ export function createClientSocket<TClient extends SocketClient, TServer extends
 		};
 
 		special['*reject:' + name] = (messageId: number, error: string) => {
-			const defer = defers.get(messageId);
+			const defer = getDefer(messageId, name);
 
 			if (defer) {
 				defers.delete(messageId);
