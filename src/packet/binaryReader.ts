@@ -73,6 +73,7 @@ export function readFloat64(reader: BinaryReader) {
 export function readBytes(reader: BinaryReader, length: number) {
 	const offset = reader.offset;
 	reader.offset += length;
+	checkReadLength(reader);
 	return new Uint8Array(reader.view.buffer, reader.view.byteOffset + offset, length);
 }
 
@@ -82,8 +83,17 @@ export function readArrayBuffer(reader: BinaryReader) {
 
 	const offset = reader.offset;
 	reader.offset += length;
+	checkReadLength(reader);
 	const start = reader.view.byteOffset + offset;
 	return reader.view.buffer.slice(start, start + length);
+}
+
+// byte arrays are read straight from the underlying buffer, bypassing DataView bounds checks,
+// so a corrupted length would silently return bytes belonging to other packets in the same batch
+function checkReadLength(reader: BinaryReader) {
+	if (reader.offset > reader.view.byteLength) {
+		throw new RangeError('Exceeded DataView size');
+	}
 }
 
 export function readBoolean(reader: BinaryReader) {

@@ -1,8 +1,8 @@
 import './common';
 import { expect } from 'chai';
-import { assert, spy, stub } from 'sinon';
+import { assert, spy, stub, SinonSpy } from 'sinon';
 import { MessageType, PacketHandler, createPacketHandler, RemoteState } from '../packet/packetHandler';
-import { Bin } from '../interfaces';
+import { Bin, MethodDef } from '../interfaces';
 import { createBinaryReader } from '../packet/binaryReader';
 import { NumberType, Type } from '../packet/packetCommon';
 
@@ -247,6 +247,76 @@ describe('PacketHandler', () => {
 			handler.recvString('[1,"abc"]', funcs, special, handleResult);
 
 			assert.calledWithMatch(handleResult, 1, funcs.foo, funcs, ['abc']);
+		});
+	});
+
+	describe('commitBatch()', () => {
+		const methods: MethodDef[] = [
+			['bar', { binary: [Bin.U8] }],
+			['buf', { binary: [Bin.U8Array] }],
+			['obj', { binary: [Bin.Obj] }],
+		];
+		let batchHandler: PacketHandler;
+		let remote: any;
+		let state: RemoteState;
+		let send: SinonSpy;
+
+		beforeEach(() => {
+			batchHandler = createPacketHandler(['x'], methods, {}, () => { });
+			send = spy();
+			remote = {};
+			state = { sentSize: 0, supportsBinary: true, batch: false };
+			batchHandler.createRemote(remote, send, state);
+			state.batch = true;
+		});
+
+		// reads batched packets the same way client socket does, with strings dictionary shared by all of them
+		function receiveBatch() {
+			const actions = { bar: spy(), buf: spy(), obj: spy() };
+			const recvHandler = createPacketHandler(methods, ['y'], {}, () => { });
+			const reader = createBinaryReader(send.args[0][0]);
+			const strings: string[] = [];
+
+			while (reader.offset < reader.view.byteLength) {
+				recvHandler.recvBinary(reader, actions, {}, [], 0, strings);
+			}
+
+			return actions;
+		}
+
+		it('sends all batched packets in a single message', () => {
+			remote.bar(8);
+			remote.bar(9);
+
+			batchHandler.commitBatch(send, state);
+
+			assert.calledOnce(send);
+			expect(Array.from(send.args[0][0])).eql([0, 8, 0, 9]);
+		});
+
+		it('returns false if writing packet failed', () => {
+			expect(remote.buf(123)).false;
+		});
+
+		it('discards packet that failed to write', () => {
+			remote.bar(8);
+			remote.buf(123); // not a Uint8Array, fails after packet id is already written
+			remote.bar(9);
+
+			batchHandler.commitBatch(send, state);
+
+			expect(Array.from(send.args[0][0])).eql([0, 8, 0, 9]);
+		});
+
+		it('does not desynchronize strings dictionary when writing packet failed', () => {
+			remote.obj({ aaa: 1 });
+			remote.obj({ bbb: 2, ccc: () => { } }); // fails after "bbb" and "ccc" are added to dictionary
+			remote.obj({ bbb: 3 });
+
+			batchHandler.commitBatch(send, state);
+
+			const { obj } = receiveBatch();
+			expect(obj.args.map(args => args[0])).eql([{ aaa: 1 }, { bbb: 3 }]);
 		});
 	});
 

@@ -166,12 +166,16 @@ export function resetWriter(writer: BinaryWriter) {
 
 export function resizeWriter(writer: BinaryWriter, preserveBytes = 0) {
 	const old = writer.view;
-	writer.view = new DataView(new ArrayBuffer(writer.view.byteLength * 2));
-	writer.offset = 0;
+	const view = new DataView(new ArrayBuffer(old.byteLength * 2));
 
 	if (preserveBytes) {
-		new Uint8Array(writer.view.buffer).set(new Uint8Array(old.buffer, old.byteOffset, preserveBytes));
+		new Uint8Array(view.buffer).set(new Uint8Array(old.buffer, old.byteOffset, preserveBytes));
 	}
+
+	// writer is only modified once allocating and copying succeeded, so that failing to grow
+	// the buffer (out of memory) leaves any already written data (like a batch) intact
+	writer.view = view;
+	writer.offset = 0;
 }
 
 export function writeInt8(writer: BinaryWriter, value: number) {

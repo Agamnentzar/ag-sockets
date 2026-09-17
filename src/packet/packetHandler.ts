@@ -149,6 +149,8 @@ export function createPacketHandler(
 	const createRemoteHandler = generateRemoteHandlerCode(remote, options);
 	const writer = createBinaryWriter();
 	const strings = createStringsDictionary();
+	// `log` is passed separately from options, without merging it here logging in generated remote code does nothing
+	const remoteOptions: RemoteOptions = { ...options, log };
 
 	function sendString(send: Send, id: number, funcId: number, messageId: number, result: any): number {
 		try {
@@ -208,7 +210,7 @@ export function createPacketHandler(
 	}
 
 	function createRemote(remote: any, send: Send, state: RemoteState) {
-		createRemoteHandler(remote, send, state, options, writerMethods, writer, strings);
+		createRemoteHandler(remote, send, state, remoteOptions, writerMethods, writer, strings);
 	}
 
 	function commitBatchUint8Array(send: Send, state: RemoteState) {
@@ -441,9 +443,10 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 		if (options.binary || handlerOptions.useBinaryByDefault) {
 			code += `${indent}if (remoteState.supportsBinary) {\n`;
+			code += `${indent}  var stringsSize = strings.size();\n`;
+			code += `${indent}  var writerOffset = writer.offset;\n`;
+			code += `${indent}  var written = false;\n`;
 			code += `${indent}  try {\n`;
-			code += `${indent}    var stringsSize = strings.size();`;
-			code += `${indent}    var writerOffset = writer.offset;`;
 			code += `${indent}    while (true) {\n`;
 			code += `${indent}      try {\n`;
 			code += `${indent}        strings.trimTo(stringsSize);\n`; // reset to previous string list if we failed to write packet
@@ -454,8 +457,9 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 				code += `${indent}        for (var i = 0; i < arguments.length; i++) a0.push(arguments[i]);\n`;
 			}
 
-			code += createWriteFunction(packetId, options.binary ?? [Bin.Obj], `${indent}      `);
+			code += createWriteFunction(packetId, options.binary ?? [Bin.Obj], `${indent}        `);
 
+			code += `${indent}        written = true;\n`;
 			code += `${indent}        break;\n`;
 			code += `${indent}      } catch (e) {\n`;
 			code += `${indent}        if (isSizeError(e)) {\n`;
@@ -463,6 +467,8 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}        } else {\n`;
 
 			if (catchError) {
+				// without logging here the error is lost completely, the caller only gets "false" back
+				code += `${indent}          log('Failed to write packet "${name}"', e);\n`;
 				code += `${indent}          return false;\n`;
 			} else {
 				code += `${indent}          throw e;\n`;
@@ -486,6 +492,12 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 			code += `${indent}    if (!remoteState.batch) {\n`;
 			code += `${indent}      strings.clear();\n`;
 			code += `${indent}      writer.offset = 0;\n`;
+			code += `${indent}    } else if (!written) {\n`;
+			// batch is not cleared here, but the failed packet has to be discarded, otherwise the rest
+			// of the batch would be written past partial packet data and with strings dictionary
+			// containing entries the other side never received
+			code += `${indent}      strings.trimTo(stringsSize);\n`;
+			code += `${indent}      writer.offset = writerOffset;\n`;
 			code += `${indent}    }\n`;
 			code += `${indent}  }\n`;
 			code += `${indent}} else {\n`;
@@ -513,6 +525,7 @@ function generateRemoteHandlerCode(methods: MethodDef[], handlerOptions: Handler
 
 		if (catchError) {
 			code += `    } catch (e) {\n`;
+			code += `      log('Failed to send packet "${name}"', e);\n`;
 			code += `      return false;\n`;
 			code += `    }\n`;
 		}
